@@ -65,8 +65,6 @@ macOS 版已内置 PDG 快照，普通用户不需要 Flutter、Xcode 或源码�
 
 ## 从源码构建
 
-构建说明与普通用户文档分开，避免把未经验证的构建说成官方安装方式：
-
 - [构建说明（英文）](docs/development/BUILDING.md)
 - [平台支持矩阵（英文）](docs/development/PLATFORMS.md)
 
@@ -120,7 +118,7 @@ docs/           设计与开发文档
 - [许可说明](docs/development/LICENSING.md)
 - [更新检查](docs/development/UPDATES.md)
 
-开发文档目前以中文为主；构建/平台说明为英文，避免重复维护。
+开发文档目前以中文为主；构建/平台说明为英文。
 
 ## License
 
