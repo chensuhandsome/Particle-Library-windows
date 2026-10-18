@@ -21,6 +21,7 @@ class AppStrings {
   String get navFavorites => _t('收藏', 'Favorites');
   String get navNotes => _t('笔记', 'Notes');
   String get navSettings => _t('设置', 'Settings');
+  String get moreActions => _t('更多', 'More');
   String get editionLabel => _t('PDG 版本', 'PDG edition');
   String get offlineLabel => _t('离线数据', 'Offline data');
 
@@ -887,6 +888,11 @@ class AppStrings {
   String get reviewAnnotationNoteHint => _t('可选，写一句提醒…', 'Optional note…');
   String reviewAnnotationPage(int page) => _t('第 $page 页', 'Page $page');
   String get reviewAnnotationEdit => _t('编辑备注', 'Edit note');
+  String get reviewOpenNote => _t('打开笔记', 'Open note');
+  String get reviewNotCached => _t(
+    '该综述尚未缓存，请先在「PDG 综述」中下载。',
+    'This review is not cached; download it in PDG reviews.',
+  );
   String get reviewOpenOfficial => _t('打开官方 PDF', 'Open official PDF');
   String get reviewsOpenFailed =>
       _t('无法打开综述链接。', 'Could not open the review link.');

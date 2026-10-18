@@ -8,7 +8,7 @@ a GitHub **Release** when one is available; they do not need Flutter or Xcode.
 | Target | Status in this repository | Notes |
 |---|---|---|
 | macOS 15+, Apple Silicon | **Verified** | Release `.app` built and used for UI testing. |
-| iPhone/iPad | **Code present, build not verified** | Needs Xcode iOS platform + Apple signing; no certificate is committed. |
+| iPhone/iPad | **Simulator build verified; device signing not verified** | Xcode automatic signing with an Apple team is still required for a physical device; no certificate is committed. |
 | Android | **Not generated** | Scaffold and permissions still need to be added and tested. |
 | Windows | **Not generated** | Needs a Windows host/MSVC and a `windows/` scaffold. |
 | Linux | **Not generated** | Needs a Linux host/GTK and a `linux/` scaffold. |

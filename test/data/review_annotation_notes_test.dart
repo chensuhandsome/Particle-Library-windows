@@ -1,0 +1,132 @@
+import 'dart:io';
+import 'dart:ui';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pdgapp/data/review_annotation_notes.dart';
+import 'package:pdgapp/data/review_annotations.dart';
+import 'package:pdgapp/notes/notes.dart';
+
+void main() {
+  late Directory dir;
+  late NotesStore notes;
+
+  setUp(() async {
+    dir = await Directory.systemTemp.createTemp('review-notes-');
+    notes = await NotesStore.open(overridePath: '${dir.path}/user.db');
+  });
+
+  tearDown(() async {
+    await notes.close();
+    await dir.delete(recursive: true);
+  });
+
+  test('a PDF highlight is a searchable review-anchored note', () async {
+    final annotation = await ReviewAnnotationNotes.create(
+      notes,
+      fileName: 'rpp2026-rev-qcd.pdf',
+      pageNumber: 12,
+      rects: const [Rect.fromLTRB(0.1, 0.2, 0.5, 0.25)],
+      text: 'the selected sentence',
+      color: 'green',
+      reviewTitle: 'Quantum chromodynamics',
+      comment: 'worth revisiting',
+    );
+
+    expect(annotation.noteId, isNotNull);
+    final note = await notes.noteById(annotation.noteId!);
+    expect(note, isNotNull);
+    expect(note!.title, contains('p.12'));
+    expect(note.bodyMarkdown, contains('> the selected sentence'));
+    expect(note.bodyMarkdown, contains('worth revisiting'));
+    expect(note.bodyPlain, contains('the selected sentence'));
+
+    final loaded = await ReviewAnnotationNotes.load(
+      notes,
+      'rpp2026-rev-qcd.pdf',
+      reviewTitle: 'Quantum chromodynamics',
+    );
+    expect(loaded, hasLength(1));
+    expect(loaded.single.id, annotation.id);
+    expect(loaded.single.note, 'worth revisiting');
+    expect(loaded.single.color, 'green');
+    expect(loaded.single.rects.single.left, closeTo(0.1, 1e-9));
+
+    final hits = await notes.search('selected sentence');
+    expect(hits.map((hit) => hit.id), contains(note.id));
+  });
+
+  test('comment edits update the note body and survive reload', () async {
+    final annotation = await ReviewAnnotationNotes.create(
+      notes,
+      fileName: 'review.pdf',
+      pageNumber: 2,
+      rects: const [Rect.fromLTRB(0.1, 0.1, 0.2, 0.2)],
+      text: 'quoted',
+      color: 'yellow',
+      reviewTitle: 'Review',
+    );
+    await ReviewAnnotationNotes.updateComment(notes, annotation, 'new comment');
+    final loaded = await ReviewAnnotationNotes.load(
+      notes,
+      'review.pdf',
+      reviewTitle: 'Review',
+    );
+    expect(loaded.single.note, 'new comment');
+    expect(loaded.single.text, 'quoted');
+  });
+
+  test('legacy JSON migrates once and is archived', () async {
+    final legacy = ReviewAnnotationStore(File('${dir.path}/annotations.json'));
+    await legacy.save([
+      ReviewAnnotation(
+        id: 'old-1',
+        fileName: 'rpp2026-rev-qcd.pdf',
+        pageNumber: 4,
+        rects: const [Rect.fromLTRB(0.1, 0.1, 0.4, 0.2)],
+        text: 'legacy quote',
+        note: 'legacy comment',
+        color: 'blue',
+        createdAt: DateTime(2026, 10, 1),
+      ),
+    ]);
+    await ReviewAnnotationNotes.migrate(notes, legacy);
+    expect(await legacy.file.exists(), isFalse);
+    final loaded = await ReviewAnnotationNotes.load(
+      notes,
+      'rpp2026-rev-qcd.pdf',
+      reviewTitle: 'QCD',
+    );
+    expect(loaded, hasLength(1));
+    expect(loaded.single.text, 'legacy quote');
+    expect(loaded.single.note, 'legacy comment');
+    expect(loaded.single.createdAt, DateTime(2026, 10, 1).toUtc());
+
+    final second = await ReviewAnnotationNotes.load(
+      notes,
+      'rpp2026-rev-qcd.pdf',
+      reviewTitle: 'QCD',
+    );
+    expect(second, hasLength(1));
+  });
+
+  test('deleting the annotation soft-deletes its note', () async {
+    final annotation = await ReviewAnnotationNotes.create(
+      notes,
+      fileName: 'review.pdf',
+      pageNumber: 2,
+      rects: const [Rect.fromLTRB(0.1, 0.1, 0.2, 0.2)],
+      text: 'quoted',
+      color: 'yellow',
+      reviewTitle: 'Review',
+    );
+    await ReviewAnnotationNotes.delete(notes, annotation);
+    expect(
+      await ReviewAnnotationNotes.load(
+        notes,
+        'review.pdf',
+        reviewTitle: 'Review',
+      ),
+      isEmpty,
+    );
+  });
+}

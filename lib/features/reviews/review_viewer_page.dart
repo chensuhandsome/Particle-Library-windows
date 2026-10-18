@@ -7,7 +7,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app/app_scope.dart';
 import '../../app/app_strings.dart';
 import '../../app/app_theme.dart';
+import '../../app/navigation.dart';
+import '../../data/review_annotation_notes.dart';
 import '../../data/review_annotations.dart';
+import '../../notes/notes_store.dart';
+import '../notes/note_editor.dart';
 
 class ReviewViewerPage extends StatefulWidget {
   const ReviewViewerPage({
@@ -15,11 +19,13 @@ class ReviewViewerPage extends StatefulWidget {
     required this.title,
     required this.path,
     required this.officialUrl,
+    this.initialPage = 1,
   });
 
   final String title;
   final String path;
   final String officialUrl;
+  final int initialPage;
 
   @override
   State<ReviewViewerPage> createState() => _ReviewViewerPageState();
@@ -27,13 +33,13 @@ class ReviewViewerPage extends StatefulWidget {
 
 class _ReviewViewerPageState extends State<ReviewViewerPage> {
   final PdfViewerController _controller = PdfViewerController();
-  ReviewAnnotationStore? _store;
+  NotesStore? _notes;
   List<ReviewAnnotation> _annotations = const <ReviewAnnotation>[];
   bool _showAnnotations = true;
   bool _saving = false;
   bool _addingHighlight = false;
   String _highlightColor = 'yellow';
-  Future<void> _saveChain = Future<void>.value();
+  bool _started = false;
   late final Future<void> _ready;
 
   String get _fileName {
@@ -45,64 +51,46 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _ready = _loadAnnotations();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    _ready = _loadAnnotations(AppScope.of(context).notes);
   }
 
-  Future<void> _loadAnnotations() async {
+  Future<void> _loadAnnotations(NotesStore? notes) async {
+    setState(() => _notes = notes);
     try {
+      if (notes != null) {
+        await ReviewAnnotationNotes.ensureMigrated(notes);
+        final annotations = await ReviewAnnotationNotes.load(
+          notes,
+          _fileName,
+          reviewTitle: widget.title,
+        );
+        if (!mounted) return;
+        setState(() => _annotations = annotations);
+        return;
+      }
       final store = await ReviewAnnotationStore.open();
       final annotations = await store.load();
       if (!mounted) return;
       setState(() {
-        _store = store;
-        final known = {for (final a in _annotations) a.id};
         _annotations = [
           for (final annotation in annotations)
-            if (annotation.fileName == _fileName && known.add(annotation.id))
-              annotation,
-          ..._annotations,
+            if (annotation.fileName == _fileName) annotation,
         ];
       });
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.toString())));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${AppScope.of(context).strings.notesUnavailable}: $error',
+          ),
+        ),
+      );
     }
-  }
-
-  Future<void> _persist() {
-    final store = _store;
-    if (store == null) return Future<void>.value();
-    final snapshot = List<ReviewAnnotation>.of(_annotations);
-    final next = _saveChain.then((_) async {
-      if (!mounted) return;
-      setState(() => _saving = true);
-      try {
-        final all = await store.load();
-        final merged = [
-          for (final annotation in all)
-            if (annotation.fileName != _fileName) annotation,
-          ...snapshot,
-        ];
-        await store.save(merged);
-      } catch (error) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${AppScope.of(context).strings.notesSaveFailed}: $error',
-              ),
-            ),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _saving = false);
-      }
-    });
-    _saveChain = next.catchError((_) {});
-    return next;
   }
 
   Future<void> _openExternally() async {
@@ -178,27 +166,43 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
         }
         return;
       }
-      final now = DateTime.now();
-      final additions = <ReviewAnnotation>[];
-      for (final entry in rectsByPage.entries) {
-        additions.add(
-          ReviewAnnotation(
-            id: '${now.microsecondsSinceEpoch}-${entry.key}',
-            fileName: _fileName,
-            pageNumber: entry.key,
-            rects: List.unmodifiable(entry.value),
-            text: textByPage[entry.key] ?? '',
-            note: '',
-            color: _highlightColor,
-            createdAt: now,
+      final notes = _notes;
+      if (notes == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppScope.of(context).strings.notesUnavailable),
           ),
         );
+        return;
       }
-      setState(() => _annotations = [...additions, ..._annotations]);
+      final selected = <({int page, List<Rect> rects, String text})>[
+        for (final entry in rectsByPage.entries)
+          (
+            page: entry.key,
+            rects: List<Rect>.unmodifiable(entry.value),
+            text: textByPage[entry.key] ?? '',
+          ),
+      ];
       // Clear before awaiting the write: the pdfrx delegate is detached when
       // the viewer is disposed.
       await delegate.clearTextSelection();
-      await _persist();
+      final additions = <ReviewAnnotation>[];
+      for (final item in selected) {
+        additions.add(
+          await ReviewAnnotationNotes.create(
+            notes,
+            fileName: _fileName,
+            pageNumber: item.page,
+            rects: item.rects,
+            text: item.text,
+            color: _highlightColor,
+            reviewTitle: widget.title,
+          ),
+        );
+      }
+      if (!mounted) return;
+      setState(() => _annotations = [...additions, ..._annotations]);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -210,6 +214,18 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
     } finally {
       if (mounted) setState(() => _addingHighlight = false);
     }
+  }
+
+  Future<void> _openAnnotationNote(ReviewAnnotation annotation) async {
+    await _ready;
+    if (!mounted) return;
+    final noteId = annotation.noteId;
+    final notes = _notes;
+    if (noteId == null || notes == null) return;
+    final note = await notes.noteById(noteId);
+    if (!mounted || note == null) return;
+    await AppNav.push<void>(context, NoteEditorPage(note: note));
+    if (mounted) await _loadAnnotations(notes);
   }
 
   Future<void> _editNote(ReviewAnnotation annotation) async {
@@ -245,32 +261,79 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
     final index = _annotations.indexWhere((item) => item.id == annotation.id);
     if (index < 0) return;
     final previous = _annotations[index];
-    setState(() {
-      _annotations = [..._annotations];
-      _annotations[index] = ReviewAnnotation(
-        id: previous.id,
-        fileName: previous.fileName,
-        pageNumber: previous.pageNumber,
-        rects: previous.rects,
-        text: previous.text,
-        note: note,
-        color: previous.color,
-        createdAt: previous.createdAt,
+    final notes = _notes;
+    if (notes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppScope.of(context).strings.notesUnavailable)),
       );
-    });
-    await _persist();
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await ReviewAnnotationNotes.updateComment(notes, previous, note);
+      if (!mounted) return;
+      setState(() {
+        _annotations = [..._annotations];
+        _annotations[index] = ReviewAnnotation(
+          id: previous.id,
+          fileName: previous.fileName,
+          pageNumber: previous.pageNumber,
+          rects: previous.rects,
+          text: previous.text,
+          note: note,
+          color: previous.color,
+          createdAt: previous.createdAt,
+          noteId: previous.noteId,
+        );
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${AppScope.of(context).strings.notesSaveFailed}: $error',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _deleteAnnotation(ReviewAnnotation annotation) async {
     await _ready;
     if (!mounted) return;
-    setState(() {
-      _annotations = [
-        for (final item in _annotations)
-          if (item.id != annotation.id) item,
-      ];
-    });
-    await _persist();
+    final notes = _notes;
+    if (notes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppScope.of(context).strings.notesUnavailable)),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await ReviewAnnotationNotes.delete(notes, annotation);
+      if (!mounted) return;
+      setState(() {
+        _annotations = [
+          for (final item in _annotations)
+            if (item.id != annotation.id) item,
+        ];
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${AppScope.of(context).strings.notesSaveFailed}: $error',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   void _customizePdfContextMenu(
@@ -400,6 +463,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
                 child: PdfViewer.file(
                   widget.path,
                   controller: _controller,
+                  initialPageNumber: widget.initialPage,
                   params: PdfViewerParams(
                     pagePaintCallbacks: [_paintAnnotations],
                     textSelectionParams: const PdfTextSelectionParams(
@@ -428,6 +492,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
                         _controller.goToPage(pageNumber: annotation.pageNumber),
                       );
                     },
+                    onOpenNote: _openAnnotationNote,
                     onEditNote: _editNote,
                     onDelete: _deleteAnnotation,
                   ),
@@ -447,6 +512,7 @@ class _ReviewAnnotationSidebar extends StatelessWidget {
     required this.palette,
     required this.strings,
     required this.onOpen,
+    required this.onOpenNote,
     required this.onEditNote,
     required this.onDelete,
   });
@@ -455,6 +521,7 @@ class _ReviewAnnotationSidebar extends StatelessWidget {
   final AppPalette palette;
   final AppStrings strings;
   final ValueChanged<ReviewAnnotation> onOpen;
+  final ValueChanged<ReviewAnnotation> onOpenNote;
   final ValueChanged<ReviewAnnotation> onEditNote;
   final ValueChanged<ReviewAnnotation> onDelete;
 
@@ -551,6 +618,20 @@ class _ReviewAnnotationSidebar extends StatelessWidget {
                                         ),
                                   ),
                                   const Spacer(),
+                                  IconButton(
+                                    tooltip: strings.reviewOpenNote,
+                                    visualDensity: VisualDensity.compact,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 28,
+                                      minHeight: 28,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () => onOpenNote(annotation),
+                                    icon: const Icon(
+                                      Icons.note_alt_outlined,
+                                      size: 15,
+                                    ),
+                                  ),
                                   IconButton(
                                     tooltip: strings.reviewAnnotationEdit,
                                     visualDensity: VisualDensity.compact,

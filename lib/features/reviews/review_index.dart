@@ -383,3 +383,14 @@ const reviewGroups = <ReviewGroup>[
     ReviewEntry('Magnetic monopoles', 'rpp2026-rev-mag-monopole-searches.pdf'),
   ]),
 ];
+
+ReviewEntry? reviewEntryForFile(String file) {
+  final name = file.trim();
+  if (name.isEmpty) return null;
+  for (final group in reviewGroups) {
+    for (final entry in group.entries) {
+      if (entry.file == name) return entry;
+    }
+  }
+  return null;
+}

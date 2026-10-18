@@ -43,10 +43,14 @@ The app is written in Flutter and currently targets **macOS (Apple Silicon)** an
 - **Zotero index** — an explicit, manually refreshed local cache of the Zotero
   library makes INSPIRE result matching fast and avoids one lookup per row.
 - **PDG reviews** — on-demand PDF cache, selective cache cleanup, PDF text
-  highlights, notes and a filterable annotation sidebar.
+  highlights stored as local notes with review anchors, and an annotation
+  sidebar. Highlights are searchable, taggable and included in note export.
 - **Desktop workspace** — independently collapsible left outlines and context
   sidebars, draggable dividers, resizable panes and a compact mobile layout.
 - **Bilingual UI** — Chinese and English interface with system/light/dark themes.
+- **PDF highlights are notes** — each highlight creates a normal local note
+  anchored to the review, so search, tags, backlinks, export and the recycle
+  bin apply without a second annotation database.
 
 ## Requirements
 
@@ -85,8 +89,9 @@ There is no public binary release yet. When a GitHub **Release** provides
 `.dmg`/`.zip`, `.ipa`/TestFlight or other installers, use those; end users do
 not need Flutter, Xcode or the source tree.
 
-Until then, the macOS app can be built from source. iOS and other targets are
-not yet verified as installable builds.
+Until then, the macOS app can be built from source. An iOS simulator build has
+been smoke-tested; a physical iPhone/iPad build still needs your Apple signing
+team. Android, Windows and Linux are not yet supported by this checkout.
 
 ## Build from source
 

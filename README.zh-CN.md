@@ -24,7 +24,7 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 - **标签**：跨笔记筛选、浏览、重命名和删除。
 - **文献**：本地文献信息、可选 Crossref 题名补全、INSPIRE 搜索、BibTeX/cite key 和 Zotero 本地桥接。
 - **Zotero 索引**：手动构建/更新的本地 Zotero 条目缓存，避免 INSPIRE 结果逐条请求。
-- **PDG 综述**：按需缓存 PDF、选择性清理、PDF 文字高亮、批注备注和右侧批注栏。
+- **PDG 综述**：按需缓存 PDF、选择性清理、PDF 文字高亮；高亮直接存为带 review anchor 的本地笔记，可搜索、打标签、导出，并显示在右侧批注栏。
 - **桌面工作区**：可独立收起的左侧页面目录和右侧上下文栏、可拖拽分栏、移动端紧凑布局。
 - **双语界面**：中文/英文界面，支持跟随系统、浅色/深色主题。
 
@@ -56,7 +56,7 @@ assets/pdgall-2026.0.sqlite
 
 目前还没有公开的二进制 Release。未来若 GitHub Releases 提供 `.dmg`/`.zip`、`.ipa`/TestFlight 等安装包，普通用户直接下载即可，不需要 Flutter、Xcode 或源码。
 
-在此之前，macOS 可从源码构建；iOS 和其他平台尚未验证为可安装版本。
+在此之前，macOS 可从源码构建；iOS 模拟器构建已通过冒烟测试，但真机安装仍需你自己的 Apple 签名 Team。Android、Windows 和 Linux 目前还没有平台脚手架。
 
 ## 从源码构建
 

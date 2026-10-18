@@ -194,12 +194,13 @@ class NotesStore {
     Iterable<String> tags = const <String>[],
     Iterable<String> collectionIds = const <String>[],
     String? uuid,
+    DateTime? createdAt,
   }) async {
     _ensureOpen();
     final preparedAnchors = _normalizeAnchors(anchors);
     final preparedTags = _normalizeTags(tags);
     final preparedCollections = _normalizeCollectionIds(collectionIds);
-    final now = _nowIso();
+    final now = createdAt == null ? _nowIso() : _formatTimestamp(createdAt);
     final id = _newUuid();
     final noteUuid = (uuid ?? '').trim().isEmpty ? _newUuid() : uuid!.trim();
     final bodyPlain = plainTextFromMarkdown(bodyMarkdown);
@@ -760,14 +761,34 @@ class NotesStore {
     });
   }
 
+  /// Active note by its database id.
+  Future<NoteRecord?> noteById(String id, {bool includeDeleted = false}) async {
+    _ensureOpen();
+    final key = id.trim();
+    if (key.isEmpty) return null;
+    return _readSync('读取笔记', () {
+      final rows = _db.select(
+        includeDeleted
+            ? 'SELECT * FROM notes WHERE id = ? LIMIT 1'
+            : 'SELECT * FROM notes WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+        [key],
+      );
+      if (rows.isEmpty) return null;
+      return _loadNotes(rows).single;
+    });
+  }
+
   /// Active note by its stable UUID.
-  Future<NoteRecord?> noteByUuid(String uuid) async {
+  Future<NoteRecord?> noteByUuid(
+    String uuid, {
+    bool includeDeleted = false,
+  }) async {
     _ensureOpen();
     final key = uuid.trim();
     if (key.isEmpty) return null;
     return _readSync('读取笔记', () {
       final rows = _db.select(
-        'SELECT * FROM notes WHERE uuid = ? AND deleted_at IS NULL LIMIT 1',
+        includeDeleted ? 'SELECT * FROM notes WHERE uuid = ? LIMIT 1' : 'SELECT * FROM notes WHERE uuid = ? AND deleted_at IS NULL LIMIT 1',
         [key],
       );
       if (rows.isEmpty) return null;

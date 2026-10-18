@@ -222,52 +222,102 @@ class _AppShellState extends State<AppShell> {
                                 ),
                             ],
                             const Spacer(),
-                            IconButton(
-                              tooltip: strings.inspireSearchAction,
-                              onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const InspireSearchPage(),
-                                ),
-                              ),
-                              icon: SvgPicture.asset(
-                                'assets/brand/inspire.svg',
-                                width: 19,
-                                height: 19,
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: strings.reviewsTitle,
-                              icon: const Icon(
-                                Icons.menu_book_outlined,
-                                size: 19,
-                              ),
-                              onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const ReviewsPage(),
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: strings.settingsHelp,
-                              icon: const Icon(Icons.help_outline, size: 19),
-                              onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const HelpPage(),
-                                ),
-                              ),
-                            ),
-                            if (!Platform.isMacOS)
+                            if (!compact) ...[
                               IconButton(
-                                tooltip: strings.navSettings,
-                                icon: const Icon(Icons.tune, size: 19),
-                                onPressed: () => _select(AppTab.settings.index),
+                                tooltip: strings.inspireSearchAction,
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const InspireSearchPage(),
+                                  ),
+                                ),
+                                icon: SvgPicture.asset(
+                                  'assets/brand/inspire.svg',
+                                  width: 19,
+                                  height: 19,
+                                ),
                               ),
-                            MetaChip(
-                              'PDG ${scope.database.currentEdition}',
-                              icon: Icons.data_object,
-                              tone: BadgeTone.accent,
-                              tooltip: strings.offlineLabel,
-                            ),
+                              IconButton(
+                                tooltip: strings.reviewsTitle,
+                                icon: const Icon(
+                                  Icons.menu_book_outlined,
+                                  size: 19,
+                                ),
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const ReviewsPage(),
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: strings.settingsHelp,
+                                icon: const Icon(Icons.help_outline, size: 19),
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const HelpPage(),
+                                  ),
+                                ),
+                              ),
+                              if (!Platform.isMacOS)
+                                IconButton(
+                                  tooltip: strings.navSettings,
+                                  icon: const Icon(Icons.tune, size: 19),
+                                  onPressed: () =>
+                                      _select(AppTab.settings.index),
+                                ),
+                              MetaChip(
+                                'PDG ${scope.database.currentEdition}',
+                                icon: Icons.data_object,
+                                tone: BadgeTone.accent,
+                                tooltip: strings.offlineLabel,
+                              ),
+                            ] else
+                              PopupMenuButton<_CompactTopAction>(
+                                tooltip: strings.moreActions,
+                                onSelected: (action) {
+                                  switch (action) {
+                                    case _CompactTopAction.inspire:
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) =>
+                                              const InspireSearchPage(),
+                                        ),
+                                      );
+                                    case _CompactTopAction.reviews:
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => const ReviewsPage(),
+                                        ),
+                                      );
+                                    case _CompactTopAction.help:
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => const HelpPage(),
+                                        ),
+                                      );
+                                    case _CompactTopAction.settings:
+                                      _select(AppTab.settings.index);
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: _CompactTopAction.inspire,
+                                    child: Text(strings.inspireSearchAction),
+                                  ),
+                                  PopupMenuItem(
+                                    value: _CompactTopAction.reviews,
+                                    child: Text(strings.reviewsTitle),
+                                  ),
+                                  PopupMenuItem(
+                                    value: _CompactTopAction.help,
+                                    child: Text(strings.settingsHelp),
+                                  ),
+                                  PopupMenuItem(
+                                    value: _CompactTopAction.settings,
+                                    child: Text(strings.navSettings),
+                                  ),
+                                ],
+                                icon: const Icon(Icons.more_vert, size: 20),
+                              ),
                           ],
                         ),
                       ),
@@ -378,3 +428,5 @@ class _TopTab extends StatelessWidget {
     );
   }
 }
+
+enum _CompactTopAction { inspire, reviews, help, settings }

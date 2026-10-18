@@ -17,6 +17,7 @@ abstract final class NoteTargetKinds {
   static const String reference = 'reference';
   static const String measurement = 'measurement';
   static const String note = 'note';
+  static const String review = 'review';
 }
 
 /// Anchoring state of a note to a PDG object or reference.
@@ -99,6 +100,12 @@ class NoteTarget {
 
   factory NoteTarget.note(String uuid) =>
       NoteTarget(kind: NoteTargetKinds.note, key: uuid.trim());
+
+  /// A review PDF identified by `<edition>/<file>`.
+  factory NoteTarget.review(String reviewKey) => NoteTarget(
+    kind: NoteTargetKinds.review,
+    key: _requireReferenceValue(reviewKey, 'reviewKey'),
+  );
 
   final String kind;
   final String key;
@@ -205,6 +212,18 @@ class NoteAnchorInput {
   }) => NoteAnchorInput(
     targetKind: NoteTargetKinds.note,
     targetKey: uuid.trim(),
+    targetLabel: targetLabel,
+    context: context,
+  );
+
+  /// An anchor from one PDF highlight to the review document.
+  factory NoteAnchorInput.review(
+    String reviewKey, {
+    String targetLabel = '',
+    Map<String, Object?>? context,
+  }) => NoteAnchorInput(
+    targetKind: NoteTargetKinds.review,
+    targetKey: _requireReferenceValue(reviewKey, 'reviewKey'),
     targetLabel: targetLabel,
     context: context,
   );

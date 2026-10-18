@@ -1,0 +1,317 @@
+import 'dart:math';
+import 'dart:ui';
+
+import '../features/reviews/review_index.dart';
+import '../notes/notes_models.dart';
+import '../notes/notes_store.dart';
+import 'review_annotations.dart';
+
+/// Stores PDF highlights as ordinary notes with a `review` anchor.
+///
+/// The note body is the searchable source of truth for the quote and comment;
+/// [ReviewAnnotation] is only the viewer projection. Geometry stays in the
+/// anchor context and never reaches the notes search index.
+class ReviewAnnotationNotes {
+  ReviewAnnotationNotes._();
+
+  static Future<void>? _migration;
+
+  /// One-time migration of the legacy `review_annotations.json` sidecar.
+  ///
+  /// The source file is renamed, never deleted. A failed migration leaves it
+  /// in place so the next open can retry.
+  static Future<void> ensureMigrated(NotesStore notes) {
+    final running = _migration;
+    if (running != null) return running;
+    final future = _migrate(notes);
+    _migration = future;
+    return future.catchError((Object error, StackTrace stack) {
+      if (identical(_migration, future)) _migration = null;
+      Error.throwWithStackTrace(error, stack);
+    });
+  }
+
+  /// Visible for migration tests; production uses [ensureMigrated].
+  static Future<void> migrate(NotesStore notes, ReviewAnnotationStore legacy) =>
+      _migrate(notes, legacy);
+
+  static Future<void> _migrate(
+    NotesStore notes, [
+    ReviewAnnotationStore? legacyStore,
+  ]) async {
+    final legacy = legacyStore ?? await ReviewAnnotationStore.open();
+    if (!await legacy.file.exists()) return;
+    final records = await legacy.load();
+    for (final record in records) {
+      final uuid = 'legacy-anno-${record.id}';
+      if (await notes.noteByUuid(uuid, includeDeleted: true) != null) {
+        continue;
+      }
+      await _createNote(
+        notes,
+        fileName: record.fileName,
+        pageNumber: record.pageNumber,
+        rects: record.rects,
+        text: record.text,
+        comment: record.note,
+        color: record.color,
+        reviewTitle: _titleFromFile(record.fileName),
+        uuid: uuid,
+        createdAt: record.createdAt,
+      );
+    }
+    await legacy.archive();
+  }
+
+  static Future<List<ReviewAnnotation>> load(
+    NotesStore notes,
+    String fileName, {
+    required String reviewTitle,
+  }) async {
+    final key = _reviewKey(fileName);
+    final records = await notes.notesForTarget(
+      NoteTargetKinds.review,
+      key,
+      limit: 500,
+    );
+    final result = <ReviewAnnotation>[];
+    for (final note in records) {
+      NoteAnchor? anchor;
+      for (final candidate in note.anchors) {
+        if (candidate.targetKind == NoteTargetKinds.review &&
+            candidate.targetKey == key) {
+          anchor = candidate;
+          break;
+        }
+      }
+      if (anchor == null) continue;
+      final annotation = _fromNote(note, anchor, fileName);
+      if (annotation != null) result.add(annotation);
+    }
+    result.sort((a, b) {
+      final page = a.pageNumber.compareTo(b.pageNumber);
+      return page != 0 ? page : a.createdAt.compareTo(b.createdAt);
+    });
+    return result;
+  }
+
+  static Future<ReviewAnnotation> create(
+    NotesStore notes, {
+    required String fileName,
+    required int pageNumber,
+    required List<Rect> rects,
+    required String text,
+    required String color,
+    required String reviewTitle,
+    String comment = '',
+  }) => _createNote(
+    notes,
+    fileName: fileName,
+    pageNumber: pageNumber,
+    rects: rects,
+    text: text,
+    comment: comment,
+    color: color,
+    reviewTitle: reviewTitle,
+  );
+
+  static Future<void> updateComment(
+    NotesStore notes,
+    ReviewAnnotation annotation,
+    String comment,
+  ) async {
+    final noteId = annotation.noteId;
+    if (noteId == null) return;
+    final note = await notes.noteById(noteId);
+    if (note == null) return;
+    final body = _body(
+      quote: annotation.text,
+      comment: comment,
+      reviewKey: _reviewKey(annotation.fileName),
+      annotationId: annotation.id,
+      pageNumber: annotation.pageNumber,
+      reviewTitle: _titleFromFile(annotation.fileName),
+    );
+    await notes.update(
+      note.id,
+      bodyMarkdown: body,
+      expectedRevision: note.revision,
+    );
+  }
+
+  static Future<void> delete(
+    NotesStore notes,
+    ReviewAnnotation annotation,
+  ) async {
+    final noteId = annotation.noteId;
+    if (noteId != null) await notes.delete(noteId);
+  }
+
+  static Future<ReviewAnnotation> _createNote(
+    NotesStore notes, {
+    required String fileName,
+    required int pageNumber,
+    required List<Rect> rects,
+    required String text,
+    required String comment,
+    required String color,
+    required String reviewTitle,
+    String? uuid,
+    DateTime? createdAt,
+  }) async {
+    final id = _newAnnotationId(pageNumber);
+    final reviewKey = _reviewKey(fileName);
+    final body = _body(
+      quote: text,
+      comment: comment,
+      reviewKey: reviewKey,
+      annotationId: id,
+      pageNumber: pageNumber,
+      reviewTitle: reviewTitle,
+    );
+    final title = _title(pageNumber, text);
+    final context = <String, Object?>{
+      'schema': 1,
+      'kind': 'pdf_annotation',
+      'annotationId': id,
+      'pageNumber': pageNumber,
+      'rects': [
+        for (final rect in rects)
+          [rect.left, rect.top, rect.right, rect.bottom],
+      ],
+      'color': color,
+      'quote': text,
+    };
+    final note = await notes.create(
+      title: title,
+      bodyMarkdown: body,
+      uuid: uuid,
+      createdAt: createdAt,
+      anchors: [
+        NoteAnchorInput.review(
+          reviewKey,
+          targetLabel: '$reviewTitle · p.$pageNumber',
+          context: context,
+        ),
+      ],
+    );
+    return ReviewAnnotation(
+      id: id,
+      fileName: fileName,
+      pageNumber: pageNumber,
+      rects: List.unmodifiable(rects),
+      text: text,
+      note: comment,
+      color: color,
+      createdAt: note.createdAt,
+      noteId: note.id,
+    );
+  }
+
+  static ReviewAnnotation? _fromNote(
+    NoteRecord note,
+    NoteAnchor anchor,
+    String fileName,
+  ) {
+    final context = anchor.context;
+    if (context == null) return null;
+    final page = _asInt(context['pageNumber']);
+    final text = context['quote']?.toString() ?? '';
+    final id = context['annotationId']?.toString().trim();
+    if (page == null || page <= 0 || id == null || id.isEmpty) return null;
+    final rawRects = context['rects'];
+    if (rawRects is! List) return null;
+    final rects = <Rect>[];
+    for (final raw in rawRects) {
+      if (raw is! List || raw.length != 4) continue;
+      final values = [for (final value in raw) _asDouble(value)];
+      if (values.any((value) => value == null)) continue;
+      final rect = Rect.fromLTRB(
+        values[0]!,
+        values[1]!,
+        values[2]!,
+        values[3]!,
+      );
+      if (rect.width > 0 && rect.height > 0) rects.add(rect);
+    }
+    if (rects.isEmpty) return null;
+    return ReviewAnnotation(
+      id: id,
+      fileName: fileName,
+      pageNumber: page,
+      rects: List.unmodifiable(rects),
+      text: text,
+      note: _commentFromBody(note.bodyMarkdown),
+      color: context['color']?.toString() ?? 'yellow',
+      createdAt: note.createdAt,
+      noteId: note.id,
+    );
+  }
+
+  static String _body({
+    required String quote,
+    required String comment,
+    required String reviewKey,
+    required String annotationId,
+    required int pageNumber,
+    required String reviewTitle,
+  }) {
+    final quoted = quote
+        .split('\n')
+        .map((line) => '> ${line.trimRight()}')
+        .join('\n');
+    final sourceLabel = '$reviewTitle · p.$pageNumber';
+    final sourceTarget = 'review:$reviewKey#$annotationId';
+    final trailing = comment.trim();
+    return [
+      quoted,
+      if (trailing.isNotEmpty) '',
+      if (trailing.isNotEmpty) trailing,
+      '',
+      '[${_escapeLabel(sourceLabel)}]($sourceTarget)',
+    ].join('\n');
+  }
+
+  static String _commentFromBody(String body) {
+    final lines = body.split('\n');
+    final result = <String>[];
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.startsWith('>')) continue;
+      if (RegExp(r'^\[.*\]\(review:[^)]+\)$').hasMatch(trimmed)) continue;
+      result.add(line);
+    }
+    return result.join('\n').trim();
+  }
+
+  static String _reviewKey(String fileName) => '$reviewEdition/$fileName';
+
+  static String _title(int page, String text) {
+    final snippet = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (snippet.isEmpty) return 'PDF highlight · p.$page';
+    final short = snippet.length > 48
+        ? '${snippet.substring(0, 48)}…'
+        : snippet;
+    return 'p.$page · $short';
+  }
+
+  static String _titleFromFile(String fileName) {
+    final name = fileName.replaceAll(
+      RegExp(r'\.pdf$', caseSensitive: false),
+      '',
+    );
+    return name;
+  }
+
+  static String _escapeLabel(String value) => value.replaceAll('[', '\\[');
+
+  static int? _asInt(Object? value) =>
+      value is num ? value.toInt() : int.tryParse(value?.toString() ?? '');
+
+  static double? _asDouble(Object? value) => value is num
+      ? value.toDouble()
+      : double.tryParse(value?.toString() ?? '');
+
+  static String _newAnnotationId(int page) =>
+      '${DateTime.now().microsecondsSinceEpoch}-$page-${Random().nextInt(1 << 31)}';
+}

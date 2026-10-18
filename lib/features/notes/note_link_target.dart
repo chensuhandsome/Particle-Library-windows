@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app/app_scope.dart';
 import '../../app/navigation.dart';
 import 'note_editor.dart';
+import '../reviews/review_link.dart';
 
 /// Resolves every internal link scheme used by notes in one place.
 ///
@@ -53,6 +54,9 @@ Future<bool> openNoteLinkTarget(BuildContext context, String target) async {
       return true;
     }
     return false;
+  }
+  if (target.startsWith('review:')) {
+    return openReviewLink(context, target);
   }
   if (target.startsWith('note:')) {
     final uuid = target.substring('note:'.length);

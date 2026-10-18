@@ -9,8 +9,8 @@ feature branches are archived outside the current release line.
 - Notes are local-only. The PDG snapshot is never written or attached.
 - Notes/anchors live in a separate SQLite database, never in `user_store.json`.
 - PDF annotations are app-side data and never modify official PDG PDFs.
-  Highlights currently live in a separate JSON sidecar; unifying them with the
-  notes DB is the next planned step (see the PDF-annotation design notes).
+  Highlights are stored as notes with a `review` anchor; the legacy JSON
+  sidecar is imported once and archived.
 - No feature may require macOS-only APIs; Windows/Linux/Android must be able to
   reuse the notes storage and editor.
 

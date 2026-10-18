@@ -19,6 +19,7 @@ class ReviewAnnotation {
     required this.note,
     required this.color,
     required this.createdAt,
+    this.noteId,
   });
 
   final String id;
@@ -29,6 +30,9 @@ class ReviewAnnotation {
   final String note;
   final String color;
   final DateTime createdAt;
+
+  /// Owning note id, when this annotation is stored in the notes database.
+  final String? noteId;
 
   Map<String, Object?> toJson() => {
     'id': id,
@@ -84,6 +88,7 @@ class ReviewAnnotation {
       note: data['note']?.toString() ?? '',
       color: data['color']?.toString() ?? 'yellow',
       createdAt: createdAt.toLocal(),
+      noteId: data['noteId']?.toString(),
     );
   }
 }
@@ -114,6 +119,15 @@ class ReviewAnnotationStore {
     final support = await getApplicationSupportDirectory();
     final target = File('${support.path}/ParticleDesk/review_annotations.json');
     return ReviewAnnotationStore(target);
+  }
+
+  /// Marks the legacy JSON as migrated without deleting its contents.
+  Future<void> archive() async {
+    if (!await file.exists()) return;
+    final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
+    final target = File('${file.path}.migrated-$stamp');
+    if (await target.exists()) return;
+    await file.rename(target.path);
   }
 
   Future<List<ReviewAnnotation>> load() async {
