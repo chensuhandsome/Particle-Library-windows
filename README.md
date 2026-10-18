@@ -77,96 +77,32 @@ before `flutter test`, `flutter run` or a platform build. A production/App
 Store build must bundle the snapshot as an asset.
 
 
-## Build and run: macOS
+## Install
+
+There is no public binary release yet. When a GitHub **Release** provides
+`.dmg`/`.zip`, `.ipa`/TestFlight or other installers, use those; end users do
+not need Flutter, Xcode or the source tree.
+
+Until then, the macOS app can be built from source. iOS and other targets are
+not yet verified as installable builds.
+
+## Build from source
+
+Build instructions are kept separate from the end-user README so unverified
+builds are not presented as supported downloads:
+
+- [Building Particle Library](docs/development/BUILDING.md)
+- [Platform support matrix](docs/development/PLATFORMS.md)
+
+The short macOS path (verified):
 
 ```bash
+# Put pdgall-2026.0.sqlite in assets/ first; see assets/README.md.
 flutter pub get
-flutter analyze
 flutter test
-
-# development
-flutter run -d macos
-
-# release
 flutter build macos --release
 open "build/macos/Build/Products/Release/Particle Library.app"
 ```
-
-To make a Finder-friendly release copy:
-
-```bash
-rm -rf "dist/Particle Library.app"
-mkdir -p dist
-ditto "build/macos/Build/Products/Release/Particle Library.app" \
-      "dist/Particle Library.app"
-```
-
-The internal bundle identifier is currently `com.example.pdgapp`. Keep it
-stable if you want to preserve the local data container; change it before
-distribution if you need your own identity.
-
-## Build and install on iPhone
-
-Physical-device installation needs **your own Apple signing identity**. The
-repository deliberately contains no certificates, provisioning profiles or
-team identifiers.
-
-### 1. Prepare Xcode
-
-1. Install the iOS platform in **Xcode → Settings → Components**.
-2. Connect the iPhone and enable **Developer Mode** on it.
-3. Open `ios/Runner.xcworkspace` in Xcode.
-4. Select the `Runner` target → **Signing & Capabilities**:
-   - choose your Apple ID team;
-   - replace `com.example.pdgapp` with a bundle identifier unique to you
-     (for example `com.yourname.particlelibrary`);
-   - keep **Automatically manage signing** enabled.
-5. Run once from Xcode on the phone and trust the developer certificate in
-   **Settings → General → VPN & Device Management**.
-
-A free Apple ID works for local testing, but its provisioning expires after
-seven days; a paid developer team is needed for longer/TestFlight distribution.
-
-### 2. Build
-
-```bash
-flutter pub get
-flutter build ios --release
-```
-
-Or build and run directly on a connected phone:
-
-```bash
-flutter devices
-flutter run -d <iphone-device-id> --release
-```
-
-For a distributable signed archive:
-
-```bash
-flutter build ipa
-```
-
-Install the resulting `.ipa` through Xcode → **Window → Devices and
-Simulators**, Apple Configurator, or TestFlight after uploading with Xcode
-Organizer.
-
-### Simulator
-
-```bash
-open -a Simulator
-flutter run -d <simulator-device-id>
-```
-
-An unsigned build can be checked with:
-
-```bash
-flutter build ios --release --no-codesign
-```
-
-It cannot be installed on a physical iPhone without signing. On the machine
-used to prepare this repository, the iOS 26.2 platform and a signing identity
-were not installed, so an installable phone build could not be produced here.
 
 ## Tests
 

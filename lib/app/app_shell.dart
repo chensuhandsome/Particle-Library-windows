@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -254,6 +256,12 @@ class _AppShellState extends State<AppShell> {
                                 ),
                               ),
                             ),
+                            if (!Platform.isMacOS)
+                              IconButton(
+                                tooltip: strings.navSettings,
+                                icon: const Icon(Icons.tune, size: 19),
+                                onPressed: () => _select(AppTab.settings.index),
+                              ),
                             MetaChip(
                               'PDG ${scope.database.currentEdition}',
                               icon: Icons.data_object,
