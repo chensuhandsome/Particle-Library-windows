@@ -6,43 +6,151 @@
 library;
 
 const Map<String, String> greekToAscii = {
-  'Α': 'Alpha', 'α': 'alpha', 'Β': 'Beta', 'β': 'beta',
-  'Γ': 'Gamma', 'γ': 'gamma', 'Δ': 'Delta', 'δ': 'delta',
-  'Ε': 'Epsilon', 'ε': 'epsilon', 'ζ': 'zeta', 'Η': 'Eta', 'η': 'eta',
-  'Θ': 'Theta', 'θ': 'theta', 'Ι': 'Iota', 'ι': 'iota',
-  'Κ': 'Kappa', 'κ': 'kappa', 'Λ': 'Lambda', 'λ': 'lambda',
-  'Μ': 'Mu', 'μ': 'mu', 'µ': 'mu', 'Ν': 'Nu', 'ν': 'nu',
-  'Ξ': 'Xi', 'ξ': 'xi', 'Ο': 'Omicron', 'ο': 'omicron',
-  'Π': 'Pi', 'π': 'pi', 'Ρ': 'Rho', 'ρ': 'rho', 'Σ': 'Sigma', 'σ': 'sigma',
-  'ς': 'sigma', 'Τ': 'Tau', 'τ': 'tau', 'Υ': 'Upsilon', 'υ': 'upsilon',
-  'Φ': 'Phi', 'φ': 'phi', 'ϕ': 'phi', 'Χ': 'Chi', 'χ': 'chi',
-  'Ψ': 'Psi', 'ψ': 'psi', 'Ω': 'Omega', 'ω': 'omega',
+  'Α': 'Alpha',
+  'α': 'alpha',
+  'Β': 'Beta',
+  'β': 'beta',
+  'Γ': 'Gamma',
+  'γ': 'gamma',
+  'Δ': 'Delta',
+  'δ': 'delta',
+  'Ε': 'Epsilon',
+  'ε': 'epsilon',
+  'ζ': 'zeta',
+  'Η': 'Eta',
+  'η': 'eta',
+  'Θ': 'Theta',
+  'θ': 'theta',
+  'Ι': 'Iota',
+  'ι': 'iota',
+  'Κ': 'Kappa',
+  'κ': 'kappa',
+  'Λ': 'Lambda',
+  'λ': 'lambda',
+  'Μ': 'Mu',
+  'μ': 'mu',
+  'µ': 'mu',
+  'Ν': 'Nu',
+  'ν': 'nu',
+  'Ξ': 'Xi',
+  'ξ': 'xi',
+  'Ο': 'Omicron',
+  'ο': 'omicron',
+  'Π': 'Pi',
+  'π': 'pi',
+  'Ρ': 'Rho',
+  'ρ': 'rho',
+  'Σ': 'Sigma',
+  'σ': 'sigma',
+  'ς': 'sigma',
+  'Τ': 'Tau',
+  'τ': 'tau',
+  'Υ': 'Upsilon',
+  'υ': 'upsilon',
+  'Φ': 'Phi',
+  'φ': 'phi',
+  'ϕ': 'phi',
+  'Χ': 'Chi',
+  'χ': 'chi',
+  'Ψ': 'Psi',
+  'ψ': 'psi',
+  'Ω': 'Omega',
+  'ω': 'omega',
 };
 
 const Map<String, String> _latexGreek = {
-  'alpha': 'alpha', 'beta': 'beta', 'gamma': 'gamma', 'delta': 'delta',
-  'epsilon': 'epsilon', 'zeta': 'zeta', 'eta': 'eta', 'theta': 'theta',
-  'iota': 'iota', 'kappa': 'kappa', 'lambda': 'lambda', 'mu': 'mu',
-  'nu': 'nu', 'xi': 'xi', 'omicron': 'omicron', 'pi': 'pi', 'rho': 'rho',
-  'sigma': 'sigma', 'varsigma': 'sigma', 'tau': 'tau', 'upsilon': 'upsilon',
-  'phi': 'phi', 'varphi': 'phi', 'chi': 'chi', 'psi': 'psi', 'omega': 'omega',
-  'Delta': 'Delta', 'Gamma': 'Gamma', 'Theta': 'Theta', 'Lambda': 'Lambda',
-  'Xi': 'Xi', 'Pi': 'Pi', 'Sigma': 'Sigma', 'Upsilon': 'Upsilon',
-  'Phi': 'Phi', 'Psi': 'Psi', 'Omega': 'Omega',
+  'alpha': 'alpha',
+  'beta': 'beta',
+  'gamma': 'gamma',
+  'delta': 'delta',
+  'epsilon': 'epsilon',
+  'zeta': 'zeta',
+  'eta': 'eta',
+  'theta': 'theta',
+  'iota': 'iota',
+  'kappa': 'kappa',
+  'lambda': 'lambda',
+  'mu': 'mu',
+  'nu': 'nu',
+  'xi': 'xi',
+  'omicron': 'omicron',
+  'pi': 'pi',
+  'rho': 'rho',
+  'sigma': 'sigma',
+  'varsigma': 'sigma',
+  'tau': 'tau',
+  'upsilon': 'upsilon',
+  'phi': 'phi',
+  'varphi': 'phi',
+  'chi': 'chi',
+  'psi': 'psi',
+  'omega': 'omega',
+  'Delta': 'Delta',
+  'Gamma': 'Gamma',
+  'Theta': 'Theta',
+  'Lambda': 'Lambda',
+  'Xi': 'Xi',
+  'Pi': 'Pi',
+  'Sigma': 'Sigma',
+  'Upsilon': 'Upsilon',
+  'Phi': 'Phi',
+  'Psi': 'Psi',
+  'Omega': 'Omega',
 };
 
 const Map<String, String> _superscripts = {
-  '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5',
-  '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁺': '+', '⁻': '-',
-  '⁼': '=', '⁽': '(', '⁾': ')', 'ⁿ': 'n', 'ⁱ': 'i',
+  '⁰': '0',
+  '¹': '1',
+  '²': '2',
+  '³': '3',
+  '⁴': '4',
+  '⁵': '5',
+  '⁶': '6',
+  '⁷': '7',
+  '⁸': '8',
+  '⁹': '9',
+  '⁺': '+',
+  '⁻': '-',
+  '⁼': '=',
+  '⁽': '(',
+  '⁾': ')',
+  'ⁿ': 'n',
+  'ⁱ': 'i',
 };
 
 const Map<String, String> _subscripts = {
-  '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4', '₅': '5',
-  '₆': '6', '₇': '7', '₈': '8', '₉': '9', '₊': '+', '₋': '-',
-  '₌': '=', '₍': '(', '₎': ')', 'ₐ': 'a', 'ₑ': 'e', 'ₕ': 'h', 'ᵢ': 'i',
-  'ⱼ': 'j', 'ₖ': 'k', 'ₗ': 'l', 'ₘ': 'm', 'ₙ': 'n', 'ₒ': 'o', 'ₚ': 'p',
-  'ᵣ': 'r', 'ₛ': 's', 'ₜ': 't', 'ᵤ': 'u', 'ᵥ': 'v', 'ₓ': 'x',
+  '₀': '0',
+  '₁': '1',
+  '₂': '2',
+  '₃': '3',
+  '₄': '4',
+  '₅': '5',
+  '₆': '6',
+  '₇': '7',
+  '₈': '8',
+  '₉': '9',
+  '₊': '+',
+  '₋': '-',
+  '₌': '=',
+  '₍': '(',
+  '₎': ')',
+  'ₐ': 'a',
+  'ₑ': 'e',
+  'ₕ': 'h',
+  'ᵢ': 'i',
+  'ⱼ': 'j',
+  'ₖ': 'k',
+  'ₗ': 'l',
+  'ₘ': 'm',
+  'ₙ': 'n',
+  'ₒ': 'o',
+  'ₚ': 'p',
+  'ᵣ': 'r',
+  'ₛ': 's',
+  'ₜ': 't',
+  'ᵤ': 'u',
+  'ᵥ': 'v',
+  'ₓ': 'x',
 };
 
 /// Curated common-language aliases. These are not represented as PDG source
@@ -71,6 +179,7 @@ const Map<String, String> curatedAliases = {
   'omega meson': 'omega',
   'eta meson': 'eta',
   'j/psi': 'J/psi',
+  'jpsi': 'J/psi',
   'x(3872)': 'chi_c1(3872)',
   'upsilon': 'Upsilon',
   '质子': 'p',
@@ -120,13 +229,19 @@ String _normalizeCore(String input) {
 
   // \mathrm{...}, \text{...}, \mbox{...} wrappers.
   s = s.replaceAllMapped(
-      RegExp(r'\\(?:mathrm|text|mbox|rm)\s*\{([^{}]*)\}'), (m) => m.group(1) ?? '');
+    RegExp(r'\\(?:mathrm|text|mbox|rm)\s*\{([^{}]*)\}'),
+    (m) => m.group(1) ?? '',
+  );
 
   // Overbar commands: \bar{X}, \overline{X} -> Xbar.
   s = s.replaceAllMapped(
-      RegExp(r'\\(?:bar|overline)\s*\{([^{}]*)\}'), (m) => '${m.group(1)}bar');
+    RegExp(r'\\(?:bar|overline)\s*\{([^{}]*)\}'),
+    (m) => '${m.group(1)}bar',
+  );
   s = s.replaceAllMapped(
-      RegExp(r'\\(?:bar|overline)\s*([A-Za-z])'), (m) => '${m.group(1)}bar');
+    RegExp(r'\\(?:bar|overline)\s*([A-Za-z])'),
+    (m) => '${m.group(1)}bar',
+  );
 
   // Remaining LaTeX commands: known Greek names become ASCII names; unknown
   // spacing commands are removed.
@@ -141,10 +256,9 @@ String _normalizeCore(String input) {
   final buffer = StringBuffer();
   for (final rune in s.runes) {
     final char = String.fromCharCode(rune);
-    buffer.write(greekToAscii[char] ??
-        _superscripts[char] ??
-        _subscripts[char] ??
-        char);
+    buffer.write(
+      greekToAscii[char] ?? _superscripts[char] ?? _subscripts[char] ?? char,
+    );
   }
   s = buffer.toString();
 
@@ -155,16 +269,22 @@ String _normalizeCore(String input) {
   // Anti-particle spelling: anti-D0 -> Dbar0, anti-Λ -> Lambdabar,
   // anti-nu_tau -> nubar_tau. Applied after Greek conversion so that both
   // Latin and Greek spellings work.
-  s = s.replaceAllMapped(RegExp(r'^anti[-\s]?([A-Za-z]+)(.*)$', caseSensitive: false),
-      (m) => '${m.group(1)}bar${m.group(2)}');
+  s = s.replaceAllMapped(
+    RegExp(r'^anti[-\s]?([A-Za-z]+)(.*)$', caseSensitive: false),
+    (m) => '${m.group(1)}bar${m.group(2)}',
+  );
 
-  // Punctuation normalization.
+  // Punctuation normalization. Slash is optional in common HEP spellings
+  // (J/psi vs jpsi), so it is not part of the search identity.
+  s = s.replaceAll('/', '');
   s = s.replaceAll('−', '-').replaceAll('–', '-').replaceAll('—', '-');
   s = s.replaceAll('±', '+-').replaceAll('∓', '-+');
 
   // Kaon short-state spelling used by the snapshot: K(L)0 / K(S)0.
   s = s.replaceAllMapped(
-      RegExp(r'[Kk]\(([LSls])\)0'), (m) => 'K${m.group(1)!.toUpperCase()}0');
+    RegExp(r'[Kk]\(([LSls])\)0'),
+    (m) => 'K${m.group(1)!.toUpperCase()}0',
+  );
 
   // Empty mass placeholders such as B_s()0 and D_s^*().
   while (s.contains('()')) {
@@ -186,7 +306,8 @@ List<String> nameQueryKeys(String input) {
 
   add(input);
   final baseKey = normalizeName(input).toLowerCase();
-  for (final aliasTarget in _aliasesByNormalizedKey[baseKey] ?? const <String>[]) {
+  for (final aliasTarget
+      in _aliasesByNormalizedKey[baseKey] ?? const <String>[]) {
     add(aliasTarget);
   }
   // The alias table itself may contain a normalized form different from the
@@ -202,5 +323,6 @@ List<String> nameQueryKeys(String input) {
 /// `B185`, `Q123`, `S016T22`). It is only a routing hint; the exact entry lookup
 /// decides whether the identifier exists.
 bool looksLikePdgIdentifier(String input) {
-  return RegExp(r'^[A-Za-z]\d{3}(\.[0-9]+)?[A-Za-z0-9]*$').hasMatch(input.trim());
+  return RegExp(r'^[A-Za-z]\d{3}(\.[0-9]+)?[A-Za-z0-9]*$')
+      .hasMatch(input.trim());
 }

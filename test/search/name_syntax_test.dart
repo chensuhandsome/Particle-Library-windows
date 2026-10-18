@@ -3,18 +3,46 @@ import 'package:pdgapp/search/name_syntax.dart';
 
 void main() {
   test('equivalent user spellings canonicalize together', () {
-    expect(normalizeName('π⁰').toLowerCase(), normalizeName('pi0').toLowerCase());
-    expect(normalizeName(r'\pi^0').toLowerCase(), normalizeName('pi0').toLowerCase());
-    expect(normalizeName('B_s0').toLowerCase(), normalizeName('B_s()0').toLowerCase());
-    expect(normalizeName('B_s^0').toLowerCase(), normalizeName('B_s0').toLowerCase());
-    expect(normalizeName('Bₛ⁰').toLowerCase(), normalizeName('B_s0').toLowerCase());
-    expect(normalizeName('J/ψ').toLowerCase(), normalizeName('J/psi').toLowerCase());
-    expect(normalizeName(r'\bar{\Lambda}').toLowerCase(),
-        normalizeName('Lambdabar').toLowerCase());
-    expect(normalizeName('K_S0').toLowerCase(), normalizeName('K(S)0').toLowerCase());
-    expect(normalizeName('K0S').toLowerCase(), isNot(normalizeName('K_S0').toLowerCase()));
-    expect(normalizeName('D_s^*()+').toLowerCase(),
-        normalizeName('D_s^*+').toLowerCase());
+    expect(
+      normalizeName('π⁰').toLowerCase(),
+      normalizeName('pi0').toLowerCase(),
+    );
+    expect(
+      normalizeName(r'\pi^0').toLowerCase(),
+      normalizeName('pi0').toLowerCase(),
+    );
+    expect(
+      normalizeName('B_s0').toLowerCase(),
+      normalizeName('B_s()0').toLowerCase(),
+    );
+    expect(
+      normalizeName('B_s^0').toLowerCase(),
+      normalizeName('B_s0').toLowerCase(),
+    );
+    expect(
+      normalizeName('Bₛ⁰').toLowerCase(),
+      normalizeName('B_s0').toLowerCase(),
+    );
+    expect(
+      normalizeName('J/ψ').toLowerCase(),
+      normalizeName('J/psi').toLowerCase(),
+    );
+    expect(
+      normalizeName(r'\bar{\Lambda}').toLowerCase(),
+      normalizeName('Lambdabar').toLowerCase(),
+    );
+    expect(
+      normalizeName('K_S0').toLowerCase(),
+      normalizeName('K(S)0').toLowerCase(),
+    );
+    expect(
+      normalizeName('K0S').toLowerCase(),
+      isNot(normalizeName('K_S0').toLowerCase()),
+    );
+    expect(
+      normalizeName('D_s^*()+').toLowerCase(),
+      normalizeName('D_s^*+').toLowerCase(),
+    );
   });
 
   test('Greek case is not silently merged', () {
@@ -34,7 +62,8 @@ void main() {
     expect(nameQueryKeys('proton'), contains('p'));
     expect(nameQueryKeys('反质子'), contains('pbar'));
     expect(nameQueryKeys('photon'), contains('gamma'));
-    expect(nameQueryKeys('J/ψ'), contains('j/psi'));
+    expect(nameQueryKeys('J/ψ'), contains('jpsi'));
+    expect(nameQueryKeys('jpsi'), contains('jpsi'));
   });
 
   test('PDG identifier heuristic only accepts identifier-like strings', () {

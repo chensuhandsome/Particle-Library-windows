@@ -326,8 +326,14 @@ void main() {
     final bs = await query('B_s0');
     expect(bs.groups.first.hits.map((hit) => hit.pdgid), contains('S086'));
 
-    final jpsi = await query('J/ψ');
-    expect(jpsi.groups.first.hits.map((hit) => hit.pdgid), contains('M070'));
+    for (final spelling in ['J/ψ', 'J/psi', 'jpsi']) {
+      final jpsi = await query(spelling);
+      expect(
+        jpsi.groups.first.hits.map((hit) => hit.pdgid),
+        contains('M070'),
+        reason: spelling,
+      );
+    }
 
     final mcid = await query('2212');
     expect(mcid.groups.first.hits.map((hit) => hit.pdgid), contains('S016'));
