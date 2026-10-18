@@ -11,10 +11,17 @@ import 'review_index.dart';
 import 'review_viewer_page.dart';
 
 class ReviewsPage extends StatefulWidget {
-  const ReviewsPage({super.key, this.initialQuery = ''});
+  const ReviewsPage({
+    super.key,
+    this.initialQuery = '',
+    this.initialFiles = const <String>{},
+  });
 
   /// Optional title filter used when opening reviews from a catalog category.
   final String initialQuery;
+
+  /// Exact review PDFs for a PDG Live category-level reviews button.
+  final Set<String> initialFiles;
 
   @override
   State<ReviewsPage> createState() => _ReviewsPageState();
@@ -316,16 +323,19 @@ class _ReviewsPageState extends State<ReviewsPage> {
     final zh = strings.lang.name == 'zh';
     final query = _query.trim().toLowerCase();
     final groups = <({ReviewGroup group, List<ReviewEntry> entries})>[];
+    final allowed = widget.initialFiles;
     for (final group in reviewGroups) {
       final groupMatches =
           query.isEmpty ||
           group.titleZh.toLowerCase().contains(query) ||
           group.titleEn.toLowerCase().contains(query);
-      final entries = groupMatches
-          ? group.entries
-          : group.entries
-                .where((entry) => entry.title.toLowerCase().contains(query))
-                .toList(growable: false);
+      final entries = group.entries
+          .where((entry) => allowed.isEmpty || allowed.contains(entry.file))
+          .where(
+            (entry) =>
+                groupMatches || entry.title.toLowerCase().contains(query),
+          )
+          .toList(growable: false);
       if (entries.isNotEmpty) groups.add((group: group, entries: entries));
     }
     final total = groups.fold<int>(0, (sum, item) => sum + item.entries.length);

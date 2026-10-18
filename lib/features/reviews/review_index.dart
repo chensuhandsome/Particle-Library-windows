@@ -256,10 +256,15 @@ const reviewGroups = <ReviewGroup>[
       'Sum of neutrino masses',
       'rpp2026-rev-sum-neutrino-masses.pdf',
     ),
+    ReviewEntry(
+      'Introductory text to neutrino mixing',
+      'rpp2026-rev-neutrino-prop-intro.pdf',
+    ),
   ]),
   ReviewGroup('夸克', 'Quarks', [
     ReviewEntry('Quark masses', 'rpp2026-rev-quark-masses.pdf'),
     ReviewEntry('Top quark', 'rpp2026-rev-top-quark.pdf'),
+    ReviewEntry('Free quark searches', 'rpp2026-rev-free-quark-searches.pdf'),
   ]),
   ReviewGroup('介子', 'Mesons', [
     ReviewEntry(
@@ -292,6 +297,14 @@ const reviewGroups = <ReviewGroup>[
     ReviewEntry(
       'CP -violation in K L decays',
       'rpp2026-rev-cp-viol-kl-decays.pdf',
+    ),
+    ReviewEntry(
+      'Delta S = Delta Q in K0 decays',
+      'rpp2026-rev-ds-equal-dq-in-K0-decays.pdf',
+    ),
+    ReviewEntry(
+      'K*(892) masses and mass differences',
+      'rpp2026-rev-k892-mass.pdf',
     ),
     ReviewEntry(
       'Review of multibody charm analyses',
@@ -368,6 +381,14 @@ const reviewGroups = <ReviewGroup>[
     ReviewEntry(
       'Supersymmetry: experiment',
       'rpp2026-rev-susy-2-experiment.pdf',
+    ),
+    ReviewEntry(
+      'Supersymmetric model assumptions',
+      'rpp2026-rev-intro-susy-model.pdf',
+    ),
+    ReviewEntry(
+      'Other particle searches',
+      'rpp2026-rev-wimps-other-searches.pdf',
     ),
     ReviewEntry('Axions and other similar particles', 'rpp2026-rev-axions.pdf'),
     ReviewEntry(

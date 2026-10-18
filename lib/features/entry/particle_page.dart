@@ -21,6 +21,8 @@ import '../common/page.dart';
 import '../common/page_outline.dart';
 import '../common/raw_fields.dart';
 import '../common/ui.dart';
+import '../catalog/catalog_groups.dart';
+import '../reviews/reviews_page.dart';
 import '../decay/decay_catalog.dart';
 import '../notes/notes_anchor.dart';
 import '../notes/notes_entity.dart';
@@ -251,6 +253,23 @@ class _ParticleBodyState extends State<_ParticleBody> {
                 ),
               ],
               actions: [
+                IconButton(
+                  tooltip: strings.reviewsTitle,
+                  icon: const Icon(Icons.menu_book_outlined, size: 19),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ReviewsPage(
+                        initialFiles: category == null
+                            ? const <String>{}
+                            : categoryReviewFiles[category.category]?.toSet() ??
+                                  const <String>{},
+                        initialQuery: category == null
+                            ? view.entry.description
+                            : '',
+                      ),
+                    ),
+                  ),
+                ),
                 CopyIconButton(
                   text: _copyParticle(context, view),
                   tooltip: strings.commonCopy,

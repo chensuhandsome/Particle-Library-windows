@@ -4,8 +4,8 @@ import 'package:pdgapp/features/reviews/review_index.dart';
 void main() {
   test('PDG 2026 review index is complete and links are HTTPS PDFs', () {
     final entries = [for (final group in reviewGroups) ...group.entries];
-    expect(entries, hasLength(115));
-    expect(entries.map((entry) => entry.file).toSet(), hasLength(115));
+    expect(entries, hasLength(121));
+    expect(entries.map((entry) => entry.file).toSet(), hasLength(121));
     for (final entry in entries) {
       expect(entry.title, isNotEmpty);
       expect(entry.file, endsWith('.pdf'));

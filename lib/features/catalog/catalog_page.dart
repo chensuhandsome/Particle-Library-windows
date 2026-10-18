@@ -148,6 +148,9 @@ class _CatalogPageState extends State<CatalogPage> {
                           MaterialPageRoute<void>(
                             builder: (_) => ReviewsPage(
                               initialQuery: reviewQueryForCategory(_category!),
+                              initialFiles:
+                                  categoryReviewFiles[_category]?.toSet() ??
+                                  const <String>{},
                             ),
                           ),
                         ),

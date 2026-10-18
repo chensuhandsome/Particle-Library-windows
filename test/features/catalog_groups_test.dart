@@ -68,6 +68,25 @@ void main() {
     expect(catalogGroupForRoot(pi0)?.kind, CatalogGroupKind.mesonLight);
   });
 
+  test('category review buttons use exact PDG Live review sets', () {
+    expect(
+      categoryReviewFiles[ParticleCategory.gaugeHiggs],
+      contains('rpp2026-rev-w-mass.pdf'),
+    );
+    expect(
+      categoryReviewFiles[ParticleCategory.meson],
+      contains('rpp2026-rev-heavy-quarkonium-spectroscopy.pdf'),
+    );
+    expect(
+      categoryReviewFiles[ParticleCategory.baryon],
+      contains('rpp2026-rev-pentaquarks.pdf'),
+    );
+    expect(
+      categoryReviewFiles[ParticleCategory.search],
+      contains('rpp2026-rev-wimps-other-searches.pdf'),
+    );
+  });
+
   test('group lists are only exposed for mesons and baryons', () {
     expect(catalogGroups(ParticleCategory.meson).length, 10);
     expect(catalogGroups(ParticleCategory.baryon).length, 10);
