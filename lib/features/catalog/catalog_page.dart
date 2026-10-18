@@ -10,6 +10,7 @@ import '../common/async_view.dart';
 import '../common/description_text.dart';
 import '../common/page.dart';
 import '../common/ui.dart';
+import '../reviews/reviews_page.dart';
 import 'catalog_groups.dart';
 
 class CatalogPage extends StatefulWidget {
@@ -140,6 +141,19 @@ class _CatalogPageState extends State<CatalogPage> {
                         _subcategory = null;
                       }),
                     ),
+                    if (_category != null &&
+                        _category != ParticleCategory.unknown)
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => ReviewsPage(
+                              initialQuery: reviewQueryForCategory(_category!),
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.menu_book_outlined, size: 17),
+                        label: Text(strings.reviewsTitle),
+                      ),
                   ],
                 ),
               ),

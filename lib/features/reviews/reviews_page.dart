@@ -11,7 +11,10 @@ import 'review_index.dart';
 import 'review_viewer_page.dart';
 
 class ReviewsPage extends StatefulWidget {
-  const ReviewsPage({super.key});
+  const ReviewsPage({super.key, this.initialQuery = ''});
+
+  /// Optional title filter used when opening reviews from a catalog category.
+  final String initialQuery;
 
   @override
   State<ReviewsPage> createState() => _ReviewsPageState();
@@ -38,6 +41,8 @@ class _ReviewsPageState extends State<ReviewsPage> {
   @override
   void initState() {
     super.initState();
+    _query = widget.initialQuery;
+    _controller.text = widget.initialQuery;
     _loadCache();
   }
 
