@@ -6,7 +6,65 @@ import 'pdg_math.dart';
 /// The converter returns `null` whenever a name cannot be interpreted with
 /// certainty; callers then fall back to the selectable raw text. It never drops
 /// a character to make the output look clean.
+
+/// Converts the PDG's `IG(JPC) = ...` shorthand into mathematics.
+///
+/// Examples:
+/// `X(360) IG(JPC) = ??(??+)` → `X(360)\,I^{G}(J^{PC}) = ??(??^{+})`.
+String? quantumLineToLatex(String source) {
+  final match = RegExp(r'^(.*?)\s*IG\(JPC\)\s*=\s*(.+)$')
+      .firstMatch(source.trim());
+  if (match == null) return null;
+  final prefixText = match.group(1)!.trim();
+  final value = match.group(2)!.trim();
+  final prefix = prefixText.isEmpty ? '' : particleNameToLatex(prefixText);
+  if (prefixText.isNotEmpty && prefix == null) return null;
+
+  final valueMatch = RegExp(r'^([^()]*)\(([^()]*)\)\s*$').firstMatch(value);
+  String? valueLatex;
+  if (valueMatch != null) {
+    final isospin = _quantumValue(valueMatch.group(1)!.trim());
+    final jpc = _quantumValue(valueMatch.group(2)!.trim());
+    if (isospin != null && jpc != null) {
+      valueLatex = '$isospin($jpc)';
+    }
+  } else {
+    valueLatex = _quantumValue(value);
+  }
+  if (valueLatex == null) return null;
+  return [
+    if (prefix != null && prefix.isNotEmpty) '$prefix\\,',
+    r'I^{G}(J^{PC}) = ',
+    valueLatex,
+  ].join();
+}
+
+String? _quantumValue(String source) {
+  final value = source.trim();
+  if (value.isEmpty) return null;
+  final match = RegExp(r'^(.*?)(\+\+|\-\-|\+\-|\-\+|\+|\-|\?)$')
+      .firstMatch(value);
+  final base = (match?.group(1) ?? value).trim();
+  final suffix = match?.group(2) ?? '';
+  if (base.isEmpty) return null;
+  final baseLatex = RegExp(r'^[0-9/?]+$').hasMatch(base)
+      ? base
+      : base == 'even' || base == 'odd'
+      ? '\\mathrm{$base}'
+      : null;
+  if (baseLatex == null) return null;
+  if (suffix.isEmpty || suffix == '?') return '$baseLatex$suffix';
+  final suffixLatex = switch (suffix) {
+    '+-' => r'\pm',
+    '-+' => r'\mp',
+    _ => suffix,
+  };
+  return '$baseLatex^{$suffixLatex}';
+}
+
 String? particleNameToLatex(String source) {
+  final quantum = quantumLineToLatex(source);
+  if (quantum != null) return quantum;
   var name = source.trim();
   if (name.isEmpty) return null;
   // PDG occasionally separates repeated subscript letters with spaces
@@ -437,6 +495,8 @@ class PdgTextSegment {
 /// literal text. This is what prevents a half-converted formula such as
 /// `sin**2(2 theta(12))` from turning into a valid prefix plus a broken tail.
 List<PdgTextSegment> segmentPdgText(String original) {
+  final quantum = quantumLineToLatex(original);
+  if (quantum != null) return [PdgTextSegment.math(quantum)];
   final cached = _segmentCache[original];
   if (cached != null) return cached;
   final result = _segmentPdgTextUncached(original);

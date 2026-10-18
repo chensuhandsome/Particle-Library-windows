@@ -65,6 +65,18 @@ void main() {
     expect(sourceExpressionToLatex('CLEO-c'), isNull);
   });
 
+  test('IG(JPC) shorthand becomes superscript mathematics', () {
+    expect(
+      quantumLineToLatex('X(360) IG(JPC) = ??(??+)'),
+      r'X(360)\,I^{G}(J^{PC}) = ??(??^{+})',
+    );
+    expect(
+      quantumLineToLatex('X(1110) IG(JPC) = 0+(even++)'),
+      r'X(1110)\,I^{G}(J^{PC}) = 0^{+}(\mathrm{even}^{++})',
+    );
+    expect(segmentPdgText('X(360) IG(JPC) = ??(??+)').single.latex, isNotNull);
+  });
+
   test('dollar-delimited title math is segmented', () {
     final segments = segmentPdgText(
       r'Measurement at $\sqrt{s}$ = 7 TeV with a $W$ boson',
