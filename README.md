@@ -65,16 +65,10 @@ Expected snapshot:
   `c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a`
 - The app verifies this hash before using the data.
 
-For development, an external copy can be supplied at compile time without
-copying it into `assets/`:
+The Flutter asset entry in `pubspec.yaml` requires this file to be present
+before `flutter test`, `flutter run` or a platform build. A production/App
+Store build must bundle the snapshot as an asset.
 
-```bash
-flutter run -d macos \
-  --dart-define=PDG_SNAPSHOT_PATH=/absolute/path/to/pdgall-2026.0.sqlite
-```
-
-The file must still match the expected SHA-256. A production/App Store build
-must bundle the snapshot as an asset.
 
 ## Build and run: macOS
 
