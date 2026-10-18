@@ -41,8 +41,15 @@ class ReviewAnnotationNotes {
   ]) async {
     final legacy = legacyStore ?? await ReviewAnnotationStore.open();
     if (!await legacy.file.exists()) return;
-    final records = await legacy.load();
+    final loaded = await legacy.loadDetailed();
+    final records = loaded.annotations;
+    var duplicateIds = false;
+    final seenIds = <String>{};
     for (final record in records) {
+      if (!seenIds.add(record.id)) {
+        duplicateIds = true;
+        continue;
+      }
       final uuid = 'legacy-anno-${record.id}';
       if (await notes.noteByUuid(uuid, includeDeleted: true) != null) {
         continue;
@@ -60,7 +67,11 @@ class ReviewAnnotationNotes {
         createdAt: record.createdAt,
       );
     }
-    await legacy.archive();
+    // Keep the sidecar for a retry if malformed/duplicate records were
+    // dropped; valid records are already imported idempotently.
+    if (loaded.rejected == 0 && !duplicateIds) {
+      await legacy.archive();
+    }
   }
 
   static Future<List<ReviewAnnotation>> load(

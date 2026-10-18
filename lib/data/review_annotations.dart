@@ -130,29 +130,43 @@ class ReviewAnnotationStore {
     await file.rename(target.path);
   }
 
-  Future<List<ReviewAnnotation>> load() async {
-    if (!await file.exists()) return const <ReviewAnnotation>[];
+  Future<List<ReviewAnnotation>> load() async =>
+      (await loadDetailed()).annotations;
+
+  /// Loads valid records and reports how many raw records were rejected.
+  ///
+  /// The migration must not archive a sidecar when any record was dropped.
+  Future<({List<ReviewAnnotation> annotations, int rejected})>
+  loadDetailed() async {
+    if (!await file.exists()) {
+      return (annotations: const <ReviewAnnotation>[], rejected: 0);
+    }
     dynamic decoded;
     try {
       decoded = jsonDecode(await file.readAsString());
     } catch (_) {
       await _quarantine();
-      return const <ReviewAnnotation>[];
+      return (annotations: const <ReviewAnnotation>[], rejected: 1);
     }
     if (decoded is! List) {
       await _quarantine();
-      return const <ReviewAnnotation>[];
+      return (annotations: const <ReviewAnnotation>[], rejected: 1);
     }
     final result = <ReviewAnnotation>[];
+    var rejected = 0;
     for (final raw in decoded) {
       try {
         final annotation = ReviewAnnotation.fromJson(raw);
-        if (annotation != null) result.add(annotation);
+        if (annotation == null) {
+          rejected++;
+        } else {
+          result.add(annotation);
+        }
       } catch (_) {
-        // Skip one malformed record instead of discarding the whole store.
+        rejected++;
       }
     }
-    return result;
+    return (annotations: result, rejected: rejected);
   }
 
   Future<void> _quarantine() async {

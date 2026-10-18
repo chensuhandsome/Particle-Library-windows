@@ -62,6 +62,9 @@ class _AppShellState extends State<AppShell> {
 
   Future<void> _checkForUpdates() async {
     if (!UpdateChecker.isConfigured) return;
+    final scope = AppScope.of(context);
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    if (scope.store.settings.lastUpdateCheck == today) return;
     try {
       final update = await UpdateChecker.check();
       if (!mounted || update == null) return;
@@ -112,7 +115,7 @@ class _AppShellState extends State<AppShell> {
 
   Map<ShortcutActivator, VoidCallback> _shortcuts() {
     final bindings = <ShortcutActivator, VoidCallback>{};
-    for (final tab in const [AppTab.search, AppTab.favorites, AppTab.notes]) {
+    for (final tab in AppTab.values) {
       final key = _tabKeys[tab.index];
       bindings[SingleActivator(key, meta: true)] = () => _select(tab.index);
       bindings[SingleActivator(key, control: true)] = () => _select(tab.index);
@@ -198,28 +201,44 @@ class _AppShellState extends State<AppShell> {
                           children: [
                             const BrandMark(size: 28),
                             const SizedBox(width: 10),
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  strings.appName,
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: -0.2,
-                                      ),
-                                ),
-                                if (!compact)
+                            Flexible(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   Text(
-                                    strings.appTagline,
-                                    style: Theme.of(context).textTheme.bodySmall
+                                    strings.appName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textScaler: MediaQuery.textScalerOf(context)
+                                        .clamp(maxScaleFactor: 1.3),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
                                         ?.copyWith(
-                                          color: palette.textSecondary,
-                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: -0.2,
                                         ),
                                   ),
-                              ],
+                                  if (!compact)
+                                    Text(
+                                      strings.appTagline,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textScaler: MediaQuery.textScalerOf(
+                                        context,
+                                      ).clamp(maxScaleFactor: 1.3),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: palette.textSecondary,
+                                            fontSize: 11.5,
+                                          ),
+                                    ),
+                                ],
+                              ),
                             ),
                             const SizedBox(width: Insets.m),
                             IconButton(
@@ -341,18 +360,22 @@ class _AppShellState extends State<AppShell> {
                     ),
                   ),
                   Expanded(
-                    child: IndexedStack(
-                      index: _index,
-                      children: <Widget>[
-                        for (final tab in AppTab.values)
-                          if (_built[tab.index])
-                            _pages[tab]!
-                          else
-                            const SizedBox.shrink(),
-                      ],
+                    child: SafeArea(
+                      top: false,
+                      bottom: false,
+                      child: IndexedStack(
+                        index: _index,
+                        children: <Widget>[
+                          for (final tab in AppTab.values)
+                            if (_built[tab.index])
+                              _pages[tab]!
+                            else
+                              const SizedBox.shrink(),
+                        ],
+                      ),
                     ),
                   ),
-                  if (compact && _index != AppTab.settings.index)
+                  if (compact)
                     NavigationBar(
                       selectedIndex: _index,
                       onDestinationSelected: _select,
@@ -363,6 +386,11 @@ class _AppShellState extends State<AppShell> {
                             selectedIcon: Icon(spec.selectedIcon),
                             label: spec.label,
                           ),
+                        NavigationDestination(
+                          icon: const Icon(Icons.tune),
+                          selectedIcon: const Icon(Icons.tune),
+                          label: strings.navSettings,
+                        ),
                       ],
                     ),
                 ],

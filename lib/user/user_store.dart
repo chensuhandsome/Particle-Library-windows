@@ -115,6 +115,7 @@ class AppSettings {
     this.detailedMode = true,
     this.sidebarMode = 'auto',
     this.noteLinkMode = 'page',
+    this.lastUpdateCheck = '',
   });
 
   final String theme;
@@ -127,6 +128,9 @@ class AppSettings {
   /// `sidebar` previews it beside the note.
   final String noteLinkMode;
 
+  /// Local date (YYYY-MM-DD) of the last automatic update check.
+  final String lastUpdateCheck;
+
   AppSettings copyWith({
     String? theme,
     String? locale,
@@ -134,6 +138,7 @@ class AppSettings {
     bool? detailedMode,
     String? sidebarMode,
     String? noteLinkMode,
+    String? lastUpdateCheck,
   }) => AppSettings(
     theme: theme ?? this.theme,
     locale: locale ?? this.locale,
@@ -141,6 +146,7 @@ class AppSettings {
     detailedMode: detailedMode ?? this.detailedMode,
     sidebarMode: sidebarMode ?? this.sidebarMode,
     noteLinkMode: noteLinkMode ?? this.noteLinkMode,
+    lastUpdateCheck: lastUpdateCheck ?? this.lastUpdateCheck,
   );
 
   Map<String, Object?> toJson() => {
@@ -150,6 +156,7 @@ class AppSettings {
     'detailedMode': detailedMode,
     'sidebarMode': sidebarMode,
     'noteLinkMode': noteLinkMode,
+    'lastUpdateCheck': lastUpdateCheck,
   };
 
   static AppSettings fromJson(Object? value) {
@@ -163,6 +170,7 @@ class AppSettings {
     final detailed = map['detailedMode'];
     final sidebar = map['sidebarMode']?.toString();
     final noteLink = map['noteLinkMode']?.toString();
+    final lastUpdate = map['lastUpdateCheck']?.toString() ?? '';
     return AppSettings(
       theme: theme == 'light' || theme == 'dark' ? theme! : 'system',
       locale: locale == 'zh' || locale == 'en' ? locale! : 'system',
@@ -170,6 +178,7 @@ class AppSettings {
       detailedMode: detailed is bool ? detailed : true,
       sidebarMode: sidebar == 'always' || sidebar == 'off' ? sidebar! : 'auto',
       noteLinkMode: noteLink == 'sidebar' ? 'sidebar' : 'page',
+      lastUpdateCheck: lastUpdate,
     );
   }
 }

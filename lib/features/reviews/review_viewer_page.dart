@@ -36,6 +36,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
   NotesStore? _notes;
   List<ReviewAnnotation> _annotations = const <ReviewAnnotation>[];
   bool _showAnnotations = true;
+  bool _sidebarInitialized = false;
   bool _saving = false;
   bool _addingHighlight = false;
   bool _highlightMode = false;
@@ -410,6 +411,36 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
     }
   }
 
+  Widget _highlightGlyph(IconData icon) {
+    final color = Theme.of(context).iconTheme.color ?? Colors.black;
+    return SizedBox(
+      width: 22,
+      height: 22,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Icon(icon, size: 19, color: color),
+          Positioned(
+            right: -1,
+            bottom: 0,
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: _annotationColor(_highlightColor),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.surface,
+                  width: 1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -426,19 +457,13 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
             onPressed: _saving || _addingHighlight
                 ? null
                 : _toggleHighlightMode,
-            icon: Icon(
+            icon: _highlightGlyph(
               _highlightMode ? Icons.border_color : Icons.highlight_alt,
-              size: 19,
-              color: _annotationColor(_highlightColor),
             ),
           ),
           PopupMenuButton<String>(
             tooltip: strings.reviewHighlightColor,
-            icon: Icon(
-              Icons.palette_outlined,
-              size: 19,
-              color: _annotationColor(_highlightColor),
-            ),
+            icon: _highlightGlyph(Icons.palette_outlined),
             onSelected: (color) => setState(() => _highlightColor = color),
             itemBuilder: (context) => [
               for (final color in const ['yellow', 'green', 'pink', 'blue'])
@@ -489,53 +514,62 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
+          if (!_sidebarInitialized) {
+            _sidebarInitialized = true;
+            _showAnnotations = constraints.maxWidth >= 700;
+          }
           final sidebarWidth = constraints.maxWidth >= 720
               ? 320.0
               : (constraints.maxWidth * 0.45).clamp(160.0, 320.0);
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: PdfViewer.file(
-                  widget.path,
-                  controller: _controller,
-                  initialPageNumber: widget.initialPage,
-                  params: PdfViewerParams(
-                    pagePaintCallbacks: [_paintAnnotations],
-                    textSelectionParams: PdfTextSelectionParams(
-                      enabled: true,
-                      onTextSelectionChange: _onTextSelectionChanged,
+          return SafeArea(
+            top: false,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: PdfViewer.file(
+                    widget.path,
+                    controller: _controller,
+                    initialPageNumber: widget.initialPage,
+                    params: PdfViewerParams(
+                      pagePaintCallbacks: [_paintAnnotations],
+                      textSelectionParams: PdfTextSelectionParams(
+                        enabled: true,
+                        onTextSelectionChange: _onTextSelectionChanged,
+                      ),
+                      customizeContextMenuItems: _customizePdfContextMenu,
                     ),
-                    customizeContextMenuItems: _customizePdfContextMenu,
                   ),
                 ),
-              ),
-              if (_showAnnotations) ...[
-                VerticalDivider(width: 1, color: palette.divider),
-                SizedBox(
-                  width: sidebarWidth,
-                  child: _ReviewAnnotationSidebar(
-                    annotations: _annotations,
-                    palette: palette,
-                    strings: strings,
-                    onOpen: (annotation) {
-                      if (!_controller.isReady) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(strings.reviewPdfLoading)),
+                if (_showAnnotations) ...[
+                  VerticalDivider(width: 1, color: palette.divider),
+                  SizedBox(
+                    width: sidebarWidth,
+                    child: _ReviewAnnotationSidebar(
+                      annotations: _annotations,
+                      palette: palette,
+                      strings: strings,
+                      onOpen: (annotation) {
+                        if (!_controller.isReady) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(strings.reviewPdfLoading)),
+                          );
+                          return;
+                        }
+                        unawaited(
+                          _controller.goToPage(
+                            pageNumber: annotation.pageNumber,
+                          ),
                         );
-                        return;
-                      }
-                      unawaited(
-                        _controller.goToPage(pageNumber: annotation.pageNumber),
-                      );
-                    },
-                    onOpenNote: _openAnnotationNote,
-                    onEditNote: _editNote,
-                    onDelete: _deleteAnnotation,
+                      },
+                      onOpenNote: _openAnnotationNote,
+                      onEditNote: _editNote,
+                      onDelete: _deleteAnnotation,
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           );
         },
       ),
@@ -655,47 +689,38 @@ class _ReviewAnnotationSidebar extends StatelessWidget {
                                         ),
                                   ),
                                   const Spacer(),
-                                  IconButton(
-                                    tooltip: strings.reviewOpenNote,
-                                    visualDensity: VisualDensity.compact,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 28,
-                                      minHeight: 28,
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => onOpenNote(annotation),
+                                  PopupMenuButton<String>(
+                                    tooltip: strings.moreActions,
                                     icon: const Icon(
-                                      Icons.note_alt_outlined,
-                                      size: 15,
+                                      Icons.more_horiz,
+                                      size: 18,
                                     ),
-                                  ),
-                                  IconButton(
-                                    tooltip: strings.reviewAnnotationEdit,
-                                    visualDensity: VisualDensity.compact,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 28,
-                                      minHeight: 28,
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => onEditNote(annotation),
-                                    icon: const Icon(
-                                      Icons.edit_outlined,
-                                      size: 15,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    tooltip: strings.commonDelete,
-                                    visualDensity: VisualDensity.compact,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 28,
-                                      minHeight: 28,
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                    onPressed: () => onDelete(annotation),
-                                    icon: const Icon(
-                                      Icons.delete_outline,
-                                      size: 15,
-                                    ),
+                                    onSelected: (value) {
+                                      switch (value) {
+                                        case 'open':
+                                          onOpenNote(annotation);
+                                        case 'edit':
+                                          onEditNote(annotation);
+                                        case 'delete':
+                                          onDelete(annotation);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      PopupMenuItem(
+                                        value: 'open',
+                                        child: Text(strings.reviewOpenNote),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'edit',
+                                        child: Text(
+                                          strings.reviewAnnotationEdit,
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'delete',
+                                        child: Text(strings.commonDelete),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
