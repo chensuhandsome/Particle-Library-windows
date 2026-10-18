@@ -148,13 +148,6 @@ String? particleNameToLatex(String source) {
 
   final latex = buffer.toString();
   if (latex.contains('\\bar{}')) return null;
-  // A prime that was folded into a charge superscript would be wrong; this
-  // guard catches malformed combinations.
-  if (hasPrime && mass == null && chargePart.isNotEmpty) {
-    // With no mass, PDG has no real name combining a prime and a charge in
-    // this snapshot. Keep the raw text rather than inventing an ordering.
-    return null;
-  }
   return latex;
 }
 
@@ -243,6 +236,7 @@ String? _baseLatex(String name) {
   if (greekBase != null) return greekBase;
   const latin = {
     'p',
+    'P',
     'n',
     'e',
     'g',
