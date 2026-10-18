@@ -47,7 +47,15 @@ class MainFlutterWindow: NSWindow {
     // override the initial size on first launch.
     self.minSize = NSSize(width: 360, height: 560)
     self.title = "Particle Library"
-    self.setContentSize(NSSize(width: 1400, height: 900))
+    let visible = (self.screen ?? NSScreen.main)?.visibleFrame
+      ?? NSRect(x: 0, y: 0, width: 1400, height: 900)
+    self.setContentSize(
+      NSSize(
+        width: min(1400, max(360, visible.width - 80)),
+        height: min(900, max(560, visible.height - 80))
+      )
+    )
+    self.setFrameAutosaveName("ParticleLibraryMainWindow")
     self.center()
 
     let debugChannel = FlutterMethodChannel(

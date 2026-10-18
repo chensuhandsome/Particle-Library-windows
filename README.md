@@ -14,7 +14,7 @@ PDF annotations are stored separately from the data.
 Built by **Feng-Kun Guo** over a weekend using **DeepSeek Harness** and
 **DeepSeek-V4.1-Flash-1017**.
 
-The app is written in Flutter and currently targets **macOS (Apple Silicon)** and
+The app is written in Flutter and currently targets **macOS (universal)** and
 **iPhone/iPad**. A shared responsive layout is used for both.
 
 ## What is included
@@ -81,9 +81,11 @@ Expected snapshot:
   `c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a`
 - The app verifies this hash before using the data.
 
-The Flutter asset entry in `pubspec.yaml` requires this file to be present
-before `flutter test`, `flutter run` or a platform build. A production/App
-Store build must bundle the snapshot as an asset.
+The snapshot is not downloadable from this repository. A clean clone can run
+the UI code but **cannot run tests or build the real database** until the owner
+supplies this file. The Flutter asset entry in `pubspec.yaml` requires it before
+`flutter test`, `flutter run` or a platform build. A production build must bundle
+it as an asset; see the PDG data terms in `THIRD_PARTY_NOTICES.md`.
 
 
 ## Install

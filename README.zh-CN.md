@@ -10,7 +10,7 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 
 由 **Feng-Kun Guo** 在周末使用 **DeepSeek Harness** 与 **DeepSeek-V4.1-Flash-1017** 构建。
 
-应用使用 Flutter，当前目标平台为 **macOS（Apple Silicon）** 与 **iPhone/iPad**，两端共享响应式布局。
+应用使用 Flutter，当前目标平台为 **macOS（通用二进制）** 与 **iPhone/iPad**，两端共享响应式布局。
 
 ## 功能
 

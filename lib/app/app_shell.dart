@@ -433,39 +433,43 @@ class _TopTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: selected ? palette.surfaceAlt : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: selected ? palette.divider : Colors.transparent,
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: selected ? palette.surfaceAlt : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: selected ? palette.divider : Colors.transparent,
+                ),
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  size: 17,
-                  color: selected ? palette.primary : palette.textSecondary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    size: 17,
                     color: selected ? palette.primary : palette.textSecondary,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: selected ? palette.primary : palette.textSecondary,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

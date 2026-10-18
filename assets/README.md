@@ -7,7 +7,9 @@ Place it here before building:
 cp /path/to/pdgall-2026.0.sqlite assets/pdgall-2026.0.sqlite
 ```
 
-The file is excluded by `.gitignore`. Its SHA-256 must match
+The file is not downloadable from this repository; only developers with the
+2026 `pdgall` snapshot can run the tests or build the real database locally.
+It is excluded by `.gitignore`. Its SHA-256 must match
 `c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a`;
 the app verifies this before opening the database.
 
