@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_scope.dart';
 import '../../app/app_theme.dart';
 import '../../data/review_cache.dart';
+import '../common/description_text.dart';
 import '../common/page.dart';
 import '../common/ui.dart';
 import 'review_index.dart';
@@ -497,7 +498,11 @@ class _ReviewsPageState extends State<ReviewsPage> {
                   Insets.s,
                 ),
                 child: SectionCard(
-                  title: zh ? item.group.titleZh : item.group.titleEn,
+                  titleWidget: DescriptionText(
+                    zh ? item.group.titleZh : item.group.titleEn,
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
                   subtitle: zh
                       ? '${item.entries.length} 篇'
                       : '${item.entries.length} reviews',
@@ -561,8 +566,9 @@ class _ReviewTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  DescriptionText(
                     entry.title,
+                    maxLines: 3,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 2),

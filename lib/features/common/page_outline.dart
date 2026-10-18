@@ -152,38 +152,47 @@ class _PageOutlineScaffoldState extends State<PageOutlineScaffold> {
                 for (var i = 0; i < widget.items.length; i++)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 2),
-                    child: TextButton(
-                      onPressed: () => _select(widget.items[i]),
-                      style: TextButton.styleFrom(
-                        alignment: Alignment.centerLeft,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 7,
-                        ),
-                        backgroundColor: _selected == i
-                            ? palette.accent.withValues(alpha: 0.10)
-                            : null,
-                        foregroundColor: _selected == i
-                            ? palette.accent
-                            : palette.textPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          if (widget.items[i].icon != null) ...[
-                            Icon(widget.items[i].icon, size: 15),
-                            const SizedBox(width: 7),
-                          ],
-                          Expanded(
-                            child: Text(
-                              widget.items[i].label,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                    child: Material(
+                      color: _selected == i
+                          ? palette.accent.withValues(alpha: 0.10)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(6),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        hoverColor: palette.accent.withValues(alpha: 0.09),
+                        onTap: () => _select(widget.items[i]),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 7,
                           ),
-                        ],
+                          child: Row(
+                            children: [
+                              if (widget.items[i].icon != null) ...[
+                                Icon(
+                                  widget.items[i].icon,
+                                  size: 15,
+                                  color: _selected == i
+                                      ? palette.accent
+                                      : palette.textPrimary,
+                                ),
+                                const SizedBox(width: 7),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  widget.items[i].label,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: _selected == i
+                                        ? palette.accent
+                                        : palette.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),

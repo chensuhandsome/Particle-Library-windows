@@ -19,12 +19,17 @@ The app is written in Flutter and currently targets **macOS (universal)** and
 
 ## Screenshots
 
-| Desktop | iPhone |
+| X(3872) | π electric polarizability |
 | --- | --- |
-| <img src="docs/assets/screenshots/desktop-search.jpg" alt="Desktop search in dark mode" width="620"> | <img src="docs/assets/screenshots/iphone-search.jpg" alt="iPhone search in light mode" width="260"> |
+| <img src="docs/assets/screenshots/desktop-x3872.jpg" alt="X(3872) particle page" width="640"> | <img src="docs/assets/screenshots/desktop-polarizability.jpg" alt="Pion electric polarizability measurement page" width="640"> |
+| Particle page with identity, quantum numbers, summaries and the section outline. | Measurement page with definition, PDG average, complete measurements and raw fields. |
 
-English UI, PDG 2026 snapshot. The desktop screenshot uses the dark theme; the
-iPhone screenshot uses the light theme.
+| iPhone |
+| --- |
+| <img src="docs/assets/screenshots/iphone-search.jpg" alt="Particle Library search on iPhone" width="300"> |
+| Responsive layout on iPhone. |
+
+English UI, PDG 2026 snapshot, dark desktop theme and light iPhone theme.
 
 ## What is included
 

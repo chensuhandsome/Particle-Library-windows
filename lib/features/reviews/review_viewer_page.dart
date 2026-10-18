@@ -787,6 +787,7 @@ class _ReviewAnnotationSidebar extends StatelessWidget {
                       final annotation = ordered[index];
                       return InkWell(
                         borderRadius: BorderRadius.circular(8),
+                        hoverColor: palette.accent.withValues(alpha: 0.08),
                         onTap: () => onOpen(annotation),
                         child: Container(
                           padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),

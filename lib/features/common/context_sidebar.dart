@@ -283,6 +283,7 @@ class SidebarEntryTile extends StatelessWidget {
     final palette = context.palette;
     return InkWell(
       borderRadius: BorderRadius.circular(10),
+      hoverColor: palette.accent.withValues(alpha: 0.08),
       onTap: () => AppNav.openPdgid(context, entry.pdgid),
       child: Padding(
         padding: EdgeInsets.fromLTRB(10, 8, 8, last ? 8 : 9),

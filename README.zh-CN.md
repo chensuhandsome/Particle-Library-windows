@@ -14,11 +14,17 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 
 ## 截图
 
-| 桌面 | iPhone |
+| X(3872) | π 电极化率 |
 | --- | --- |
-| <img src="docs/assets/screenshots/desktop-search.jpg" alt="桌面端深色搜索界面" width="620"> | <img src="docs/assets/screenshots/iphone-search.jpg" alt="iPhone 浅色搜索界面" width="260"> |
+| <img src="docs/assets/screenshots/desktop-x3872.jpg" alt="X(3872) 粒子页" width="640"> | <img src="docs/assets/screenshots/desktop-polarizability.jpg" alt="π 电极化率测量页" width="640"> |
+| 粒子页：身份、量子数、汇总值和页面目录。 | 测量页：定义与来源、PDG 平均、全部测量和原始字段。 |
 
-英文界面、PDG 2026 数据快照。桌面截图为深色主题，iPhone 截图为浅色主题。
+| iPhone |
+| --- |
+| <img src="docs/assets/screenshots/iphone-search.jpg" alt="iPhone 上的 Particle Library 搜索页" width="300"> |
+| iPhone 响应式布局。 |
+
+英文界面、PDG 2026 数据快照；桌面为深色主题，iPhone 为浅色主题。
 
 ## 功能
 

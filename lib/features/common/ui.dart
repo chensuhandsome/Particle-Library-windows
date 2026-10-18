@@ -169,6 +169,7 @@ class SectionCard extends StatelessWidget {
     super.key,
     required this.child,
     this.title,
+    this.titleWidget,
     this.subtitle,
     this.leading,
     this.trailing,
@@ -177,6 +178,7 @@ class SectionCard extends StatelessWidget {
 
   final Widget child;
   final String? title;
+  final Widget? titleWidget;
   final String? subtitle;
   final Widget? leading;
   final Widget? trailing;
