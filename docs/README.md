@@ -20,6 +20,7 @@ the user manual (that lives in the app under **Help**).
 - [Roadmap and cross-platform rules](development/ROADMAP.md)
 - [Licensing notes](development/LICENSING.md)
 - [Update checks](development/UPDATES.md)
+- [Releasing](development/RELEASING.md)
 - [Implementation start and boundaries](development/Implementation_Start.md)
 - [Toolchain and target versions](development/Toolchain_Record.md)
 - [Notes P0/P1 plan](development/NOTES_P0_P1_PLAN.md)

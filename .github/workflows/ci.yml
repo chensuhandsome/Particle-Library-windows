@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+
+  test:
+    runs-on: macos-latest
+    # The PDG snapshot is not committed (CC BY data, 64 MB). Configure the
+    # repository variable PDG_SNAPSHOT_URL to a public release-asset URL.
+    if: ${{ vars.PDG_SNAPSHOT_URL != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Fetch and verify the PDG snapshot
+        env:
+          PDG_SNAPSHOT_URL: ${{ vars.PDG_SNAPSHOT_URL }}
+        run: |
+          mkdir -p assets
+          curl --fail --location --retry 3 \
+            "$PDG_SNAPSHOT_URL" -o assets/pdgall-2026.0.sqlite
+          echo "c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a  assets/pdgall-2026.0.sqlite" \
+            | shasum -a 256 -c -
+      - run: flutter test

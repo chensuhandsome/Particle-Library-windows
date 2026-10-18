@@ -137,6 +137,7 @@ docs/           design and data documentation
 - [Roadmap and platform work](docs/development/ROADMAP.md)
 - [Licensing notes](docs/development/LICENSING.md)
 - [Update checks](docs/development/UPDATES.md)
+- [Releasing](docs/development/RELEASING.md)
 
 ## License
 
