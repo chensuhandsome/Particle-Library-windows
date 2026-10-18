@@ -17,7 +17,13 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter analyze
+      - name: Analyze (snapshot intentionally absent)
+        run: |
+          # pubspec declares the runtime snapshot as an asset. The analyzer
+          # only needs the path to exist; the test job fetches the real data.
+          mkdir -p assets
+          : > assets/pdgall-2026.0.sqlite
+          flutter analyze
 
   test:
     runs-on: macos-latest
