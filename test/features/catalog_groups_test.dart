@@ -68,6 +68,18 @@ void main() {
     expect(catalogGroupForRoot(pi0)?.kind, CatalogGroupKind.mesonLight);
   });
 
+  test('charmonium and bottomonium labels carry explicit math', () {
+    final mesons = catalogGroups(ParticleCategory.meson);
+    final cc = mesons.firstWhere(
+      (group) => group.kind == CatalogGroupKind.mesonCCbar,
+    );
+    final bb = mesons.firstWhere(
+      (group) => group.kind == CatalogGroupKind.mesonBBbar,
+    );
+    expect(cc.label(TextLang.en), contains(r'$c\bar{c}$'));
+    expect(bb.label(TextLang.en), contains(r'$b\bar{b}$'));
+  });
+
   test('category review buttons use exact PDG Live review sets', () {
     expect(
       categoryReviewFiles[ParticleCategory.gaugeHiggs],

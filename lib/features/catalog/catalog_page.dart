@@ -178,8 +178,9 @@ class _CatalogPageState extends State<CatalogPage> {
                       for (final group in groups)
                         if ((groupCounts[group.kind] ?? 0) > 0)
                           FilterChip(
-                            label: Text(
+                            label: DescriptionText(
                               '${group.label(strings.lang)} · ${groupCounts[group.kind]}',
+                              maxLines: 1,
                             ),
                             selected: _subcategory == group.kind,
                             onSelected: (_) =>

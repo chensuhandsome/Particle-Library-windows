@@ -50,13 +50,13 @@ const _mesonGroups = <CatalogGroup>[
   CatalogGroup(CatalogGroupKind.mesonBottomCharmed, '底粲介子', 'Bottom, charmed'),
   CatalogGroup(
     CatalogGroupKind.mesonCCbar,
-    'c cbar（粲偶素）',
-    'c cbar (charmonium)',
+    r'$c\bar{c}$（粲偶素）',
+    r'$c\bar{c}$ (charmonium)',
   ),
   CatalogGroup(
     CatalogGroupKind.mesonBBbar,
-    'b bbar（底偶素）',
-    'b bbar (bottomonium)',
+    r'$b\bar{b}$（底偶素）',
+    r'$b\bar{b}$ (bottomonium)',
   ),
   CatalogGroup(CatalogGroupKind.mesonOther, '其他介子', 'Other mesons'),
 ];
