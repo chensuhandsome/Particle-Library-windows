@@ -96,9 +96,6 @@ reverse-DNS identifier. See [RELEASING.md](docs/development/RELEASING.md).
 
 ## Build from source
 
-Build instructions are kept separate from the end-user README so unverified
-builds are not presented as supported downloads:
-
 - [Building Particle Library](docs/development/BUILDING.md)
 - [Platform support matrix](docs/development/PLATFORMS.md)
 
