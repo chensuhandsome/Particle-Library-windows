@@ -17,7 +17,7 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 | X(3872) | π 电极化率 |
 | --- | --- |
 | <img src="docs/assets/screenshots/desktop-x3872.jpg" alt="X(3872) 粒子页" width="640"> | <img src="docs/assets/screenshots/desktop-polarizability.jpg" alt="π 电极化率测量页" width="640"> |
-| 粒子页：身份、量子数、汇总值和页面目录。 | 测量页：定义与来源、PDG 平均、全部测量和原始字段。 |
+| 粒子页：左侧页面目录、身份、量子数与右侧上下文栏。 | 测量页：左侧目录、定义与来源、PDG 平均和右侧上下文栏。 |
 
 | iPhone |
 | --- |

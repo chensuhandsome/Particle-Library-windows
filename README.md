@@ -22,7 +22,7 @@ The app is written in Flutter and currently targets **macOS (universal)** and
 | X(3872) | π electric polarizability |
 | --- | --- |
 | <img src="docs/assets/screenshots/desktop-x3872.jpg" alt="X(3872) particle page" width="640"> | <img src="docs/assets/screenshots/desktop-polarizability.jpg" alt="Pion electric polarizability measurement page" width="640"> |
-| Particle page with identity, quantum numbers, summaries and the section outline. | Measurement page with definition, PDG average, complete measurements and raw fields. |
+| Particle page with left section outline, identity, quantum numbers and right context sidebar. | Measurement page with left outline, definition, PDG average and right context sidebar. |
 
 | iPhone |
 | --- |

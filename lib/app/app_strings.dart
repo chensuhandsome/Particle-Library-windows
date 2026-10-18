@@ -913,6 +913,9 @@ class AppStrings {
   String reviewsCacheRemoved(int count) =>
       _t('已删除 $count 篇综述缓存。', 'Removed $count cached reviews.');
   String get reviewsCached => _t('已缓存', 'Cached');
+  String get reviewsFilterAll => _t('全部', 'All');
+  String get reviewsFilterCached => _t('已缓存', 'Cached');
+  String get reviewsFilterNotCached => _t('未缓存', 'Not cached');
   String get reviewsDownload => _t('下载并缓存', 'Download and cache');
   String get reviewsDownloadFailed => _t('综述下载失败。', 'Review download failed.');
   String get reviewsCacheAllDone =>

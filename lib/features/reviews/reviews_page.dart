@@ -31,6 +31,7 @@ class ReviewsPage extends StatefulWidget {
 class _ReviewsPageState extends State<ReviewsPage> {
   final TextEditingController _controller = TextEditingController();
   String _query = '';
+  _ReviewCacheFilter _cacheFilter = _ReviewCacheFilter.all;
   ReviewCache? _cache;
   Set<String> _cached = {};
   int _cachedBytes = 0;
@@ -45,6 +46,14 @@ class _ReviewsPageState extends State<ReviewsPage> {
   List<ReviewEntry> get _allEntries => [
     for (final group in reviewGroups) ...group.entries,
   ];
+
+  List<ReviewEntry> get _allowedEntries {
+    final allowed = widget.initialFiles;
+    return [
+      for (final entry in _allEntries)
+        if (allowed.isEmpty || allowed.contains(entry.file)) entry,
+    ];
+  }
 
   @override
   void initState() {
@@ -336,6 +345,13 @@ class _ReviewsPageState extends State<ReviewsPage> {
             (entry) =>
                 groupMatches || entry.title.toLowerCase().contains(query),
           )
+          .where((entry) {
+            return switch (_cacheFilter) {
+              _ReviewCacheFilter.all => true,
+              _ReviewCacheFilter.cached => _cached.contains(entry.file),
+              _ReviewCacheFilter.notCached => !_cached.contains(entry.file),
+            };
+          })
           .toList(growable: false);
       if (entries.isNotEmpty) groups.add((group: group, entries: entries));
     }
@@ -398,6 +414,40 @@ class _ReviewsPageState extends State<ReviewsPage> {
                         },
                       ),
               ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Insets.l, 0, Insets.l, Insets.s),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                FilterChip(
+                  label: Text(
+                    '${strings.reviewsFilterAll} · ${_allowedEntries.length}',
+                  ),
+                  selected: _cacheFilter == _ReviewCacheFilter.all,
+                  onSelected: (_) =>
+                      setState(() => _cacheFilter = _ReviewCacheFilter.all),
+                ),
+                FilterChip(
+                  label: Text(
+                    '${strings.reviewsFilterCached} · ${_allowedEntries.where((entry) => _cached.contains(entry.file)).length}',
+                  ),
+                  selected: _cacheFilter == _ReviewCacheFilter.cached,
+                  onSelected: (_) =>
+                      setState(() => _cacheFilter = _ReviewCacheFilter.cached),
+                ),
+                FilterChip(
+                  label: Text(
+                    '${strings.reviewsFilterNotCached} · ${_allowedEntries.where((entry) => !_cached.contains(entry.file)).length}',
+                  ),
+                  selected: _cacheFilter == _ReviewCacheFilter.notCached,
+                  onSelected: (_) => setState(
+                    () => _cacheFilter = _ReviewCacheFilter.notCached,
+                  ),
+                ),
+              ],
             ),
           ),
           Padding(
@@ -624,3 +674,5 @@ class _ReviewTile extends StatelessWidget {
     );
   }
 }
+
+enum _ReviewCacheFilter { all, cached, notCached }
