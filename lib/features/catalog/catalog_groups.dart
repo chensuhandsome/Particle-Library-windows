@@ -298,3 +298,23 @@ const Map<ParticleCategory, List<String>> categoryReviewFiles = {
     'rpp2026-rev-wimps-other-searches.pdf',
   ],
 };
+
+/// Exact review PDF linked by a PDG Live node. Kept separate from
+/// [categoryReviewFiles] so a search/topic root is not mistaken for a particle
+/// or duplicated as a separate review.
+const Map<String, List<String>> entryReviewFiles = {
+  'M209': ['rpp2026-rev-heavy-quarkonium-spectroscopy.pdf'],
+  'S052': ['rpp2026-rev-vcb-vub.pdf'],
+  'S056': [
+    'rpp2026-rev-wprime-searches.pdf',
+    'rpp2026-rev-zprime-searches.pdf',
+  ],
+  'S029': ['rpp2026-rev-axions.pdf'],
+  'S043': [
+    'rpp2026-rev-w-mass.pdf',
+    'rpp2026-rev-triple-gauge-couplings.pdf',
+    'rpp2026-rev-wz-quartic-couplings.pdf',
+  ],
+  'S044': ['rpp2026-rev-z-boson.pdf', 'rpp2026-rev-anomalous-z-couplings.pdf'],
+  'S126': ['rpp2026-rev-higgs-boson.pdf'],
+};

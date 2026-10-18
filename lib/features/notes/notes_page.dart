@@ -260,6 +260,63 @@ class _NotesWorkspaceState extends State<NotesWorkspace> {
     });
   }
 
+  Future<bool> _confirmNoteDelete(NoteRecord note) async {
+    final strings = AppScope.of(context).strings;
+    final palette = context.palette;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(strings.notesDeleteConfirmTitle),
+        content: Text(
+          '${strings.notesDeleteConfirmBody}\n\n${noteDisplayTitle(note, strings)}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(strings.commonCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: palette.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(strings.notesDeleteConfirm),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  Future<void> _deleteNoteFromList(NoteRecord note) async {
+    final store = widget.store;
+    if (store == null) return;
+    final strings = AppScope.of(context).strings;
+    final messenger = ScaffoldMessenger.of(context);
+    await store.delete(note.id);
+    if (!mounted) return;
+    widget.changes.value++;
+    if (_selected?.id == note.id) {
+      _onDeleted();
+    }
+    await _reload();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(strings.notesDeleted),
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: strings.notesUndo,
+          onPressed: () async {
+            await store.restore(note.id);
+            widget.changes.value++;
+            await _reload();
+          },
+        ),
+      ),
+    );
+  }
+
   void _filterByTag(String tag) {
     setState(() {
       if (_tagFilters.contains(tag)) {
@@ -1024,14 +1081,29 @@ class _NotesWorkspaceState extends State<NotesWorkspace> {
                 );
               }
               final note = _notes[index];
-              return _NoteListTile(
-                note: note,
-                strings: strings,
-                selected: wide && !_draftActive && _selected?.id == note.id,
-                onTap: () => _select(note, wide: wide),
-                onAddToCollection: () => _addToCollection(note),
-                onCollectionTap: _filterByCollection,
-                onTagTap: _filterByTag,
+              return Dismissible(
+                key: ValueKey<String>('note-swipe-${note.id}'),
+                direction: DismissDirection.endToStart,
+                confirmDismiss: (_) => _confirmNoteDelete(note),
+                onDismissed: (_) => _deleteNoteFromList(note),
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: Insets.l),
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  child: Icon(
+                    Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+                child: _NoteListTile(
+                  note: note,
+                  strings: strings,
+                  selected: wide && !_draftActive && _selected?.id == note.id,
+                  onTap: () => _select(note, wide: wide),
+                  onAddToCollection: () => _addToCollection(note),
+                  onCollectionTap: _filterByCollection,
+                  onTagTap: _filterByTag,
+                ),
               );
             },
           ),

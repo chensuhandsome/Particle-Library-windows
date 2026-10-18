@@ -68,6 +68,18 @@ void main() {
     expect(catalogGroupForRoot(pi0)?.kind, CatalogGroupKind.mesonLight);
   });
 
+  test('PDG Live topic nodes link to their exact review', () {
+    expect(
+      entryReviewFiles['M209'],
+      contains('rpp2026-rev-heavy-quarkonium-spectroscopy.pdf'),
+    );
+    expect(entryReviewFiles['S052'], contains('rpp2026-rev-vcb-vub.pdf'));
+    expect(
+      entryReviewFiles['S056'],
+      contains('rpp2026-rev-zprime-searches.pdf'),
+    );
+  });
+
   test('charmonium and bottomonium labels carry explicit math', () {
     final mesons = catalogGroups(ParticleCategory.meson);
     final cc = mesons.firstWhere(
