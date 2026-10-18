@@ -156,6 +156,7 @@ docs/           design and data documentation
 - [Toolchain record](docs/development/Toolchain_Record.md)
 - [Roadmap and platform work](docs/development/ROADMAP.md)
 - [Licensing notes](docs/development/LICENSING.md)
+- [Update checks](docs/development/UPDATES.md)
 
 ## License
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -6,6 +8,7 @@ import 'app_scope.dart';
 import 'app_strings.dart';
 import 'debug_hooks.dart';
 import 'app_theme.dart';
+import 'update_checker.dart';
 import '../features/common/page.dart';
 import '../features/common/ui.dart';
 import '../features/favorites/favorites_page.dart';
@@ -52,6 +55,24 @@ class _AppShellState extends State<AppShell> {
   void initState() {
     super.initState();
     _menuChannel.setMethodCallHandler(_handleMenuCall);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_checkForUpdates());
+    });
+  }
+
+  Future<void> _checkForUpdates() async {
+    if (!UpdateChecker.isConfigured) return;
+    try {
+      final update = await UpdateChecker.check();
+      if (!mounted || update == null) return;
+      await showUpdateAvailableDialog(
+        context,
+        AppScope.of(context).strings,
+        update,
+      );
+    } catch (_) {
+      // An update check must never block startup or show a network error.
+    }
   }
 
   Future<void> _handleMenuCall(MethodCall call) async {
@@ -230,13 +251,8 @@ class _AppShellState extends State<AppShell> {
                                 ),
                                 icon: SvgPicture.asset(
                                   'assets/brand/inspire.svg',
-                                  width: 20,
-                                  height: 20,
-                                  colorFilter: ColorFilter.mode(
-                                    Theme.of(context).iconTheme.color ??
-                                        palette.textPrimary,
-                                    BlendMode.srcIn,
-                                  ),
+                                  width: 19,
+                                  height: 19,
                                 ),
                               ),
                               IconButton(

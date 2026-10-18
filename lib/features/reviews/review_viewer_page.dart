@@ -38,6 +38,8 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
   bool _showAnnotations = true;
   bool _saving = false;
   bool _addingHighlight = false;
+  bool _highlightMode = false;
+  Timer? _autoHighlightTimer;
   String _highlightColor = 'yellow';
   bool _started = false;
   late final Future<void> _ready;
@@ -48,6 +50,12 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
       if (segment.trim().isNotEmpty) return segment;
     }
     return '';
+  }
+
+  @override
+  void dispose() {
+    _autoHighlightTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -111,6 +119,20 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
         SnackBar(content: Text(AppScope.of(context).strings.reviewsOpenFailed)),
       );
     }
+  }
+
+  void _onTextSelectionChanged(PdfTextSelection selection) {
+    _autoHighlightTimer?.cancel();
+    if (!_highlightMode || !selection.hasSelectedText) return;
+    _autoHighlightTimer = Timer(const Duration(milliseconds: 320), () {
+      if (!mounted || !_highlightMode) return;
+      unawaited(_highlightSelection());
+    });
+  }
+
+  void _toggleHighlightMode() {
+    setState(() => _highlightMode = !_highlightMode);
+    if (!_highlightMode) _autoHighlightTimer?.cancel();
   }
 
   Future<void> _highlightSelection() async {
@@ -340,16 +362,18 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
     PdfViewerContextMenuBuilderParams params,
     List<ContextMenuButtonItem> items,
   ) {
-    items.insert(
-      0,
-      ContextMenuButtonItem(
-        label: AppScope.of(context).strings.reviewHighlight,
-        onPressed: () {
-          params.dismissContextMenu();
-          unawaited(_highlightSelection());
-        },
-      ),
-    );
+    if (params.textSelectionDelegate.hasSelectedText) {
+      items.insert(
+        0,
+        ContextMenuButtonItem(
+          label: AppScope.of(context).strings.reviewHighlight,
+          onPressed: () {
+            params.dismissContextMenu();
+            unawaited(_highlightSelection());
+          },
+        ),
+      );
+    }
   }
 
   Color _annotationColor(String name) => switch (name) {
@@ -388,10 +412,14 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
         title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
-            tooltip: strings.reviewHighlight,
-            onPressed: _saving || _addingHighlight ? null : _highlightSelection,
+            tooltip: _highlightMode
+                ? strings.reviewHighlightModeOn
+                : strings.reviewHighlight,
+            onPressed: _saving || _addingHighlight
+                ? null
+                : _toggleHighlightMode,
             icon: Icon(
-              Icons.highlight_alt,
+              _highlightMode ? Icons.border_color : Icons.highlight_alt,
               size: 19,
               color: _annotationColor(_highlightColor),
             ),
@@ -466,8 +494,9 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
                   initialPageNumber: widget.initialPage,
                   params: PdfViewerParams(
                     pagePaintCallbacks: [_paintAnnotations],
-                    textSelectionParams: const PdfTextSelectionParams(
+                    textSelectionParams: PdfTextSelectionParams(
                       enabled: true,
+                      onTextSelectionChange: _onTextSelectionChanged,
                     ),
                     customizeContextMenuItems: _customizePdfContextMenu,
                   ),

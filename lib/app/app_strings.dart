@@ -868,6 +868,10 @@ class AppStrings {
       _t('搜索综述标题或分类', 'Search review titles or categories');
   String get reviewsEmpty => _t('没有匹配的综述。', 'No matching reviews.');
   String get reviewHighlight => _t('高亮所选文字', 'Highlight selection');
+  String get reviewHighlightModeOn => _t(
+    '高亮模式已开启：选中文字会自动高亮',
+    'Highlight mode on: selecting text highlights it',
+  );
   String get reviewPdfLoading => _t('PDF 正在加载…', 'PDF is loading…');
   String get reviewSelectText =>
       _t('请先在 PDF 中选择文字。', 'Select text in the PDF first.');
@@ -1000,6 +1004,21 @@ class AppStrings {
     'Particle Library 是离线 PDG 数据查阅工具，不是 PDG 官方应用。数据来自随包 pdgall 快照，按 CC BY 4.0 使用并保留来源。',
     '$kAppName is an offline PDG data browser, not an official PDG application. Data comes from the bundled pdgall snapshot under CC BY 4.0; attribution is retained.',
   );
+  String get settingsCheckUpdates => _t('检查更新', 'Check for updates');
+  String get settingsCheckingUpdates => _t('正在检查更新…', 'Checking for updates…');
+  String get settingsUpdateCurrent => _t('已是最新版本。', 'You are up to date.');
+  String get settingsUpdateUnavailable => _t(
+    '暂时无法检查更新。请稍后重试，或从发布页面手动下载。',
+    'Update check is unavailable. Try again later or download from the releases page.',
+  );
+  String get updateLater => _t('稍后', 'Later');
+  String get updateOpen => _t('打开下载页面', 'Open download page');
+  String get updateAvailableMessage => _t(
+    '有新版本可用。建议下载并安装最新版本。',
+    'A newer version is available. Download and install the latest release.',
+  );
+  String updateAvailableTitle(String version) =>
+      _t('发现新版本 $version', 'Version $version is available');
   String get settingsBuiltBy => _t(
     '由 Feng-Kun Guo 使用 DeepSeek Harness 构建。',
     'Built by Feng-Kun Guo using DeepSeek Harness.',

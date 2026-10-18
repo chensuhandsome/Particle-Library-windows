@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/update_checker.dart';
 import '../../app/app_theme.dart';
 import 'zotero_cache_section.dart';
 import '../../data/zotero_bridge.dart';
@@ -28,6 +29,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _showTables = false;
   bool _showCodes = false;
   bool _initialized = false;
+  bool _checkingUpdate = false;
+  String? _updateStatus;
 
   @override
   void didChangeDependencies() {
@@ -35,6 +38,35 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_initialized) return;
     _initialized = true;
     _statsFuture = AppScope.of(context).database.snapshotStats();
+  }
+
+  Future<void> _checkUpdates() async {
+    if (_checkingUpdate) return;
+    final strings = AppScope.of(context).strings;
+    setState(() {
+      _checkingUpdate = true;
+      _updateStatus = strings.settingsCheckingUpdates;
+    });
+    try {
+      final update = await UpdateChecker.check();
+      if (!mounted) return;
+      if (update == null) {
+        setState(() => _updateStatus = strings.settingsUpdateCurrent);
+      } else {
+        setState(() => _updateStatus = null);
+        await showUpdateAvailableDialog(context, strings, update);
+      }
+    } on UpdateCheckException catch (error) {
+      if (!mounted) return;
+      debugPrint('Update check failed: $error');
+      setState(() => _updateStatus = strings.settingsUpdateUnavailable);
+    } catch (error) {
+      if (!mounted) return;
+      debugPrint('Update check failed: $error');
+      setState(() => _updateStatus = strings.settingsUpdateUnavailable);
+    } finally {
+      if (mounted) setState(() => _checkingUpdate = false);
+    }
   }
 
   Future<void> _backupNotes() async {
@@ -329,7 +361,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     DataField(
                       label: strings.settingsAppVersion,
-                      value: '0.1.0',
+                      value: appVersion,
                       monospace: true,
                     ),
                     DataField(
@@ -639,6 +671,26 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(color: palette.textSecondary),
                     ),
+                    const SizedBox(height: Insets.s),
+                    OutlinedButton.icon(
+                      onPressed: _checkingUpdate ? null : _checkUpdates,
+                      icon: _checkingUpdate
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.system_update_alt, size: 17),
+                      label: Text(strings.settingsCheckUpdates),
+                    ),
+                    if (_updateStatus != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _updateStatus!,
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: palette.textSecondary),
+                      ),
+                    ],
                     const SizedBox(height: Insets.s),
                     Text(
                       strings.settingsCoverageText,

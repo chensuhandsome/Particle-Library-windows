@@ -113,6 +113,7 @@ docs/           设计与开发文档
 - [衰变结构设计](docs/design/Decay_Structure_Design.md)
 - [开发路线与跨平台计划](docs/development/ROADMAP.md)
 - [许可说明](docs/development/LICENSING.md)
+- [更新检查](docs/development/UPDATES.md)
 
 开发文档目前以中文为主；构建/平台说明为英文，避免重复维护。
 
