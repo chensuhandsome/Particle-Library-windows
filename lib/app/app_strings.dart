@@ -1000,6 +1000,10 @@ class AppStrings {
     'Particle Library 是离线 PDG 数据查阅工具，不是 PDG 官方应用。数据来自随包 pdgall 快照，按 CC BY 4.0 使用并保留来源。',
     '$kAppName is an offline PDG data browser, not an official PDG application. Data comes from the bundled pdgall snapshot under CC BY 4.0; attribution is retained.',
   );
+  String get settingsBuiltBy => _t(
+    '由 Feng-Kun Guo 使用 DeepSeek Harness 构建。',
+    'Built by Feng-Kun Guo using DeepSeek Harness.',
+  );
   String get settingsCoverageText => _t(
     '本版本完整读取条目、性质、衰变参与项、全部测量列、脚注、文献与历史汇总；结构语义只在能由原文确定时展示，无法唯一确定的片段保留原文。',
     'This build reads entries, properties, decay tokens, all measurement columns, footnotes, references and historical summaries. Structural semantics are shown only where the source supports them; unresolved fragments stay visible and are marked.',

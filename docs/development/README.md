@@ -6,6 +6,8 @@ reproducing a build; they are not required to use the app.
 
 - [Building](BUILDING.md)
 - [Platform support](PLATFORMS.md)
+- [Roadmap](ROADMAP.md)
+- [Licensing notes](LICENSING.md)
 - [Implementation start](Implementation_Start.md)
 - [Toolchain record](Toolchain_Record.md)
 - [Notes P0/P1 plan](NOTES_P0_P1_PLAN.md)

@@ -12,6 +12,10 @@ class ZoteroBridge {
 
   static const String _base = 'http://127.0.0.1:23119';
 
+  /// Zotero's local API only exists on a desktop where Zotero is running.
+  /// On mobile, 127.0.0.1 is the phone itself, so the UI is hidden for now.
+  static bool get isSupportedPlatform => !Platform.isAndroid && !Platform.isIOS;
+
   /// Quick check that Zotero's local API is reachable.
   Future<bool> isAvailable() async {
     try {

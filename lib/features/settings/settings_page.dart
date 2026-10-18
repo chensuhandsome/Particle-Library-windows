@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app/app_scope.dart';
 import '../../app/app_theme.dart';
 import 'zotero_cache_section.dart';
+import '../../data/zotero_bridge.dart';
 import '../../data/pdg_database.dart';
 import '../../domain/labels.dart';
 import '../common/page.dart';
@@ -353,8 +354,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
             ),
-            const SizedBox(height: Insets.m),
-            const ZoteroCacheSection(),
+            if (ZoteroBridge.isSupportedPlatform) ...[
+              const SizedBox(height: Insets.m),
+              const ZoteroCacheSection(),
+            ],
             const SizedBox(height: Insets.m),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Insets.l),
@@ -630,6 +633,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(strings.settingsAboutText),
+                    const SizedBox(height: Insets.xs),
+                    Text(
+                      strings.settingsBuiltBy,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: palette.textSecondary),
+                    ),
                     const SizedBox(height: Insets.s),
                     Text(
                       strings.settingsCoverageText,

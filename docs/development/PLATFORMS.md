@@ -27,8 +27,9 @@ smoke test on that platform.
 
 ## Platform-specific caveats
 
-- **macOS menus:** Help and Settings are wired into the native menu. Other
-  platforms use the top-bar Help button and Settings icon instead.
+- **macOS menus:** Help and Settings are also wired into the native menu.
+  All platforms additionally expose Help and Settings in the top bar (or in
+  the compact `⋮` menu) so the app is not dependent on a native menu.
 - **Zotero:** the bridge uses loopback `127.0.0.1`, so it only reaches a Zotero
   desktop on the same machine. Mobile builds need a configurable host or should
   hide the Zotero action.

@@ -291,7 +291,9 @@ class _ReferencePageState extends State<ReferencePage> {
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (reference.inspireId.isNotEmpty || reference.doi.isNotEmpty)
+                if (ZoteroBridge.isSupportedPlatform &&
+                    (reference.inspireId.isNotEmpty ||
+                        reference.doi.isNotEmpty))
                   IconButton(
                     tooltip: strings.zoteroOpen,
                     onPressed: _zoteroBusy

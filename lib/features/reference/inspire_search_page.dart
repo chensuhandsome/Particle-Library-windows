@@ -32,6 +32,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
   late final TextEditingController _controller;
   final _service = InspireLiteratureSearchService();
   final _zotero = const ZoteroBridge();
+  bool get _zoteroSupported => ZoteroBridge.isSupportedPlatform;
   bool? _zoteroAvailable;
   Timer? _zoteroProbeTimer;
   int _zoteroProbeAttempts = 0;
@@ -60,11 +61,14 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     if (widget.initialQuery.trim().isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _search());
     }
-    unawaited(_loadZoteroCache());
-    unawaited(_probeZotero());
+    if (_zoteroSupported) {
+      unawaited(_loadZoteroCache());
+      unawaited(_probeZotero());
+    }
   }
 
   Future<void> _loadZoteroCache() async {
+    if (!_zoteroSupported) return;
     final cache = await ZoteroCacheIndex.load();
     if (!mounted) return;
     setState(() {
@@ -295,8 +299,10 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     final entries = <(String, String)>[
       ('local', strings.inspireFilterLocal),
       ('notLocal', strings.inspireFilterNotLocal),
-      ('zotero', strings.inspireFilterZotero),
-      ('notZotero', strings.inspireFilterNotZotero),
+      if (_zoteroSupported) ...[
+        ('zotero', strings.inspireFilterZotero),
+        ('notZotero', strings.inspireFilterNotZotero),
+      ],
       ('published', strings.inspireFilterPublished),
       ('preprint', strings.inspireFilterPreprint),
       ('highCited', strings.inspireFilterHighCited),
@@ -322,6 +328,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
   }
 
   Future<void> _probeZotero() async {
+    if (!_zoteroSupported) return;
     final available = await _zotero.isAvailable();
     if (!mounted) return;
     _zoteroProbeTimer?.cancel();
@@ -767,7 +774,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
                     );
                   },
                 ),
-                if (_zoteroAvailable == true)
+                if (_zoteroSupported && _zoteroAvailable == true)
                   FutureBuilder<String?>(
                     future: _zoteroKey(hit),
                     builder: (context, snapshot) {

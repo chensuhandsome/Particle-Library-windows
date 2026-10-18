@@ -55,3 +55,9 @@ respective upstream repositories.
 The Particle Library owl artwork and in-app BrandMark were created for this
 project and are included under the MPL-2.0 above. No third-party character
 asset is included.
+
+## INSPIRE name and mark
+
+The in-app “iN” monogram is an original outline mark used to identify the
+external INSPIRE-HEP service. No official INSPIRE logo is bundled, and this
+project is not endorsed by INSPIRE or CERN.
