@@ -441,6 +441,108 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
     );
   }
 
+  Widget _buildSelectionHandle(
+    BuildContext context,
+    PdfTextSelectionAnchor anchor,
+    PdfViewerTextSelectionAnchorHandleState state,
+  ) {
+    final color = Theme.of(context).colorScheme.primary;
+    return CustomPaint(
+      size: const Size(30, 30),
+      painter: _SelectionHandlePainter(color, state),
+    );
+  }
+
+  List<Widget> _annotationOverlays(
+    BuildContext context,
+    Rect pageRect,
+    PdfPage page,
+  ) {
+    final widgets = <Widget>[];
+    for (final annotation in _annotations) {
+      if (annotation.pageNumber != page.pageNumber) continue;
+      for (final rect in annotation.rects) {
+        final left = rect.left * pageRect.width - 5;
+        final top = rect.top * pageRect.height - 5;
+        final width = rect.width * pageRect.width + 10;
+        final height = rect.height * pageRect.height + 10;
+        widgets.add(
+          Positioned(
+            left: left,
+            top: top,
+            width: width < 28 ? 28 : width,
+            height: height < 28 ? 28 : height,
+            child: PdfOverlayInteractionRegion(
+              onTap: (_) {
+                unawaited(_showAnnotationActions(annotation));
+                return true;
+              },
+              onSecondaryTap: (_) {
+                unawaited(_showAnnotationActions(annotation));
+                return true;
+              },
+              child: const SizedBox.expand(),
+            ),
+          ),
+        );
+      }
+    }
+    return widgets;
+  }
+
+  Future<void> _showAnnotationActions(ReviewAnnotation annotation) async {
+    final strings = AppScope.of(context).strings;
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(
+                annotation.text.trim().isEmpty
+                    ? strings.reviewAnnotationEmpty
+                    : annotation.text,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                strings.reviewAnnotationPage(annotation.pageNumber),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.note_alt_outlined),
+              title: Text(strings.reviewOpenNote),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(_openAnnotationNote(annotation));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: Text(strings.reviewAnnotationEdit),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(_editNote(annotation));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: Text(strings.commonDelete),
+              textColor: Theme.of(context).colorScheme.error,
+              iconColor: Theme.of(context).colorScheme.error,
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(_deleteAnnotation(annotation));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _openAnnotationsSheet() {
     showModalBottomSheet<void>(
       context: context,
@@ -565,8 +667,10 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
                     initialPageNumber: widget.initialPage,
                     params: PdfViewerParams(
                       pagePaintCallbacks: [_paintAnnotations],
+                      pageOverlaysBuilder: _annotationOverlays,
                       textSelectionParams: PdfTextSelectionParams(
                         enabled: true,
+                        buildSelectionHandle: _buildSelectionHandle,
                         onTextSelectionChange: _onTextSelectionChanged,
                       ),
                       customizeContextMenuItems: _customizePdfContextMenu,
@@ -787,4 +891,46 @@ class _ReviewAnnotationSidebar extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SelectionHandlePainter extends CustomPainter {
+  _SelectionHandlePainter(this.color, this.state);
+
+  final Color color;
+  final PdfViewerTextSelectionAnchorHandleState state;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final opacity = state == PdfViewerTextSelectionAnchorHandleState.normal
+        ? 0.72
+        : 1.0;
+    if (state != PdfViewerTextSelectionAnchorHandleState.dragging) {
+      canvas.drawCircle(
+        center.translate(0, 2),
+        8,
+        Paint()..color = Colors.black.withValues(alpha: 0.18),
+      );
+    }
+    canvas.drawCircle(
+      center,
+      7,
+      Paint()..color = color.withValues(alpha: opacity),
+    );
+    canvas.drawCircle(
+      center,
+      7,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4
+        ..color = Colors.white.withValues(alpha: 0.9),
+    );
+  }
+
+  @override
+  bool hitTest(Offset position) => true;
+
+  @override
+  bool shouldRepaint(covariant _SelectionHandlePainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.state != state;
 }
