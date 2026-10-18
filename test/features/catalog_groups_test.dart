@@ -1,15 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdgapp/domain/labels.dart';
 import 'package:pdgapp/domain/models.dart';
+import 'package:pdgapp/data/pdg_database.dart';
 import 'package:pdgapp/features/catalog/catalog_groups.dart';
 
 Entry entry(String description, String flags) => Entry({
-      'id': description.hashCode,
-      'pdgid': 'X',
-      'description': description,
-      'flags': flags,
-      'data_type': 'PART',
-    });
+  'id': description.hashCode,
+  'pdgid': 'X',
+  'description': description,
+  'flags': flags,
+  'data_type': 'PART',
+});
 
 CatalogGroupKind? kind(String description, String flags) =>
     catalogGroupFor(entry(description, flags))?.kind;
@@ -44,6 +45,27 @@ void main() {
     expect(kind('Lambda_c()+', 'B'), CatalogGroupKind.baryonCharmed);
     expect(kind('Xi_cc()+', 'B'), CatalogGroupKind.baryonDoublyCharmed);
     expect(kind('Lambda_b()0', 'B'), CatalogGroupKind.baryonBottom);
+  });
+
+  test('topic-only roots are not classified as particles', () {
+    final vcb = CatalogRoot(
+      entry('V(cb) and V(ub) CKM Matrix Elements', 'M'),
+      0,
+      0,
+    );
+    final spectroscopy = CatalogRoot(
+      entry('Heavy Quarkonium Spectroscopy', 'M'),
+      0,
+      0,
+    );
+    expect(catalogCategoryForRoot(vcb), ParticleCategory.unknown);
+    expect(catalogCategoryForRoot(spectroscopy), ParticleCategory.unknown);
+    expect(catalogGroupForRoot(vcb), isNull);
+    expect(catalogGroupForRoot(spectroscopy), isNull);
+
+    final pi0 = CatalogRoot(entry('pi0', 'M'), 1, 1);
+    expect(catalogCategoryForRoot(pi0), ParticleCategory.meson);
+    expect(catalogGroupForRoot(pi0)?.kind, CatalogGroupKind.mesonLight);
   });
 
   test('group lists are only exposed for mesons and baryons', () {

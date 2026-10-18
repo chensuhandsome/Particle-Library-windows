@@ -186,8 +186,8 @@ class AppStrings {
   String get sidebarReferences => _t('文献', 'References');
 
   String get particleMissingIdentity => _t(
-    '条目存在，但当前快照没有具体粒子身份行。',
-    'The entry exists but this snapshot has no particle identity row for it.',
+    '该条目是 PDG 搜索/专题或节标题，当前快照没有粒子身份行；它只汇总测量数据，不包含正文。相关小综述请在 Reviews 中查看。',
+    'This is a PDG search/topic or section heading without a particle identity row in this snapshot. It aggregates measurements and has no prose of its own; related review articles are in Reviews.',
   );
   String particleAlsoKnownAs(String alias) =>
       _t('又称 $alias', 'Also known as $alias');
@@ -1026,10 +1026,8 @@ class AppStrings {
   );
   String updateAvailableTitle(String version) =>
       _t('发现新版本 $version', 'Version $version is available');
-  String get settingsBuiltBy => _t(
-    '使用 DeepSeek Harness 构建。',
-    'Built with DeepSeek Harness.',
-  );
+  String get settingsBuiltBy =>
+      _t('使用 DeepSeek Harness 构建。', 'Built with DeepSeek Harness.');
   String get settingsCoverageText => _t(
     '本版本完整读取条目、性质、衰变参与项、全部测量列、脚注、文献与历史汇总；结构语义只在能由原文确定时展示，无法唯一确定的片段保留原文。',
     'This build reads entries, properties, decay tokens, all measurement columns, footnotes, references and historical summaries. Structural semantics are shown only where the source supports them; unresolved fragments stay visible and are marked.',

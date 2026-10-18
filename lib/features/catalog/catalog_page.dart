@@ -58,8 +58,7 @@ class _CatalogPageState extends State<CatalogPage> {
           final categoryRoots = roots
               .where((root) {
                 if (_category == null) return true;
-                final category = categoryFromFlags(root.entry.flags)?.category;
-                return category == _category;
+                return catalogCategoryForRoot(root) == _category;
               })
               .toList(growable: false);
           final groups = _category == null
@@ -67,13 +66,13 @@ class _CatalogPageState extends State<CatalogPage> {
               : catalogGroups(_category!);
           final groupCounts = <CatalogGroupKind, int>{};
           for (final root in categoryRoots) {
-            final kind = catalogGroupFor(root.entry)?.kind;
+            final kind = catalogGroupForRoot(root)?.kind;
             if (kind != null) groupCounts[kind] = (groupCounts[kind] ?? 0) + 1;
           }
           final filtered = categoryRoots
               .where((root) {
                 if (_subcategory != null &&
-                    catalogGroupFor(root.entry)?.kind != _subcategory) {
+                    catalogGroupForRoot(root)?.kind != _subcategory) {
                   return false;
                 }
                 return query.isEmpty ||
@@ -83,9 +82,7 @@ class _CatalogPageState extends State<CatalogPage> {
               .toList(growable: false);
           final counts = <ParticleCategory, int>{};
           for (final root in roots) {
-            final category =
-                categoryFromFlags(root.entry.flags)?.category ??
-                ParticleCategory.unknown;
+            final category = catalogCategoryForRoot(root);
             counts[category] = (counts[category] ?? 0) + 1;
           }
           return ListView(
@@ -234,7 +231,9 @@ class _CatalogRootTileState extends State<_CatalogRootTile> {
     final detailed = scope.settings.detailedMode;
     final palette = context.palette;
     final entry = widget.root.entry;
-    final category = categoryFromFlags(entry.flags);
+    final category = widget.root.particleCount == 0
+        ? null
+        : categoryFromFlags(entry.flags);
     final type = dataTypeInfo(entry.dataType);
     return Container(
       decoration: BoxDecoration(

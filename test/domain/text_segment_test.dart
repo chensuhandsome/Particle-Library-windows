@@ -89,7 +89,8 @@ void main() {
 
   test('formula titles typeset Z, J/psi and generic leptons', () {
     final segments = segmentPdgText(
-        'G(Z --> J/psi(1S) lepton+ lepton-)/G(total)');
+      'G(Z --> J/psi(1S) lepton+ lepton-)/G(total)',
+    );
     expect(segments.where((s) => s.latex != null).map((s) => s.latex), [
       r'\Gamma(Z\to J/\psi(1S)\ell^{+}\ell^{-})',
       r'\Gamma(\mathrm{total})',
@@ -98,40 +99,51 @@ void main() {
 
   test('a dollar math segment directly after a word is not swallowed', () {
     final segments = segmentPdgText(
-        r'Observation of the Z$\to\psi\ell^+\ell^-$ decay');
-    final latex = segments.where((s) => s.latex != null).map((s) => s.latex).toList();
+      r'Observation of the Z$\to\psi\ell^+\ell^-$ decay',
+    );
+    final latex = segments
+        .where((s) => s.latex != null)
+        .map((s) => s.latex)
+        .toList();
     expect(latex, contains(r'\to\psi\ell^+\ell^-'));
   });
 
   test('K0S and eta prime in measurement comments', () {
     final segments = segmentPdgText("J/psi --> gamma K0S K0S eta^'");
-    final latex = segments.where((s) => s.latex != null).map((s) => s.latex).toList();
+    final latex = segments
+        .where((s) => s.latex != null)
+        .map((s) => s.latex)
+        .toList();
     expect(latex, contains(r'K_{S}^{0}'));
     expect(latex, contains(r"\eta^{\prime}"));
   });
 
   test('luminosity units and neutralino names', () {
     final segments = segmentPdgText('1.6 fb**-1 chitilde_1()0');
-    expect(segments.where((s) => s.latex != null).map((s) => s.latex),
-        containsAll([r'\mathrm{fb}^{-1}', r'\tilde{\chi}_{1}^{0}']));
+    expect(
+      segments.where((s) => s.latex != null).map((s) => s.latex),
+      containsAll([r'\mathrm{fb}^{-1}', r'\tilde{\chi}_{1}^{0}']),
+    );
   });
 
   test('mbar is typeset as a barred mass', () {
     final segments = segmentPdgText('mbar = (mass(u)+mass(d))/2');
-    expect(segments.where((s) => s.latex != null).map((s) => s.latex),
-        contains(r'\bar{m}'));
+    expect(
+      segments.where((s) => s.latex != null).map((s) => s.latex),
+      contains(r'\bar{m}'),
+    );
   });
 
   test('flavour tags, annotations and charge conjugates stay typeset', () {
     final segments = segmentPdgText(
-        'G(tau- --> K- pi+ pi- nu_tau)/G(tau- --> K- pi+ pi- nu_tau (ex.K0))');
+      'G(tau- --> K- pi+ pi- nu_tau)/G(tau- --> K- pi+ pi- nu_tau (ex.K0))',
+    );
     expect(segments.where((s) => s.latex != null).length, 2);
     expect(segments.map((s) => s.text ?? '').join().trim(), '/');
   });
 
   test('variable functions and double-star factors', () {
-    final segments =
-        segmentPdgText('(1 + q(r)**2 R**2) / (1 + q^2 R^2)');
+    final segments = segmentPdgText('(1 + q(r)**2 R**2) / (1 + q^2 R^2)');
     expect(segments.where((s) => s.latex != null).map((s) => s.latex), [
       r'(1+q(r)^{2}R^{2})',
       r'(1+q^{2}R^{2})',
@@ -141,7 +153,8 @@ void main() {
 
   test('C-odd chi state notation with comma-separated chain', () {
     final segments = segmentPdgText(
-        'G(B+ --> chi_c1-odd(3872) K+ , chi_c1-odd --> J/psi eta)/G(total)');
+      'G(B+ --> chi_c1-odd(3872) K+ , chi_c1-odd --> J/psi eta)/G(total)',
+    );
     expect(segments.where((s) => s.latex != null).length, 2);
     expect(segments.first.latex, contains(r'\chi_{c1-\mathrm{odd}}'));
   });
@@ -156,10 +169,14 @@ void main() {
   });
 
   test('parenthetical prose stays literal', () {
-    expect(segmentPdgText('(shown rounded)').every((s) => s.latex == null),
-        isTrue);
-    expect(segmentPdgText('(Particle Data Group)').every((s) => s.latex == null),
-        isTrue);
+    expect(
+      segmentPdgText('(shown rounded)').every((s) => s.latex == null),
+      isTrue,
+    );
+    expect(
+      segmentPdgText('(Particle Data Group)').every((s) => s.latex == null),
+      isTrue,
+    );
   });
 
   test('mass differences with nested particle labels', () {
@@ -169,6 +186,18 @@ void main() {
       r'm_{J/\psi}',
     ]);
     expect(segments.map((s) => s.text ?? '').join(), '-');
+  });
+
+  test('measurement-parameter titles typeset Greek symbols', () {
+    final first = segmentPdgText(
+      '|(xi PARAMETER)*(μ LONGITUDINAL POLARIZATION)|',
+    ).where((segment) => segment.latex != null).map((s) => s.latex);
+    expect(first, containsAll([r'\xi', r'\mu']));
+
+    final second = segmentPdgText(
+      'xi * (μ LONGITUDINAL POLARIZATION) * delta / ρ',
+    ).where((segment) => segment.latex != null).map((s) => s.latex);
+    expect(second, containsAll([r'\xi', r'\mu', r'\delta', r'\rho']));
   });
 
   test('dollar TeX and bare names both work', () {

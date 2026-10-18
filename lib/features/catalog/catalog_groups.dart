@@ -1,3 +1,4 @@
+import '../../data/pdg_database.dart';
 import '../../domain/labels.dart';
 import '../../domain/models.dart';
 
@@ -193,4 +194,18 @@ CatalogGroup _group(CatalogGroupKind kind) {
     if (group.kind == kind) return group;
   }
   throw StateError('unknown catalog group $kind');
+}
+
+/// Topic/section roots have no particle identity row. PDG's flag column can
+/// still say `M` (e.g. "V(cb) and V(ub) CKM Matrix Elements"), so particle
+/// category membership requires an actual particle row.
+ParticleCategory catalogCategoryForRoot(CatalogRoot root) {
+  if (root.particleCount == 0) return ParticleCategory.unknown;
+  return categoryFromFlags(root.entry.flags)?.category ??
+      ParticleCategory.unknown;
+}
+
+CatalogGroup? catalogGroupForRoot(CatalogRoot root) {
+  if (root.particleCount == 0) return null;
+  return catalogGroupFor(root.entry);
 }

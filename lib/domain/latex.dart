@@ -65,6 +65,8 @@ String? _quantumValue(String source) {
 String? particleNameToLatex(String source) {
   final quantum = quantumLineToLatex(source);
   if (quantum != null) return quantum;
+  final ckm = RegExp(r'^V\(([udscbt]{2})\)$').firstMatch(source.trim());
+  if (ckm != null) return 'V_{${ckm.group(1)}}';
   var name = source.trim();
   if (name.isEmpty) return null;
   // PDG occasionally separates repeated subscript letters with spaces
@@ -418,7 +420,28 @@ String decayTokensToLatex(List<DecayToken> tokens) {
 /// `g**nu_{{e}}` style. A token with no mathematical marker and no known
 /// particle symbol is returned as `null` so that normal prose stays prose.
 String? textTokenToLatex(String token) {
-  final trimmed = token.trim();
+  var trimmed = token.trim();
+  // Crossref/PDG titles mix Unicode Greek with ASCII particle formulas.
+  const unicodeGreek = {
+    'μ': 'mu',
+    'ρ': 'rho',
+    'ξ': 'xi',
+    'δ': 'delta',
+    'α': 'alpha',
+    'β': 'beta',
+    'γ': 'gamma',
+    'τ': 'tau',
+    'π': 'pi',
+    'σ': 'sigma',
+    'λ': 'lambda',
+    'ω': 'omega',
+    'φ': 'phi',
+    'χ': 'chi',
+    'η': 'eta',
+  };
+  if (unicodeGreek.containsKey(trimmed)) {
+    trimmed = unicodeGreek[trimmed]!;
+  }
   if (trimmed.isEmpty || trimmed.length > 40) return null;
   // Crossref titles sometimes run the two final-state particles together.
   if (trimmed == 'J/psieta') return r'J/\psi\eta';
@@ -519,7 +542,53 @@ const int _segmentCacheLimit = 300;
 final Map<String, List<PdgTextSegment>> _segmentCache = {};
 
 List<PdgTextSegment> _segmentPdgTextUncached(String original) {
-  var source = original.replaceAllMapped(
+  var source = original;
+  // CKM matrix elements use a two-letter subscript, not a mass label.
+  if (!source.contains(r'$')) {
+    for (final pair in const [
+      'cb',
+      'ub',
+      'cd',
+      'cs',
+      'td',
+      'ts',
+      'tb',
+      'ud',
+      'us',
+    ]) {
+      source = source.replaceAll('V($pair)', r'$V_{' + pair + r'}$');
+    }
+  }
+  const titleGreek = {
+    'μ': 'mu',
+    'ρ': 'rho',
+    'ξ': 'xi',
+    'δ': 'delta',
+    'α': 'alpha',
+    'β': 'beta',
+    'γ': 'gamma',
+    'τ': 'tau',
+    'π': 'pi',
+    'σ': 'sigma',
+    'λ': 'lambda',
+    'ω': 'omega',
+    'φ': 'phi',
+    'χ': 'chi',
+    'η': 'eta',
+  };
+  // Only normalize Greek outside explicit `$...$` math; that path already
+  // accepts TeX commands.
+  final dollarParts = source.split(RegExp(r'(?=\$)'));
+  source = [
+    for (final part in dollarParts)
+      part.startsWith(r'$') && part.length > 1
+          ? part
+          : part.replaceAllMapped(
+              RegExp('[${titleGreek.keys.join()}]'),
+              (match) => titleGreek[match.group(0)]!,
+            ),
+  ].join();
+  source = source.replaceAllMapped(
     RegExp(r'([_^])mathit\s+([A-Za-z]+)'),
     (match) => '${match.group(1)}${match.group(2)}',
   );
@@ -953,6 +1022,9 @@ const Set<String> _bareNameWords = {
   'theta',
   'lambda',
   'kappa',
+  'xi',
+  'delta',
+  'sigma',
   'chitilde',
   'nutilde',
   'lambdatilde',
@@ -1000,6 +1072,8 @@ const Set<String> _symbolWords = {
   'beta',
   'lambda',
   'sigma',
+  'xi',
+  'delta',
   'kappa',
   'chitilde',
   'nutilde',
