@@ -103,7 +103,6 @@ String? particleNameToLatex(String source) {
   if (sup != null && sup.isNotEmpty) {
     superscript.add(sup.replaceAll('\u2032', "'"));
   }
-  final hasPrime = superscript.any((part) => part.contains("'"));
   final chargePart = <String>[];
   if (charge == '0') {
     chargePart.add('0');

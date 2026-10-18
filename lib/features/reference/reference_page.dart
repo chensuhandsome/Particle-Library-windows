@@ -574,6 +574,7 @@ class _ReferenceBody extends StatelessWidget {
                           ? null
                           : DescriptionText(
                               reference.title,
+                              selectable: true,
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
                     ),

@@ -52,12 +52,18 @@ class DescriptionText extends StatelessWidget {
         spans.addAll(_citationSpans(context, segment.text ?? '', base));
       }
     }
-    final rich = Text.rich(
-      TextSpan(children: spans),
-      style: base,
-      maxLines: maxLines,
-      overflow: maxLines == null ? TextOverflow.clip : overflow,
-    );
+    final rich = selectable
+        ? SelectableText.rich(
+            TextSpan(children: spans),
+            style: base,
+            maxLines: maxLines,
+          )
+        : Text.rich(
+            TextSpan(children: spans),
+            style: base,
+            maxLines: maxLines,
+            overflow: maxLines == null ? TextOverflow.clip : overflow,
+          );
     return Semantics(
       label: text,
       child: ExcludeSemantics(child: rich),
