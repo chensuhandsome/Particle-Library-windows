@@ -207,9 +207,10 @@ docs/           design and data documentation
 
 ## License
 
-- **Application code:** MIT License; see [LICENSE](LICENSE).
+- **Application code:** Mozilla Public License 2.0 (MPL-2.0); see [LICENSE](LICENSE).
+  Copyright 2026 Particle Library contributors.
 - **PDG data snapshot:** CC BY 4.0, with attribution to the Particle Data
-  Group. The MIT license does **not** cover the data.
+  Group. The MPL-2.0 license does **not** cover the data.
 - **PDG review PDFs:** not bundled; downloaded from the PDG and subject to
   PDG's terms.
 - **Third-party packages:** see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

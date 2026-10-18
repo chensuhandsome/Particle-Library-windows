@@ -1,8 +1,8 @@
 # Third-party notices
 
-Particle Library's application code is licensed under the MIT License in
-[LICENSE](LICENSE). That license does **not** apply to the PDG data, the PDG
-review PDFs, or third-party packages. Their terms are summarized below.
+Particle Library's application code is licensed under the Mozilla Public
+License 2.0 (MPL-2.0) in [LICENSE](LICENSE). That license does **not** apply to
+the PDG data, the PDG review PDFs, or third-party packages. Their terms are summarized below.
 
 ## PDG data snapshot
 
@@ -53,6 +53,6 @@ respective upstream repositories.
 ## Icons and brand artwork
 
 The Particle Library owl artwork and in-app BrandMark were created for this
-project and are included under the MIT License above. They are inspired by the
+project and are included under the MPL-2.0 above. They are inspired by the
 project owner's personal ChatGPT pet; no third-party character asset is
 included.
