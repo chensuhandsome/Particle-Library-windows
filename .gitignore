@@ -1,0 +1,39 @@
+# Local files and credentials
+.DS_Store
+.env
+.env.*
+!.env.example
+*.p12
+*.p8
+*.mobileprovision
+*.jks
+*.keystore
+
+# Generated Flutter and platform build files
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+coverage/
+ios/Pods/
+macos/Pods/
+ios/.symlinks/
+macos/.symlinks/
+android/local.properties
+
+# IDE files
+.idea/
+*.iml
+
+# Raw PDG snapshots must never be committed (~2 GB; supply via PDGAPP_SOURCE_DB)
+*.sqlite
+
+# SQLite runtime journals and Python caches
+*.sqlite-wal
+*.sqlite-shm
+__pycache__/
+*.py[cod]
+
+# Local unsigned release bundles
+dist/

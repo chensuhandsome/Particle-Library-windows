@@ -1,0 +1,136 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pdgapp/app/app_strings.dart';
+import 'package:pdgapp/app/app_theme.dart';
+import 'package:pdgapp/domain/labels.dart';
+import 'package:pdgapp/features/notes/notes_page.dart';
+import 'package:pdgapp/notes/notes.dart';
+
+void main() {
+  late Directory tempDir;
+  late NotesStore store;
+  late ValueNotifier<int> changes;
+
+  setUp(() async {
+    tempDir = await Directory.systemTemp.createTemp('pdgapp-notes-page-');
+    store = await NotesStore.open(overridePath: '${tempDir.path}/user.db');
+    changes = ValueNotifier<int>(0);
+  });
+
+  tearDown(() async {
+    await store.close();
+    changes.dispose();
+    try {
+      await tempDir.delete(recursive: true);
+    } on FileSystemException {
+      // WAL/SHM files can linger briefly; the OS temp dir is disposable.
+    }
+  });
+
+  Future<void> pumpWorkspace(
+    WidgetTester tester, {
+    bool notesAvailable = true,
+    Object? storeError,
+    double wideBreakpoint = 700,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: NotesWorkspace(
+            store: notesAvailable ? store : null,
+            storeError: storeError,
+            strings: const AppStrings(TextLang.en),
+            changes: changes,
+            wideBreakpoint: wideBreakpoint,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('lists recent notes, searches CJK text and opens the editor', (
+    tester,
+  ) async {
+    await store.create(
+      title: 'D0 寿命',
+      bodyMarkdown: '**D0** 的轻子衰变讨论。',
+      anchors: <NoteAnchorInput>[
+        NoteAnchorInput.pdgid(
+          'S032M',
+          snapshotHash: 'hash-1',
+          targetLabel: 'D0 (S032M)',
+        ),
+      ],
+      tags: <String>['寿命'],
+    );
+    await store.create(
+      title: 'B0 mixing',
+      bodyMarkdown: 'mixing parameters and constraints',
+    );
+
+    await pumpWorkspace(tester);
+
+    expect(find.text('Recent notes'), findsOneWidget);
+    expect(find.text('D0 寿命'), findsOneWidget);
+    expect(find.text('B0 mixing'), findsOneWidget);
+    expect(find.text('D0 (S032M)'), findsWidgets);
+
+    await tester.enterText(find.byType(TextField).first, '轻子');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('D0 寿命'), findsOneWidget);
+    expect(find.text('B0 mixing'), findsNothing);
+
+    await tester.tap(find.text('D0 寿命'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit note'), findsOneWidget);
+    final titleField = tester.widget<TextField>(find.byType(TextField).at(1));
+    expect(titleField.controller?.text, 'D0 寿命');
+  });
+
+  testWidgets('creates a draft through the shared inline editor', (
+    tester,
+  ) async {
+    await pumpWorkspace(tester);
+    expect(find.text('New note'), findsWidgets);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'New note').first);
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField).at(1), 'Fresh note');
+    await tester.enterText(find.byType(TextField).at(2), 'autosaved body');
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+
+    final notes = await store.recent();
+    expect(notes, hasLength(1));
+    expect(notes.single.title, 'Fresh note');
+    expect(notes.single.bodyMarkdown, 'autosaved body');
+    expect(find.text('Saved'), findsOneWidget);
+  });
+
+  testWidgets('shows an unavailable panel when the notes store failed', (
+    tester,
+  ) async {
+    await pumpWorkspace(
+      tester,
+      notesAvailable: false,
+      storeError: 'disk unavailable',
+    );
+
+    expect(
+      find.text(
+        'The notes database is unavailable; particle data still works.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('disk unavailable'), findsOneWidget);
+    expect(find.text('New note'), findsNothing);
+  });
+}

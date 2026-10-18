@@ -1,0 +1,271 @@
+import 'package:flutter/material.dart';
+
+import '../../app/app_scope.dart';
+import '../../app/navigation.dart';
+import '../../notes/notes.dart';
+import 'note_editor.dart';
+import 'notes_format.dart';
+
+String selectedQuoteBlock(String text, String label) {
+  final quote = text
+      .trim()
+      .split('\n')
+      .map((line) => line.trim().isEmpty ? '>' : '> $line')
+      .join('\n');
+  return '$quote\n\n**${label.trim()}**';
+}
+
+Future<void> captureTextToNote(
+  BuildContext context, {
+  required String text,
+  required List<NoteAnchorInput> anchors,
+  required String label,
+  bool anchorOnly = false,
+  List<NoteTarget> lookupTargets = const <NoteTarget>[],
+}) async {
+  final scope = AppScope.of(context);
+  final store = scope.notes;
+  final strings = scope.strings;
+  if (store == null || (!anchorOnly && text.trim().isEmpty)) return;
+
+  final existing = <NoteRecord>[];
+  final targets = <String, NoteTarget>{
+    for (final target in lookupTargets)
+      '${target.kind}\u0000${target.key}': target,
+    for (final anchor in anchors)
+      '${anchor.targetKind}\u0000${anchor.targetKey}': NoteTarget(
+        kind: anchor.targetKind,
+        key: anchor.targetKey,
+      ),
+  }.values;
+  for (final target in targets) {
+    existing.addAll(
+      await store.notesForTarget(target.kind, target.key, limit: 8),
+    );
+  }
+  final recent = await store.recent(limit: 30);
+  final unique = <String, NoteRecord>{
+    for (final note in [...existing, ...recent]) note.id: note,
+  }.values.toList()..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+  if (!context.mounted) return;
+  final searchController = TextEditingController();
+  final choice = await showDialog<_CaptureChoice>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        final query = searchController.text.trim();
+        final visible = query.isEmpty
+            ? unique.take(6).toList(growable: false)
+            : unique
+                  .where((note) => noteMatchesQuery(note, query))
+                  .take(8)
+                  .toList(growable: false);
+        return AlertDialog(
+          title: Text(strings.notesCaptureTitle),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: Theme.of(context).textTheme.labelLarge),
+                  if (!anchorOnly) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        text.trim().length > 600
+                            ? '${text.trim().substring(0, 600)}…'
+                            : text.trim(),
+                        maxLines: 7,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Text(
+                    strings.notesCaptureAppendHint,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (unique.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: searchController,
+                      autofocus: true,
+                      onChanged: (_) => setDialogState(() {}),
+                      onSubmitted: (_) {
+                        if (visible.isNotEmpty) {
+                          Navigator.of(dialogContext)
+                              .pop(_CaptureChoice(existing: visible.first));
+                        }
+                      },
+                      decoration: InputDecoration(
+                        hintText: strings.notesCaptureSearchHint,
+                        prefixIcon: const Icon(Icons.search, size: 17),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      child: visible.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Text(
+                                strings.notesNoSearchResults,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            )
+                          : ListView(
+                              shrinkWrap: true,
+                              children: [
+                                for (final note in visible)
+                                  ListTile(
+                                    dense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: const Icon(
+                                      Icons.note_alt_outlined,
+                                      size: 18,
+                                    ),
+                                    title: Text(
+                                      noteDisplayTitle(note, strings),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    subtitle: Text(
+                                      noteBodyPreview(note).isEmpty
+                                          ? noteUpdatedLabel(
+                                              note.updatedAt,
+                                              strings,
+                                            )
+                                          : noteBodyPreview(note),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    onTap: () => Navigator.of(dialogContext)
+                                        .pop(_CaptureChoice(existing: note)),
+                                  ),
+                              ],
+                            ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(strings.commonCancel),
+            ),
+            FilledButton.icon(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(const _CaptureChoice()),
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(strings.notesCaptureNew),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+  searchController.dispose();
+  if (choice == null) return;
+
+  final sourceLines = <String>[];
+  final seenSources = <String>{};
+  for (final anchor in anchors) {
+    final sourceLabel = anchor.targetLabel.trim().isEmpty
+        ? label
+        : anchor.targetLabel;
+    final line =
+        '[${strings.notesSourceLine(sourceLabel)}](${anchor.targetId})';
+    if (seenSources.add(line)) sourceLines.add(line);
+  }
+  final quote = anchorOnly
+      ? sourceLines.join('\n')
+      : [
+          selectedQuoteBlock(text, label),
+          if (sourceLines.isNotEmpty) sourceLines.join('\n'),
+        ].join('\n\n');
+  final NoteRecord record;
+  try {
+    if (choice.existing != null) {
+      final note = choice.existing!;
+      final body = note.bodyMarkdown.trim().isEmpty
+          ? quote
+          : '${note.bodyMarkdown.trim()}\n\n$quote';
+      final merged = <NoteAnchorInput>[
+        for (final anchor in note.anchors)
+          NoteAnchorInput(
+            targetKind: anchor.targetKind,
+            targetKey: anchor.targetKey,
+            snapshotHash: anchor.snapshotHash.isEmpty
+                ? null
+                : anchor.snapshotHash,
+            targetLabel: anchor.targetLabel,
+            status: anchor.status,
+            context: anchor.context,
+          ),
+        ...anchors,
+      ];
+      final seen = <String>{};
+      merged.retainWhere(
+        (anchor) =>
+            seen.add('${anchor.targetId}\u0000${anchor.snapshotHash ?? ''}'),
+      );
+      record = await store.update(
+        note.id,
+        bodyMarkdown: body,
+        anchors: merged,
+        expectedRevision: note.revision,
+      );
+    } else {
+      record = await store.create(
+        title: label,
+        bodyMarkdown: quote,
+        anchors: anchors,
+      );
+    }
+    scope.notesChanges.value++;
+  } catch (error) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${strings.notesSaveFailed}: $error')),
+    );
+    return;
+  }
+  if (!context.mounted) return;
+  await AppNav.push<void>(context, NoteEditorPage(note: record));
+}
+
+/// Adds an entity link to a note, letting the user append to an existing note
+/// or create a new one instead of silently creating a note.
+Future<void> addEntityToNote(
+  BuildContext context, {
+  required List<NoteAnchorInput> anchors,
+  required String label,
+  List<NoteTarget> lookupTargets = const <NoteTarget>[],
+}) => captureTextToNote(
+  context,
+  text: '',
+  anchors: anchors,
+  label: label,
+  anchorOnly: true,
+  lookupTargets: lookupTargets,
+);
+
+class _CaptureChoice {
+  const _CaptureChoice({this.existing});
+
+  final NoteRecord? existing;
+}

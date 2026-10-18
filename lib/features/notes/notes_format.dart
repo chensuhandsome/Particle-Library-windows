@@ -1,0 +1,180 @@
+import 'dart:convert';
+
+import '../../app/app_strings.dart';
+import '../../notes/notes.dart';
+
+/// Visible title for a note: the title, else the first body line, else a
+/// localized placeholder.
+String noteDisplayTitle(NoteRecord note, AppStrings strings) {
+  final title = note.title.trim();
+  if (title.isNotEmpty) return title;
+  final firstLine = note.bodyPlain
+      .split('\n')
+      .map((line) => line.trim())
+      .firstWhere((line) => line.isNotEmpty, orElse: () => '');
+  if (firstLine.isEmpty) return strings.notesUntitled;
+  return _truncate(firstLine, 60);
+}
+
+/// One-line plain-text preview of the stored Markdown body.
+String noteBodyPreview(NoteRecord note, {int maxLength = 160}) {
+  final text = note.bodyPlain.replaceAll(RegExp(r'\s+'), ' ').trim();
+  return _truncate(text, maxLength);
+}
+
+/// Localized “updated …” label for list rows.
+///
+/// [now] is injectable so the formatting can be tested deterministically.
+String noteUpdatedLabel(
+  DateTime updatedAt,
+  AppStrings strings, {
+  DateTime? now,
+}) {
+  final current = (now ?? DateTime.now()).toLocal();
+  final local = updatedAt.toLocal();
+  final difference = current.difference(local);
+  if (!difference.isNegative) {
+    if (difference.inMinutes < 1) return strings.notesJustNow;
+    if (difference.inMinutes < 60) {
+      return strings.notesMinutesAgo(difference.inMinutes);
+    }
+    if (difference.inHours < 24 && _sameDay(current, local)) {
+      return strings.notesHoursAgo(difference.inHours);
+    }
+  }
+  if (_sameDay(current, local)) {
+    return strings.notesUpdated(
+      '${local.hour.toString().padLeft(2, '0')}:'
+      '${local.minute.toString().padLeft(2, '0')}',
+    );
+  }
+  final yesterday = DateTime(
+    current.year,
+    current.month,
+    current.day,
+  ).subtract(const Duration(days: 1));
+  if (_sameDay(yesterday, local)) return strings.notesYesterday;
+  return strings.notesUpdated(
+    '${local.year.toString().padLeft(4, '0')}-'
+    '${local.month.toString().padLeft(2, '0')}-'
+    '${local.day.toString().padLeft(2, '0')}',
+  );
+}
+
+/// Human label of one stored anchor; falls back to a readable form of the
+/// canonical target key when the frozen label is empty.
+String anchorDisplayLabel(NoteAnchor anchor) {
+  final label = anchor.targetLabel.trim();
+  if (label.isNotEmpty) return label;
+  if (anchor.targetKind == NoteTargetKinds.pdgid) {
+    return anchor.targetKey;
+  }
+  final key = anchor.targetKey;
+  if (key.startsWith('doi:')) return key.substring(4);
+  if (key.startsWith('doc:')) return 'document ${key.substring(4)}';
+  return anchor.targetId;
+}
+
+/// Label of the first anchor, used as an anchor preview in note lists.
+String noteAnchorPreview(NoteRecord note) =>
+    note.anchors.isEmpty ? '' : anchorDisplayLabel(note.anchors.first);
+
+/// Splits the editor's tag field.
+///
+/// Commas/semicolons separate tags, and `#tag` tokens are accepted as well.
+/// Tags without `#` keep spaces, so the historical comma-separated form still
+/// works. Hashtags are extracted even when several appear in one part.
+List<String> parseNoteTags(String input) {
+  final tags = <String>[];
+  final seen = <String>{};
+  for (final part in input.split(RegExp(r'[,，;；]'))) {
+    final trimmed = part.trim();
+    if (trimmed.isEmpty) continue;
+    final hashes = RegExp(r'#([^\s#,;]+)')
+        .allMatches(trimmed)
+        .map((match) => match.group(1)!.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList(growable: false);
+    if (hashes.isNotEmpty) {
+      for (final tag in hashes) {
+        if (seen.add(tag)) tags.add(tag);
+      }
+      continue;
+    }
+    if (seen.add(trimmed)) tags.add(trimmed);
+  }
+  return tags;
+}
+
+/// Whether [note] matches a note-list query across body and note metadata.
+///
+/// The store does this in SQL for global search; a collection-filtered list is
+/// already loaded with anchors/tags, so it uses this matcher instead.
+bool noteMatchesQuery(NoteRecord note, String query) {
+  final needle = query.trim().toLowerCase();
+  if (needle.isEmpty) return true;
+  bool matches(String value) => value.toLowerCase().contains(needle);
+  if (matches(note.title) ||
+      matches(note.bodyPlain) ||
+      matches(note.bodyMarkdown)) {
+    return true;
+  }
+  if (note.anchors.any((a) => matches(a.targetKey) || matches(a.targetLabel))) {
+    return true;
+  }
+  if (note.tagNames.any(matches)) return true;
+  return note.collections.any((c) => matches(c.name));
+}
+
+/// Markdown representation used by the editor's copy action.
+String noteAsMarkdown(NoteRecord note, {String untitled = 'Untitled note'}) {
+  final buffer = StringBuffer();
+  final title = note.title.trim();
+  buffer.writeln('# ${title.isEmpty ? untitled : title}');
+  buffer.writeln();
+  final body = note.bodyMarkdown.trimRight();
+  if (body.isNotEmpty) {
+    buffer.writeln(body);
+    buffer.writeln();
+  }
+  final tags = note.tagNames;
+  if (tags.isNotEmpty) {
+    buffer.writeln('Tags: ${tags.join(', ')}');
+    buffer.writeln();
+  }
+  if (note.anchors.isNotEmpty) {
+    buffer.writeln('Anchors:');
+    for (final anchor in note.anchors) {
+      final label = anchor.targetLabel.trim();
+      buffer.writeln(
+        label.isEmpty
+            ? '- `${anchor.targetId}`'
+            : '- $label — `${anchor.targetId}`',
+      );
+    }
+    buffer.writeln();
+  }
+  buffer.writeln('Updated: ${note.updatedAt.toUtc().toIso8601String()}');
+  return buffer.toString().trimRight();
+}
+
+/// Versioned JSON backup copied from the Notes page.
+String notesExportJson(Iterable<NoteRecord> notes, {DateTime? exportedAt}) {
+  final records = notes.toList(growable: false);
+  final payload = <String, Object?>{
+    'schema': 'particle-library.notes.v1',
+    'exportedAt': (exportedAt ?? DateTime.now()).toUtc().toIso8601String(),
+    'count': records.length,
+    'notes': [for (final note in records) note.toJson()],
+  };
+  return const JsonEncoder.withIndent('  ').convert(payload);
+}
+
+bool _sameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
+String _truncate(String value, int maxLength) {
+  final runes = value.runes.toList(growable: false);
+  if (runes.length <= maxLength) return value;
+  return '${String.fromCharCodes(runes.take(maxLength))}…';
+}

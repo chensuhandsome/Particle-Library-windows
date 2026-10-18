@@ -1,0 +1,831 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../app/app_scope.dart';
+import '../../app/app_strings.dart';
+import '../../app/app_theme.dart';
+import '../../app/navigation.dart';
+import '../../data/inspire_bibtex.dart';
+import '../../data/inspire_literature_search.dart';
+import '../../data/zotero_bridge.dart';
+import '../../data/zotero_cache.dart';
+import '../common/async_view.dart';
+import '../common/description_text.dart';
+import '../common/page.dart';
+import '../common/ui.dart';
+import 'reference_page.dart';
+
+/// Online INSPIRE search for authors, titles and other bibliographic terms
+/// that are not present in the local PDG snapshot.
+class InspireSearchPage extends StatefulWidget {
+  const InspireSearchPage({super.key, this.initialQuery = ''});
+
+  final String initialQuery;
+
+  @override
+  State<InspireSearchPage> createState() => _InspireSearchPageState();
+}
+
+class _InspireSearchPageState extends State<InspireSearchPage> {
+  late final TextEditingController _controller;
+  final _service = InspireLiteratureSearchService();
+  final _zotero = const ZoteroBridge();
+  bool? _zoteroAvailable;
+  Timer? _zoteroProbeTimer;
+  int _zoteroProbeAttempts = 0;
+  int? _zoteroBusy;
+  final Map<String, Future<String?>> _zoteroKeys = <String, Future<String?>>{};
+  List<InspireLiteratureHit> _hits = const <InspireLiteratureHit>[];
+  bool _loading = false;
+  Object? _error;
+  int _generation = 0;
+  final Map<String, int?> _localIds = <String, int?>{};
+  final Map<String, Future<int?>> _localFutures = <String, Future<int?>>{};
+  int _page = 1;
+  int _total = 0;
+  int _pageSize = 50;
+  static const List<int> _pageSizes = [20, 50, 100, 200];
+  String _sort = 'mostcited';
+  final TextEditingController _filterController = TextEditingController();
+  final Set<String> _activeFilters = <String>{};
+  final Map<int, bool> _zoteroPresence = <int, bool>{};
+  ZoteroCacheIndex? _zoteroCache;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialQuery);
+    if (widget.initialQuery.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _search());
+    }
+    unawaited(_loadZoteroCache());
+    unawaited(_probeZotero());
+  }
+
+  Future<void> _loadZoteroCache() async {
+    final cache = await ZoteroCacheIndex.load();
+    if (!mounted) return;
+    setState(() {
+      _zoteroCache = cache;
+      if (cache != null) _zoteroAvailable = true;
+    });
+    if (cache != null && _hits.isNotEmpty) {
+      unawaited(_prefetchPresence(_hits));
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _filterController.dispose();
+    _zoteroProbeTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _search({int? page}) async {
+    final query = _controller.text.trim();
+    if (query.isEmpty) return;
+    final targetPage = page ?? _page;
+    final generation = ++_generation;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = await _service.searchPage(
+        query,
+        page: targetPage,
+        size: _pageSize,
+        sort: _sort,
+      );
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _page = targetPage;
+        _hits = result.hits;
+        _total = result.total;
+        _loading = false;
+        _error = null;
+      });
+      unawaited(_prefetchPresence(result.hits));
+    } catch (error) {
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _loading = false;
+        _error = error;
+      });
+    }
+  }
+
+  void _setPageSize(int size) {
+    if (_pageSize == size) return;
+    setState(() => _pageSize = size);
+    if (_controller.text.trim().isNotEmpty) _search(page: 1);
+  }
+
+  void _setSort(String value) {
+    if (_sort == value) return;
+    setState(() => _sort = value);
+    if (_controller.text.trim().isNotEmpty) _search(page: 1);
+  }
+
+  Future<void> _prefetchPresence(List<InspireLiteratureHit> hits) async {
+    if (hits.isEmpty) return;
+    final localResults = <String, int?>{};
+    for (var start = 0; start < hits.length; start += 8) {
+      final chunk = hits.sublist(
+        start,
+        (start + 8 < hits.length) ? start + 8 : hits.length,
+      );
+      final entries = await Future.wait([
+        for (final hit in chunk)
+          if (hit.doi.trim().isNotEmpty)
+            _localFuture(hit.doi)
+                .then((id) => MapEntry(hit.doi.trim().toLowerCase(), id)),
+      ]);
+      for (final entry in entries) {
+        localResults[entry.key] = entry.value;
+      }
+    }
+    final zoteroResults = <int, bool>{};
+    if (_zoteroAvailable == true) {
+      for (var start = 0; start < hits.length; start += 8) {
+        final chunk = hits.sublist(
+          start,
+          (start + 8 < hits.length) ? start + 8 : hits.length,
+        );
+        final entries = await Future.wait([
+          for (final hit in chunk)
+            _zoteroKey(
+              hit,
+            ).then((key) => MapEntry(hit.recid, key != null && key.isNotEmpty)),
+        ]);
+        for (final entry in entries) {
+          zoteroResults[entry.key] = entry.value;
+        }
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _localIds.addAll(localResults);
+      _zoteroPresence.addAll(zoteroResults);
+    });
+  }
+
+  void _toggleFilter(String value) {
+    setState(() {
+      if (!_activeFilters.add(value)) _activeFilters.remove(value);
+    });
+  }
+
+  List<InspireLiteratureHit> get _filteredHits {
+    final text = _filterController.text.trim().toLowerCase();
+    return _hits
+        .where((hit) {
+          if (text.isNotEmpty) {
+            final haystack = [
+              hit.title,
+              hit.authors.join(' '),
+              hit.doi,
+              hit.arxivId,
+              hit.journal,
+              hit.year?.toString() ?? '',
+            ].join(' ').toLowerCase();
+            if (!haystack.contains(text)) return false;
+          }
+          final doi = hit.doi.trim().toLowerCase();
+          final localKnown = doi.isNotEmpty && _localIds.containsKey(doi);
+          final local = localKnown && _localIds[doi] != null;
+          if (_activeFilters.contains('local') && !local) return false;
+          if (_activeFilters.contains('notLocal') && !(localKnown && !local)) {
+            return false;
+          }
+          final zoteroKnown = _zoteroPresence.containsKey(hit.recid);
+          final inZotero = zoteroKnown && _zoteroPresence[hit.recid] == true;
+          if (_activeFilters.contains('zotero') && !inZotero) return false;
+          if (_activeFilters.contains('notZotero') &&
+              !(zoteroKnown && !inZotero)) {
+            return false;
+          }
+          if (_activeFilters.contains('published') && hit.journal.isEmpty) {
+            return false;
+          }
+          if (_activeFilters.contains('preprint') &&
+              (hit.journal.isNotEmpty || hit.arxivId.isEmpty)) {
+            return false;
+          }
+          if (_activeFilters.contains('highCited') &&
+              hit.citationCount <= 100) {
+            return false;
+          }
+          if (_activeFilters.contains('recent5') &&
+              (hit.year == null || hit.year! < DateTime.now().year - 4)) {
+            return false;
+          }
+          return true;
+        })
+        .toList(growable: false);
+  }
+
+  Widget _sortControl(BuildContext context, AppStrings strings) {
+    final palette = context.palette;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          strings.inspireSortBy,
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: palette.textSecondary),
+        ),
+        const SizedBox(width: 6),
+        SegmentedButton<String>(
+          showSelectedIcon: false,
+          style: const ButtonStyle(visualDensity: VisualDensity.compact),
+          segments: [
+            ButtonSegment(
+              value: 'mostcited',
+              label: Text(strings.inspireSortCited),
+            ),
+            ButtonSegment(
+              value: 'mostrecent',
+              label: Text(strings.inspireSortRecent),
+            ),
+          ],
+          selected: {_sort},
+          onSelectionChanged: (value) => _setSort(value.first),
+        ),
+      ],
+    );
+  }
+
+  Widget _pageSizeControl(BuildContext context, AppStrings strings) {
+    final palette = context.palette;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          strings.inspirePageSize,
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: palette.textSecondary),
+        ),
+        const SizedBox(width: 6),
+        DropdownButton<int>(
+          value: _pageSize,
+          isDense: true,
+          underline: const SizedBox.shrink(),
+          items: [
+            for (final size in _pageSizes)
+              DropdownMenuItem(
+                value: size,
+                child: Text(strings.inspirePageSizeValue(size)),
+              ),
+          ],
+          onChanged: _loading
+              ? null
+              : (value) {
+                  if (value != null) _setPageSize(value);
+                },
+        ),
+      ],
+    );
+  }
+
+  Widget _filterMenu(BuildContext context, AppStrings strings) {
+    final entries = <(String, String)>[
+      ('local', strings.inspireFilterLocal),
+      ('notLocal', strings.inspireFilterNotLocal),
+      ('zotero', strings.inspireFilterZotero),
+      ('notZotero', strings.inspireFilterNotZotero),
+      ('published', strings.inspireFilterPublished),
+      ('preprint', strings.inspireFilterPreprint),
+      ('highCited', strings.inspireFilterHighCited),
+      ('recent5', strings.inspireFilterRecent5),
+    ];
+    return PopupMenuButton<String>(
+      tooltip: strings.inspireFilter,
+      onSelected: _toggleFilter,
+      icon: Badge(
+        isLabelVisible: _activeFilters.isNotEmpty,
+        label: Text('${_activeFilters.length}'),
+        child: const Icon(Icons.filter_list, size: 20),
+      ),
+      itemBuilder: (context) => [
+        for (final entry in entries)
+          CheckedPopupMenuItem<String>(
+            value: entry.$1,
+            checked: _activeFilters.contains(entry.$1),
+            child: Text(entry.$2),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _probeZotero() async {
+    final available = await _zotero.isAvailable();
+    if (!mounted) return;
+    _zoteroProbeTimer?.cancel();
+    setState(() => _zoteroAvailable = available || _zoteroCache != null);
+    if (available) {
+      if (_hits.isNotEmpty) unawaited(_prefetchPresence(_hits));
+      return;
+    }
+    // Zotero may still be starting or its local API may be busy. Probe a
+    // couple more times instead of hiding the action for the whole session.
+    if (_zoteroProbeAttempts < 2) {
+      _zoteroProbeAttempts++;
+      _zoteroProbeTimer = Timer(
+        const Duration(seconds: 3),
+        () => unawaited(_probeZotero()),
+      );
+    }
+  }
+
+  Future<String?> _zoteroKey(InspireLiteratureHit hit) {
+    final recid = '${hit.recid}';
+    final cached = _zoteroKeys[recid];
+    if (cached != null) return cached;
+    final index = _zoteroCache;
+    if (index != null) {
+      final key = index.findItemKey(
+        recid: recid,
+        doi: hit.doi,
+        arxivId: hit.arxivId,
+      );
+      // A built index is the fast path. A miss is retried explicitly by the
+      // button (or after the user rebuilds the index), not by one HTTP query
+      // per visible row.
+      return Future<String?>.value(key);
+    }
+    final future = _zotero.findItemKey(
+      recid: recid,
+      doi: hit.doi,
+      arxivId: hit.arxivId,
+    );
+    _zoteroKeys[recid] = future;
+    // A miss can be transient (Zotero starting, local index still loading).
+    // Do not freeze a null result for the lifetime of the page.
+    future.then((key) {
+      if (key == null && identical(_zoteroKeys[recid], future)) {
+        _zoteroKeys.remove(recid);
+      }
+    });
+    return future;
+  }
+
+  Future<void> _retryZotero(InspireLiteratureHit hit) async {
+    if (_zoteroBusy != null) return;
+    final strings = AppScope.of(context).strings;
+    setState(() => _zoteroBusy = hit.recid);
+    try {
+      final recid = '${hit.recid}';
+      final key = await _zotero.findItemKey(
+        recid: recid,
+        doi: hit.doi,
+        arxivId: hit.arxivId,
+      );
+      if (!mounted) return;
+      if (key != null && key.isNotEmpty) {
+        _zoteroKeys[recid] = Future<String?>.value(key);
+        setState(() => _zoteroPresence[hit.recid] = true);
+        await _openZoteroItem(hit, key);
+        return;
+      }
+      _zoteroKeys.remove(recid);
+      setState(() => _zoteroPresence[hit.recid] = false);
+      final bibtex = await const InspireBibtexService().fetchBibtex(
+        inspireId: recid,
+        doi: hit.doi,
+      );
+      if (!mounted) return;
+      await copyText(
+        context,
+        bibtex,
+        message: strings.inspireZoteroNotFoundCopied,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${strings.inspireZoteroFailed}: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _zoteroBusy = null);
+    }
+  }
+
+  Future<void> _openZoteroItem(InspireLiteratureHit hit, String key) async {
+    if (_zoteroBusy != null) return;
+    setState(() => _zoteroBusy = hit.recid);
+    try {
+      await launchUrl(
+        Uri.parse('zotero://select/library/items/$key'),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${AppScope.of(context).strings.inspireZoteroFailed}: $error',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _zoteroBusy = null);
+    }
+  }
+
+  Future<int?> _localFuture(String doi) {
+    final key = doi.trim().toLowerCase();
+    if (key.isEmpty) return Future<int?>.value(null);
+    if (_localIds.containsKey(key)) {
+      return Future<int?>.value(_localIds[key]);
+    }
+    return _localFutures.putIfAbsent(key, () async {
+      try {
+        final references = await AppScope.of(context).database
+            .referencesByDoi(key);
+        final id = references.isEmpty ? null : references.first.id;
+        if (mounted) {
+          setState(() => _localIds[key] = id);
+        }
+        return id;
+      } catch (_) {
+        if (mounted) setState(() => _localIds[key] = null);
+        return null;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppScope.of(context).strings;
+    final palette = context.palette;
+    final filtered = _filteredHits;
+    return PageScaffold(
+      title: Text(strings.inspireSearchTitle),
+      subtitle: strings.inspireSearchSubtitle,
+      maxWidth: 960,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          Insets.l,
+          Insets.m,
+          Insets.l,
+          Insets.xxl,
+        ),
+        children: [
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => _search(page: 1),
+            decoration: InputDecoration(
+              hintText: strings.inspireSearchHint,
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: IconButton(
+                tooltip: strings.inspireSearchAction,
+                onPressed: _loading ? null : () => _search(page: 1),
+                icon: const Icon(Icons.arrow_forward, size: 18),
+              ),
+            ),
+          ),
+          const SizedBox(height: Insets.s),
+          Text(
+            strings.inspireSearchOnlineNote,
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: palette.textSecondary),
+          ),
+          const SizedBox(height: Insets.s),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _filterController,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: strings.inspireFilterHint,
+                    prefixIcon: const Icon(Icons.filter_alt_outlined, size: 18),
+                    suffixIcon: _filterController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: strings.commonClear,
+                            onPressed: () {
+                              _filterController.clear();
+                              setState(() {});
+                            },
+                            icon: const Icon(Icons.close, size: 16),
+                          ),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _filterMenu(context, strings),
+            ],
+          ),
+          if (_activeFilters.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Wrap(
+                spacing: 5,
+                runSpacing: 3,
+                children: [
+                  for (final entry in <(String, String)>[
+                    ('local', strings.inspireFilterLocal),
+                    ('notLocal', strings.inspireFilterNotLocal),
+                    ('zotero', strings.inspireFilterZotero),
+                    ('notZotero', strings.inspireFilterNotZotero),
+                    ('published', strings.inspireFilterPublished),
+                    ('preprint', strings.inspireFilterPreprint),
+                    ('highCited', strings.inspireFilterHighCited),
+                    ('recent5', strings.inspireFilterRecent5),
+                  ])
+                    if (_activeFilters.contains(entry.$1))
+                      InputChip(
+                        label: Text(entry.$2),
+                        visualDensity: VisualDensity.compact,
+                        onDeleted: () => _toggleFilter(entry.$1),
+                      ),
+                ],
+              ),
+            ),
+          if (_loading)
+            Padding(
+              padding: const EdgeInsets.only(top: Insets.m),
+              child: Row(
+                children: [
+                  const BrandMark(size: 28, animate: true),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          strings.commonLoading,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 3),
+                        const LinearProgressIndicator(minHeight: 2),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: Insets.m),
+              child: ErrorPanel(
+                error: _error!,
+                onRetry: () => _search(page: _page),
+              ),
+            ),
+          if (!_loading && _error == null && _hits.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: Insets.l),
+              child: EmptyPanel(
+                message: strings.inspireSearchEmpty,
+                icon: Icons.search_off,
+              ),
+            ),
+          if (!_loading &&
+              _error == null &&
+              _hits.isNotEmpty &&
+              filtered.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: Insets.l),
+              child: EmptyPanel(
+                message: strings.inspireFilterNoResults,
+                icon: Icons.filter_alt_off_outlined,
+              ),
+            ),
+          if (_hits.isNotEmpty) ...[
+            const SizedBox(height: Insets.m),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final count = Text(
+                  _activeFilters.isNotEmpty ||
+                          _filterController.text.trim().isNotEmpty
+                      ? strings.inspireFilteredShowing(
+                          filtered.length,
+                          _hits.length,
+                        )
+                      : _total > _hits.length
+                      ? strings.inspireShowing(_hits.length, _total)
+                      : strings.inspireSearchResults(_total),
+                  style: Theme.of(context).textTheme.labelMedium
+                      ?.copyWith(color: palette.textSecondary),
+                );
+                final controls = Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _pageSizeControl(context, strings),
+                    _sortControl(context, strings),
+                  ],
+                );
+                if (constraints.maxWidth < 620) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [count, const SizedBox(height: 4), controls],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: count),
+                    const SizedBox(width: 12),
+                    controls,
+                  ],
+                );
+              },
+            ),
+            for (final hit in filtered) _hitTile(context, hit, strings),
+            _pagination(context, strings),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _pagination(BuildContext context, AppStrings strings) {
+    final pages = _total <= 0 ? 1 : ((_total - 1) ~/ _pageSize) + 1;
+    final palette = context.palette;
+    return Padding(
+      padding: const EdgeInsets.only(top: Insets.m, bottom: Insets.m),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          IconButton(
+            tooltip: strings.inspirePrevious,
+            onPressed: _loading || _page <= 1
+                ? null
+                : () => _search(page: _page - 1),
+            icon: const Icon(Icons.chevron_left, size: 20),
+          ),
+          Text(
+            strings.inspirePage(_page, pages),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: palette.textSecondary),
+          ),
+          IconButton(
+            tooltip: strings.inspireNext,
+            onPressed: _loading || _page >= pages
+                ? null
+                : () => _search(page: _page + 1),
+            icon: const Icon(Icons.chevron_right, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _publicationLine(
+    BuildContext context,
+    InspireLiteratureHit hit,
+    AppStrings strings,
+  ) {
+    final journal = hit.journal.trim();
+    final publication = <String>[
+      if (journal.isNotEmpty) journal,
+      if (hit.journalVolume.isNotEmpty) hit.journalVolume,
+      if (hit.year != null) journal.isEmpty ? '${hit.year}' : '(${hit.year})',
+      if (hit.journalPage.isNotEmpty) hit.journalPage,
+    ].join(' ');
+    return [
+      if (publication.isNotEmpty) publication,
+      if (hit.doi.isNotEmpty) 'DOI ${hit.doi}',
+      if (hit.arxivId.isNotEmpty) 'arXiv:${hit.arxivId}',
+      strings.inspireCitations(hit.citationCount),
+    ].join(' · ');
+  }
+
+  Widget _hitTile(
+    BuildContext context,
+    InspireLiteratureHit hit,
+    AppStrings strings,
+  ) {
+    final palette = context.palette;
+    return Card(
+      margin: const EdgeInsets.only(top: Insets.s),
+      child: Padding(
+        padding: const EdgeInsets.all(Insets.m),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DescriptionText(
+              hit.title,
+              selectable: true,
+              maxLines: 3,
+              style: Theme.of(context).textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            if (hit.authors.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              SelectableText(
+                hit.authors.take(5).join(', ') +
+                    (hit.authors.length > 5 ? ' et al.' : ''),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: palette.textSecondary),
+              ),
+            ],
+            const SizedBox(height: 4),
+            SelectableText(
+              _publicationLine(context, hit, strings),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: palette.textSecondary),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                FutureBuilder<int?>(
+                  future: _localFuture(hit.doi),
+                  builder: (context, snapshot) {
+                    final id = snapshot.data;
+                    final enabled = id != null;
+                    return Tooltip(
+                      message: enabled
+                          ? strings.inspireSearchOpenLocal
+                          : strings.inspireSearchNoLocal,
+                      child: OutlinedButton.icon(
+                        onPressed: !enabled
+                            ? null
+                            : () => AppNav.push<void>(
+                                context,
+                                ReferencePage(referenceId: id),
+                              ),
+                        icon: Icon(
+                          enabled ? Icons.menu_book_outlined : Icons.menu_book,
+                          size: 16,
+                        ),
+                        label: Text(strings.inspireSearchOpenLocal),
+                      ),
+                    );
+                  },
+                ),
+                if (_zoteroAvailable == true)
+                  FutureBuilder<String?>(
+                    future: _zoteroKey(hit),
+                    builder: (context, snapshot) {
+                      final loading =
+                          snapshot.connectionState != ConnectionState.done;
+                      final key = snapshot.data;
+                      final inZotero = key != null && key.isNotEmpty;
+                      final busy = _zoteroBusy == hit.recid;
+                      return Tooltip(
+                        message: loading
+                            ? strings.commonLoading
+                            : inZotero
+                            ? strings.zoteroOpen
+                            : strings.inspireZoteroRetry,
+                        child: OutlinedButton.icon(
+                          style: inZotero
+                              ? null
+                              : OutlinedButton.styleFrom(
+                                  foregroundColor: palette.textSecondary,
+                                  side: BorderSide(color: palette.divider),
+                                ),
+                          onPressed: loading || _zoteroBusy != null
+                              ? null
+                              : () => inZotero
+                                    ? _openZoteroItem(hit, key)
+                                    : _retryZotero(hit),
+                          icon: busy
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Icon(
+                                  inZotero
+                                      ? Icons.library_books_outlined
+                                      : Icons.content_copy,
+                                  size: 16,
+                                ),
+                          label: Text(strings.inspireZotero),
+                        ),
+                      );
+                    },
+                  ),
+                TextButton.icon(
+                  onPressed: () => launchUrl(
+                    Uri.parse(hit.inspireUrl),
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: Text(strings.inspireSearchOpenInspire),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
