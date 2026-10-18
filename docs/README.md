@@ -1,3 +1,5 @@
+User documentation: [English](../README.md) | [简体中文](../README.zh-CN.md)
+
 # Documentation
 
 This directory keeps the durable, reviewable project documentation. It is not

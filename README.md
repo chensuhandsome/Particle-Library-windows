@@ -4,6 +4,8 @@
 
 # Particle Library
 
+**English** | [简体中文](README.zh-CN.md)
+
 Particle Library is a desktop and mobile browser for the **Particle Data Group
 (PDG)** review of particle physics. It is built for offline scientific use: the
 PDG snapshot stays read-only and local, while notes, collections, favorites and
