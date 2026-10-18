@@ -29,7 +29,7 @@ void main() {
     expect(particleNameToLatex('T_c_cbar(4050)+'), r'T_{c\bar{c}}(4050)^{+}');
     expect(
       particleNameToLatex('T_c_cbar_1(3900)+'),
-      r'T_{c\bar{c}1}(3900)^{+}',
+      r'T_{c\bar{c}\,1}(3900)^{+}',
     );
     expect(
       particleNameToLatex('T_c c cbar cbar(6600)+'),
@@ -37,7 +37,7 @@ void main() {
     );
     expect(
       particleNameToLatex('T_b_bbar_1(10610)+'),
-      r'T_{b\bar{b}1}(10610)^{+}',
+      r'T_{b\bar{b}\,1}(10610)^{+}',
     );
   });
 

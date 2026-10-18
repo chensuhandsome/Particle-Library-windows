@@ -161,7 +161,11 @@ String _subLatex(String sub) {
 
 String _subPartsLatex(List<String> parts) {
   final buffer = StringBuffer();
-  for (final part in parts) {
+  for (var i = 0; i < parts.length; i++) {
+    final part = parts[i];
+    // PDG separates a trailing excitation index from the flavour subscript
+    // (T_c_cbar_1 -> T_{c\bar{c} 1}); use a thin space, not a hard space.
+    if (i > 0 && int.tryParse(part) != null) buffer.write(r'\,');
     if (part.length > 3 && part.endsWith('bar')) {
       final base = part.substring(0, part.length - 3);
       buffer.write(base.substring(0, base.length - 1));
