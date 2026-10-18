@@ -77,6 +77,11 @@ A released build bundles the PDG snapshot. Building from source additionally
 requires Flutter/Xcode and the snapshot; those are **contributor** requirements,
 documented in [BUILDING.md](docs/development/BUILDING.md).
 
+Source builders can download the exact snapshot used here:
+
+- [pdgall-2026.0.sqlite](https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite)
+- [PDG API download page](https://pdg.lbl.gov/2026/api/index.html)
+
 ## Install
 
 The first public preview is **[Release 0.1.0](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.0)**.
@@ -92,8 +97,10 @@ The first public preview is **[Release 0.1.0](https://github.com/fkguo/Particle-
   yet contain Android or desktop platform scaffolding beyond macOS.
 
 The macOS app bundles the PDG snapshot, so end users do not need Flutter, Xcode,
-or the repository. Source builders download `pdgall-2026.0.sqlite` directly
-from the [official PDG API page](https://pdg.lbl.gov/2026/api/index.html); it is not a release asset.
+or the repository. Source builders download
+[`pdgall-2026.0.sqlite`](https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite)
+directly from the [official PDG API page](https://pdg.lbl.gov/2026/api/index.html);
+it is not a release asset.
 
 Known packaging limitation: this build still uses the development bundle
 identifier `com.example.pdgapp`; a later release will switch to a controlled
