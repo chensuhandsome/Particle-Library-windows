@@ -12,6 +12,14 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 
 应用使用 Flutter，当前目标平台为 **macOS（通用二进制）** 与 **iPhone/iPad**，两端共享响应式布局。
 
+## 截图
+
+| 桌面 | iPhone |
+| --- | --- |
+| <img src="docs/assets/screenshots/desktop-search.jpg" alt="桌面端深色搜索界面" width="620"> | <img src="docs/assets/screenshots/iphone-search.jpg" alt="iPhone 浅色搜索界面" width="260"> |
+
+英文界面、PDG 2026 数据快照。桌面截图为深色主题，iPhone 截图为浅色主题。
+
 ## 功能
 
 - **离线 PDG 数据**：只读 SQLite 快照，SHA-256 完整性校验、首次启动安装、schema 校验和原始字段查看。

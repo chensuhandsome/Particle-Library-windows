@@ -17,6 +17,15 @@ Built by **Feng-Kun Guo** over a weekend using **DeepSeek Harness** and
 The app is written in Flutter and currently targets **macOS (universal)** and
 **iPhone/iPad**. A shared responsive layout is used for both.
 
+## Screenshots
+
+| Desktop | iPhone |
+| --- | --- |
+| <img src="docs/assets/screenshots/desktop-search.jpg" alt="Desktop search in dark mode" width="620"> | <img src="docs/assets/screenshots/iphone-search.jpg" alt="iPhone search in light mode" width="260"> |
+
+English UI, PDG 2026 snapshot. The desktop screenshot uses the dark theme; the
+iPhone screenshot uses the light theme.
+
 ## What is included
 
 - **Offline PDG data** — read-only SQLite snapshot with SHA-256 integrity checks,
