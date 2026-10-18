@@ -56,7 +56,7 @@ assets/pdgall-2026.0.sqlite
 
 目前还没有公开的二进制 Release。未来若 GitHub Releases 提供 `.dmg`/`.zip`、`.ipa`/TestFlight 等安装包，普通用户直接下载即可，不需要 Flutter、Xcode 或源码。
 
-在此之前，macOS 可从源码构建；iOS 模拟器构建已通过冒烟测试，但真机安装仍需你自己的 Apple 签名 Team。Android、Windows 和 Linux 目前还没有平台脚手架。
+在此之前，macOS 可从源码构建；iOS 模拟器构建和 iPhone 上的 Debug 签名安装均已通过冒烟测试；Release/TestFlight 仍需你自己的 Apple 签名 Team。Android、Windows 和 Linux 目前还没有平台脚手架。
 
 ## 从源码构建
 

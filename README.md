@@ -89,9 +89,8 @@ There is no public binary release yet. When a GitHub **Release** provides
 `.dmg`/`.zip`, `.ipa`/TestFlight or other installers, use those; end users do
 not need Flutter, Xcode or the source tree.
 
-Until then, the macOS app can be built from source. An iOS simulator build has
-been smoke-tested; a physical iPhone/iPad build still needs your Apple signing
-team. Android, Windows and Linux are not yet supported by this checkout.
+Until then, the macOS app can be built from source. An iOS simulator build and a signed Debug install on an iPhone have been
+smoke-tested; Release/TestFlight still needs your Apple signing team. Android, Windows and Linux are not yet supported by this checkout.
 
 ## Build from source
 
