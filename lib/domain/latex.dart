@@ -225,6 +225,8 @@ String _subPartsLatex(List<String> parts) {
     // (T_c_cbar_1 -> T_{c\bar{c} 1}); use a thin space, not a hard space.
     if (i > 0 && int.tryParse(part) != null) buffer.write(r'\,');
     if (part.length > 3 && part.endsWith('bar')) {
+      // `c cbar` / `b bbar` are two flavour factors, not one fused token.
+      if (i > 0) buffer.write(r'\,');
       final base = part.substring(0, part.length - 3);
       buffer.write(base.substring(0, base.length - 1));
       buffer.write(r'\bar{');

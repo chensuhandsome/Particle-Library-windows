@@ -26,18 +26,18 @@ void main() {
     expect(particleNameToLatex('B_s^0'), r'B_{s}^{0}');
     expect(particleNameToLatex('D_s^+'), r'D_{s}^{+}');
     expect(particleNameToLatex('T_c_c(3875)+'), r'T_{cc}(3875)^{+}');
-    expect(particleNameToLatex('T_c_cbar(4050)+'), r'T_{c\bar{c}}(4050)^{+}');
+    expect(particleNameToLatex('T_c_cbar(4050)+'), r'T_{c\,\bar{c}}(4050)^{+}');
     expect(
       particleNameToLatex('T_c_cbar_1(3900)+'),
-      r'T_{c\bar{c}\,1}(3900)^{+}',
+      r'T_{c\,\bar{c}\,1}(3900)^{+}',
     );
     expect(
       particleNameToLatex('T_c c cbar cbar(6600)+'),
-      r'T_{cc\bar{c}\bar{c}}(6600)^{+}',
+      r'T_{cc\,\bar{c}\,\bar{c}}(6600)^{+}',
     );
     expect(
       particleNameToLatex('T_b_bbar_1(10610)+'),
-      r'T_{b\bar{b}\,1}(10610)^{+}',
+      r'T_{b\,\bar{b}\,1}(10610)^{+}',
     );
   });
 
