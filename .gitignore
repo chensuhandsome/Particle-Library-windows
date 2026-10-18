@@ -37,3 +37,6 @@ __pycache__/
 
 # Local unsigned release bundles
 dist/
+
+# Xcode Swift Package Manager state is generated per checkout.
+**/xcshareddata/swiftpm/
