@@ -24,9 +24,10 @@ Android, Windows or Linux build.
   **Xcode → Settings → Components**.
 - CocoaPods where a plugin requires it.
 - The PDG snapshot at `assets/pdgall-2026.0.sqlite`; see
-  [assets/README.md](../../assets/README.md). The file is not committed and is
-  not downloadable from this repository. A clean clone cannot run the tests or
-  build the real database until the owner supplies it.
+  [assets/README.md](../../assets/README.md). Download it from the
+  [official PDG API page](https://pdg.lbl.gov/2026/api/index.html) or directly
+  from `https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite`. It is not committed
+  and is not a GitHub release asset.
 - Expected snapshot: PDG 2026, schema 0.3, SHA-256
   `c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a`.
 

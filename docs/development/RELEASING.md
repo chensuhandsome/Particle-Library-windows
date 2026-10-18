@@ -19,24 +19,34 @@ favorites and settings from the old ID are not automatically visible to the new
 app. Do this before distributing the first public build, or provide an explicit
 data migration.
 
-## PDG snapshot as a release asset
+## PDG snapshot
 
-Yes: publish the exact `pdgall-2026.0.sqlite` file as a release asset next to
-the installers. It is 64 MB, CC BY 4.0, and must carry the PDG attribution.
-Include its SHA-256 in the release notes and in `SHA256SUMS.txt`.
+Do **not** publish the 64 MB `pdgall-2026.0.sqlite` as a GitHub release asset.
+The authoritative copy is on the PDG API page:
 
-Do **not** commit the snapshot to git. CI can fetch the public release asset via
-the repository variable `PDG_SNAPSHOT_URL`.
+<https://pdg.lbl.gov/2026/api/index.html>
 
-Prepare local assets with:
+The app bundles the snapshot for end users. Source builders and CI download it
+from:
+
+```text
+https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite
+```
+
+CI uses the repository variable `PDG_SNAPSHOT_URL` (set to that official URL)
+and verifies SHA-256
+`c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a` before
+running tests.
+
+Prepare local release assets with:
 
 ```bash
 tool/release_assets.sh
 ```
 
 The script verifies the snapshot hash, runs analyze/tests, builds the macOS app,
-zips it, copies the snapshot and writes checksums. It deliberately does not
-publish or notarize.
+zips it, and writes checksums. It deliberately does not publish, include the
+snapshot, or notarize.
 
 ## Signing and notarization
 

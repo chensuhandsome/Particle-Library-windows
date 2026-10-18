@@ -29,11 +29,10 @@ ditto "build/macos/Build/Products/Release/Particle Library.app" \
 ditto -c -k --sequesterRsrc --keepParent \
   "dist/release/Particle Library.app" \
   "dist/release/Particle-Library-macOS.zip"
-cp "$SNAPSHOT" "dist/release/pdgall-2026.0.sqlite"
 (
   cd dist/release
-  shasum -a 256 "Particle-Library-macOS.zip" "pdgall-2026.0.sqlite" \
-    > SHA256SUMS.txt
+  # The snapshot is intentionally not redistributed; it lives on the PDG API.
+  shasum -a 256 "Particle-Library-macOS.zip" > SHA256SUMS.txt
 )
 echo "Release assets prepared in dist/release/."
 echo "The macOS app is not Developer ID signed/notarized yet; do not publish it as a public download."

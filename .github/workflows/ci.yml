@@ -28,7 +28,7 @@ jobs:
   test:
     runs-on: macos-latest
     # The PDG snapshot is not committed (CC BY data, 64 MB). Configure the
-    # repository variable PDG_SNAPSHOT_URL to a public release-asset URL.
+    # repository variable PDG_SNAPSHOT_URL to the official PDG API URL.
     if: ${{ vars.PDG_SNAPSHOT_URL != '' }}
     steps:
       - uses: actions/checkout@v4

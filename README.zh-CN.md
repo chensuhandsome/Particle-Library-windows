@@ -63,8 +63,8 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 - **Android/Windows/Linux/web**：0.1.0 未构建；仓库目前只有 iOS/macOS 平台脚手架，
   还没有 Android 或桌面平台工程。
 
-macOS 版已内置 PDG 快照，普通用户不需要 Flutter、Xcode 或源码。Release 中单独的
-`pdgall-2026.0.sqlite` 是给源码构建和 CI 使用的。
+macOS 版已内置 PDG 快照，普通用户不需要 Flutter、Xcode 或源码。源码构建者从
+[PDG 官方 API 页面](https://pdg.lbl.gov/2026/api/index.html)直接下载 `pdgall-2026.0.sqlite`，该文件不再作为 Release asset。
 
 打包限制：本版仍使用开发用 Bundle ID `com.example.pdgapp`，后续版本会换成可控的
 反向域名标识。详见 [RELEASING.md](docs/development/RELEASING.md)。
@@ -77,7 +77,9 @@ macOS 版已内置 PDG 快照，普通用户不需要 Flutter、Xcode 或源码�
 macOS 已验证的简短流程：
 
 ```bash
-# 先把 pdgall-2026.0.sqlite 放入 assets/；详见 assets/README.md。
+# 先下载官方快照；详见 assets/README.md：
+# curl -LO https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite
+# mv pdgall-2026.0.sqlite assets/
 flutter pub get
 flutter test
 flutter build macos --release
