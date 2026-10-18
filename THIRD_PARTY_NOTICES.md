@@ -45,7 +45,11 @@ the generated macOS application's `NOTICES.Z`.
 | `sqlite3_flutter_libs` | MIT |
 | `flutter_math_fork` | Apache-2.0 |
 | `pdfrx` / `pdfrx_engine` | MIT |
-| `pdfium` (bundled by `pdfium_flutter`) | BSD-3-Clause |
+| `pdfium` / `pdfium_flutter` | BSD-3-Clause / MIT |
+| `flutter_svg` | MIT |
+| `file_selector` | BSD-3-Clause |
+| SQLite (via `sqlite3`, `sqlite3_flutter_libs`) | Public domain / MIT |
+| KaTeX fonts bundled by `flutter_math_fork` | MIT |
 
 Package source and license files are available from <https://pub.dev/> and the
 respective upstream repositories.

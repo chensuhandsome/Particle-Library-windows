@@ -109,6 +109,40 @@ void main() {
     expect(second, hasLength(1));
   });
 
+  test(
+    'editing a highlight comment preserves prose added to the note',
+    () async {
+      final annotation = await ReviewAnnotationNotes.create(
+        notes,
+        fileName: 'review.pdf',
+        pageNumber: 2,
+        rects: const [Rect.fromLTRB(0.1, 0.1, 0.2, 0.2)],
+        text: 'quoted',
+        color: 'yellow',
+        reviewTitle: 'Review',
+      );
+      final note = await notes.noteById(annotation.noteId!);
+      await notes.update(
+        note!.id,
+        bodyMarkdown: '${note.bodyMarkdown}\n\nmy synthesis',
+      );
+      await ReviewAnnotationNotes.updateComment(
+        notes,
+        annotation,
+        'new comment',
+      );
+      final reloaded = await ReviewAnnotationNotes.load(
+        notes,
+        'review.pdf',
+        reviewTitle: 'Review',
+      );
+      expect(reloaded.single.note, 'new comment');
+      final saved = await notes.noteById(note.id);
+      expect(saved!.bodyMarkdown, contains('my synthesis'));
+      expect(saved.bodyMarkdown, isNot(contains('new comment')));
+    },
+  );
+
   test('deleting the annotation soft-deletes its note', () async {
     final annotation = await ReviewAnnotationNotes.create(
       notes,

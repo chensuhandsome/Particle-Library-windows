@@ -124,17 +124,51 @@ class ReviewAnnotationNotes {
     if (noteId == null) return;
     final note = await notes.noteById(noteId);
     if (note == null) return;
-    final body = _body(
+    final reviewKey = _reviewKey(annotation.fileName);
+    final oldBody = _body(
       quote: annotation.text,
-      comment: comment,
-      reviewKey: _reviewKey(annotation.fileName),
+      comment: annotation.note,
+      reviewKey: reviewKey,
       annotationId: annotation.id,
       pageNumber: annotation.pageNumber,
       reviewTitle: _titleFromFile(annotation.fileName),
     );
+    final body = _body(
+      quote: annotation.text,
+      comment: comment,
+      reviewKey: reviewKey,
+      annotationId: annotation.id,
+      pageNumber: annotation.pageNumber,
+      reviewTitle: _titleFromFile(annotation.fileName),
+    );
+    // Do not overwrite prose the user added in the full note editor. The
+    // comment remains authoritative in the anchor context; only an untouched
+    // generated body is rewritten.
+    final generatedBodyUntouched = note.bodyMarkdown.trim() == oldBody.trim();
+    final anchors = <NoteAnchorInput>[];
+    for (final anchor in note.anchors) {
+      final isReviewAnchor =
+          anchor.targetKind == NoteTargetKinds.review &&
+          anchor.targetKey == reviewKey;
+      anchors.add(
+        NoteAnchorInput(
+          targetKind: anchor.targetKind,
+          targetKey: anchor.targetKey,
+          snapshotHash: anchor.snapshotHash.isEmpty
+              ? null
+              : anchor.snapshotHash,
+          targetLabel: anchor.targetLabel,
+          status: anchor.status,
+          context: isReviewAnchor
+              ? {...?anchor.context, 'comment': comment}
+              : anchor.context,
+        ),
+      );
+    }
     await notes.update(
       note.id,
-      bodyMarkdown: body,
+      bodyMarkdown: generatedBodyUntouched ? body : null,
+      anchors: anchors,
       expectedRevision: note.revision,
     );
   }
@@ -181,6 +215,7 @@ class ReviewAnnotationNotes {
       ],
       'color': color,
       'quote': text,
+      'comment': comment,
     };
     final note = await notes.create(
       title: title,
@@ -241,7 +276,8 @@ class ReviewAnnotationNotes {
       pageNumber: page,
       rects: List.unmodifiable(rects),
       text: text,
-      note: _commentFromBody(note.bodyMarkdown),
+      note:
+          context['comment']?.toString() ?? _commentFromBody(note.bodyMarkdown),
       color: context['color']?.toString() ?? 'yellow',
       createdAt: note.createdAt,
       noteId: note.id,

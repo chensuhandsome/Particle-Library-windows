@@ -23,7 +23,7 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 - **笔记**：本机 Markdown 笔记，支持锚点、反向链接、Collection、标签、搜索、导入/导出和冲突保护；所有“加入笔记”入口共用同一个选择器。
 - **标签**：跨笔记筛选、浏览、重命名和删除。
 - **文献**：本地文献信息、可选 Crossref 题名补全、INSPIRE 搜索、BibTeX/cite key 和 Zotero 本地桥接。
-- **Zotero 索引**：手动构建/更新的本地 Zotero 条目缓存，避免 INSPIRE 结果逐条请求。
+- **Zotero 索引（仅 macOS 桌面）**：手动构建/更新的本地 Zotero 条目缓存，避免 INSPIRE 结果逐条请求。
 - **PDG 综述**：按需缓存 PDF、选择性清理、PDF 文字高亮；高亮直接存为带 review anchor 的本地笔记，可搜索、打标签、导出，并显示在右侧批注栏。
 - **桌面工作区**：可独立收起的左侧页面目录和右侧上下文栏、可拖拽分栏、移动端紧凑布局。
 - **双语界面**：中文/英文界面，支持跟随系统、浅色/深色主题。
@@ -31,7 +31,8 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 
 ## 环境要求
 
-- macOS 15 或更高版本（推荐 Apple Silicon）；
+- macOS 12 或更高版本（通用二进制；已在 macOS 15.6 Apple Silicon 验证）；
+- iOS/iPadOS 15 或更高版本；
 - Flutter **3.47.7** / Dart **3.13.5** stable；
 - macOS/iOS 构建需要 Xcode **26.3** 和对应 iOS platform；
 - 部分插件需要 CocoaPods。
@@ -91,8 +92,8 @@ flutter test
 - 笔记和用户设置保存在独立 SQLite 数据库；
 - 收藏、最近搜索和 Zotero 索引保存在应用支持目录；
 - PDG 综述 PDF 按需下载，不包含在仓库中；
-- Zotero 仅通过 `http://127.0.0.1:23119` 只读访问；
-- 应用不发送遥测数据。
+- Zotero 仅通过 `http://127.0.0.1:23119` 只读访问，且仅桌面版可用；
+- 更新检查会在启动时和手动点击时访问 GitHub Releases API，这会将 IP 地址披露给 GitHub；不发送遥测或使用数据，也不会静默安装更新。
 
 ## 仓库结构
 
@@ -121,6 +122,7 @@ docs/           设计与开发文档
 ## License
 
 - **应用代码**：Mozilla Public License 2.0（MPL-2.0），见 [LICENSE](LICENSE)。Copyright 2026 Particle Library contributors。
+  源码：<https://github.com/fkguo/Particle-Library>。
 - **PDG 数据快照**：CC BY 4.0，需保留 Particle Data Group 署名；MPL-2.0 不覆盖数据。
 - **PDG 综述 PDF**：不随仓库分发；从 PDG 下载并受 PDG 条款约束。
 - **第三方依赖**：见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

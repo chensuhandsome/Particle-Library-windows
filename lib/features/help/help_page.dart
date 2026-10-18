@@ -431,8 +431,8 @@ class _HelpPageState extends State<HelpPage> {
           _bullet(
             context,
             t(
-              '应用使用随包安装的 PDG 2026 只读快照，离线可用；数据库哈希在每次启动时校验。',
-              'The app uses a bundled read-only PDG 2026 snapshot and works offline; its hash is verified at every launch.',
+              '应用使用随包安装的 PDG 2026 只读快照，离线可用；首次安装时校验哈希，之后在文件大小或修改时间变化时重新校验，并记录 sidecar 结果。',
+              'The app uses a bundled read-only PDG 2026 snapshot and works offline; the hash is checked on first install and whenever the installed copy changes, with the result recorded in a sidecar.',
             ),
           ),
           _bullet(

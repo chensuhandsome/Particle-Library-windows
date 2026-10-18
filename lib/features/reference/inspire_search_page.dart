@@ -153,7 +153,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
       }
     }
     final zoteroResults = <int, bool>{};
-    if (_zoteroAvailable == true) {
+    if (_zoteroAvailable == true && _zoteroCache != null) {
       for (var start = 0; start < hits.length; start += 8) {
         final chunk = hits.sublist(
           start,
@@ -774,7 +774,9 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
                     );
                   },
                 ),
-                if (_zoteroSupported && _zoteroAvailable == true)
+                if (_zoteroSupported &&
+                    _zoteroAvailable == true &&
+                    _zoteroCache != null)
                   FutureBuilder<String?>(
                     future: _zoteroKey(hit),
                     builder: (context, snapshot) {

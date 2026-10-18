@@ -1004,6 +1004,13 @@ class AppStrings {
     'Particle Library 是离线 PDG 数据查阅工具，不是 PDG 官方应用。数据来自随包 pdgall 快照，按 CC BY 4.0 使用并保留来源。',
     '$kAppName is an offline PDG data browser, not an official PDG application. Data comes from the bundled pdgall snapshot under CC BY 4.0; attribution is retained.',
   );
+  String get settingsLicenses =>
+      _t('应用与第三方许可证', 'App and third-party licenses');
+  String get settingsSourceCode => _t('源代码（MPL-2.0）', 'Source code (MPL-2.0)');
+  String get settingsInspireDisclaimer => _t(
+    'INSPIRE 是外部文献服务；本应用不代表 INSPIRE 或 CERN。',
+    'INSPIRE is an external literature service; this app is not affiliated with INSPIRE or CERN.',
+  );
   String get settingsCheckUpdates => _t('检查更新', 'Check for updates');
   String get settingsCheckingUpdates => _t('正在检查更新…', 'Checking for updates…');
   String get settingsUpdateCurrent => _t('已是最新版本。', 'You are up to date.');

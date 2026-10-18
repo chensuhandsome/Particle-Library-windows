@@ -9,6 +9,9 @@ void main() {
     expect(UpdateChecker.compareVersions('v0.2.0', '0.1.0'), greaterThan(0));
     expect(UpdateChecker.compareVersions('0.1', '0.1.0'), 0);
     expect(UpdateChecker.compareVersions('0.0.9', '0.1.0'), lessThan(0));
+    expect(UpdateChecker.compareVersions('0.1.0-rc1', '0.1.0'), lessThan(0));
+    expect(UpdateChecker.compareVersions('0.1.0-rc2', '0.1.0-rc1'), greaterThan(0));
+    expect(UpdateChecker.compareVersions('0.1.0+1', '0.1.0'), 0);
   });
 
   test('reads a manifest and detects a newer version', () async {

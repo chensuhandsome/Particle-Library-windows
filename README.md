@@ -40,7 +40,7 @@ The app is written in Flutter and currently targets **macOS (Apple Silicon)** an
 - **Tags** — filter, browse, rename and delete tags across all notes.
 - **Literature** — local reference metadata plus optional Crossref title
   lookup, INSPIRE search, BibTeX/cite-key lookup and a Zotero local bridge.
-- **Zotero index** — an explicit, manually refreshed local cache of the Zotero
+- **Zotero index (macOS desktop only)** — an explicit, manually refreshed local cache of the Zotero
   library makes INSPIRE result matching fast and avoids one lookup per row.
 - **PDG reviews** — on-demand PDF cache, selective cache cleanup, PDF text
   highlights stored as local notes with review anchors, and an annotation
@@ -56,7 +56,8 @@ The app is written in Flutter and currently targets **macOS (Apple Silicon)** an
 
 ## Requirements
 
-- macOS 15 or later (Apple Silicon recommended).
+- macOS 12 or later (universal; verified on macOS 15.6 Apple Silicon).
+- iOS/iPadOS 15 or later.
 - Flutter **3.47.7** / Dart **3.13.5** (stable channel).
 - Xcode **26.3** for macOS/iOS builds, with the iOS platform component installed.
 - CocoaPods when a plugin requires it.
@@ -87,7 +88,7 @@ Store build must bundle the snapshot as an asset.
 
 ## Install
 
-There is no public binary release yet. When a GitHub **Release** provides
+There is no public binary release yet. When a [GitHub Release](https://github.com/fkguo/Particle-Library/releases) provides
 `.dmg`/`.zip`, `.ipa`/TestFlight or other installers, use those; end users do
 not need Flutter, Xcode or the source tree.
 
@@ -163,6 +164,7 @@ docs/           design and data documentation
 ## License
 
 - **Application code:** Mozilla Public License 2.0 (MPL-2.0); see [LICENSE](LICENSE).
+  Source: <https://github.com/fkguo/Particle-Library>.
   Copyright 2026 Particle Library contributors.
 - **PDG data snapshot:** CC BY 4.0, with attribution to the Particle Data
   Group. The MPL-2.0 license does **not** cover the data.

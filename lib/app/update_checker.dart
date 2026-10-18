@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -63,7 +65,6 @@ class UpdateChecker {
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       request.headers.set(HttpHeaders.userAgentHeader, 'ParticleLibrary');
       final response = await request.close().timeout(timeout);
-      final body = await response.transform(utf8.decoder).join();
       if (response.statusCode != HttpStatus.ok) {
         throw UpdateCheckException(
           response.statusCode == HttpStatus.notFound
@@ -71,6 +72,7 @@ class UpdateChecker {
               : 'Update server returned HTTP ${response.statusCode}.',
         );
       }
+      final body = await _readBody(response, timeout);
       final decoded = jsonDecode(body);
       if (decoded is! Map) {
         throw const UpdateCheckException('Invalid update response.');
@@ -78,7 +80,10 @@ class UpdateChecker {
       final data = Map<String, Object?>.from(decoded);
       final version =
           (data['version'] ?? data['tag_name'])?.toString().trim() ?? '';
-      final url = (data['url'] ?? data['html_url'])?.toString().trim() ?? '';
+      // GitHub releases contain both `url` (the API object) and `html_url`
+      // (the human release page). Prefer the latter; a manifest may only
+      // provide `url`.
+      final url = (data['html_url'] ?? data['url'])?.toString().trim() ?? '';
       final notes = (data['notes'] ?? data['body'])?.toString().trim() ?? '';
       if (version.isEmpty || url.isEmpty) {
         throw const UpdateCheckException('Update response lacks version/url.');
@@ -96,6 +101,10 @@ class UpdateChecker {
       throw UpdateCheckException('Cannot reach the update server: $error');
     } on HttpException catch (error) {
       throw UpdateCheckException('Update request failed: $error');
+    } on TimeoutException {
+      throw const UpdateCheckException(
+        'The update server did not respond in time.',
+      );
     } on FormatException catch (error) {
       throw UpdateCheckException('Invalid update data: $error');
     } finally {
@@ -103,21 +112,81 @@ class UpdateChecker {
     }
   }
 
+  static Future<String> _readBody(
+    HttpClientResponse response,
+    Duration timeout,
+  ) async {
+    const maxBytes = 1 << 20;
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk in response.timeout(timeout)) {
+      if (bytes.length + chunk.length > maxBytes) {
+        throw const UpdateCheckException('Update response is too large.');
+      }
+      bytes.add(chunk);
+    }
+    return utf8.decode(bytes.takeBytes(), allowMalformed: false);
+  }
+
   static int compareVersions(String a, String b) {
-    List<int> parts(String value) => value
-        .replaceFirst(RegExp(r'^[vV]'), '')
-        .split(RegExp(r'[.+-]'))
-        .map((part) => int.tryParse(part) ?? 0)
-        .toList();
-    final left = parts(a);
-    final right = parts(b);
-    final length = left.length > right.length ? left.length : right.length;
+    final left = _Version.parse(a);
+    final right = _Version.parse(b);
+    for (var i = 0; i < 3; i++) {
+      final comparison = left.core[i].compareTo(right.core[i]);
+      if (comparison != 0) return comparison;
+    }
+    // A release sorts after all of its prereleases; build metadata is ignored.
+    if (left.pre.isEmpty && right.pre.isEmpty) return 0;
+    if (left.pre.isEmpty) return 1;
+    if (right.pre.isEmpty) return -1;
+    final length = left.pre.length > right.pre.length
+        ? left.pre.length
+        : right.pre.length;
     for (var i = 0; i < length; i++) {
-      final l = i < left.length ? left[i] : 0;
-      final r = i < right.length ? right[i] : 0;
-      if (l != r) return l.compareTo(r);
+      if (i >= left.pre.length) return -1;
+      if (i >= right.pre.length) return 1;
+      final l = left.pre[i];
+      final r = right.pre[i];
+      final ln = int.tryParse(l);
+      final rn = int.tryParse(r);
+      if (ln != null && rn != null) {
+        final comparison = ln.compareTo(rn);
+        if (comparison != 0) return comparison;
+      } else if (ln != null) {
+        return -1; // numeric identifiers sort before alphanumeric ones
+      } else if (rn != null) {
+        return 1;
+      } else {
+        final comparison = l.compareTo(r);
+        if (comparison != 0) return comparison;
+      }
     }
     return 0;
+  }
+}
+
+class _Version {
+  _Version(this.core, this.pre);
+
+  final List<int> core;
+  final List<String> pre;
+
+  static _Version parse(String raw) {
+    final withoutV = raw.trim().replaceFirst(RegExp(r'^[vV]'), '');
+    final withoutBuild = withoutV.split('+').first;
+    final dash = withoutBuild.indexOf('-');
+    final coreText = dash < 0 ? withoutBuild : withoutBuild.substring(0, dash);
+    final preText = dash < 0 ? '' : withoutBuild.substring(dash + 1);
+    final core = coreText
+        .split('.')
+        .map((part) => int.tryParse(part) ?? 0)
+        .toList();
+    while (core.length < 3) {
+      core.add(0);
+    }
+    return _Version(
+      core,
+      preText.isEmpty ? const <String>[] : preText.split('.'),
+    );
   }
 }
 

@@ -697,6 +697,12 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(color: palette.textSecondary),
                     ),
+                    const SizedBox(height: Insets.xs),
+                    Text(
+                      strings.settingsInspireDisclaimer,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: palette.textSecondary),
+                    ),
                     const SizedBox(height: Insets.m),
                     Wrap(
                       spacing: Insets.s,
@@ -717,6 +723,26 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                           icon: const Icon(Icons.open_in_new, size: 16),
                           label: Text(strings.settingsLicenseLink),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => showLicensePage(
+                            context: context,
+                            applicationName: strings.appName,
+                            applicationVersion: appVersion,
+                          ),
+                          icon: const Icon(
+                            Icons.description_outlined,
+                            size: 16,
+                          ),
+                          label: Text(strings.settingsLicenses),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => _launch(
+                            context,
+                            'https://github.com/fkguo/Particle-Library',
+                          ),
+                          icon: const Icon(Icons.code, size: 16),
+                          label: Text(strings.settingsSourceCode),
                         ),
                       ],
                     ),

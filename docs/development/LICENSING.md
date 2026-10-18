@@ -32,10 +32,11 @@ PDG's terms. The app stores cached copies locally for reading only.
 ## Third-party packages
 
 - Flutter/Dart SDK: BSD-3-Clause
-- `sqlite3`, `sqlite3_flutter_libs`, `pdfrx`, `pdfrx_engine`: MIT
-- `flutter_math_fork`: Apache-2.0
+- `sqlite3`, `sqlite3_flutter_libs`, `pdfrx`, `pdfrx_engine`, `pdfium_flutter`: MIT
+- `flutter_math_fork`: Apache-2.0; bundled KaTeX fonts: MIT
+- `flutter_svg`: MIT
 - `path_provider`, `url_launcher`, `file_selector`, `crypto`: BSD-3-Clause
-- PDFium: BSD-3-Clause
+- PDFium: BSD-3-Clause; SQLite: public domain
 
 These are permissive licenses compatible with MPL-2.0. The complete texts are
 available in the Flutter license registry and the built app's `NOTICES.Z`.

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../core/errors.dart';
 import '../data/pdg_database.dart';
+import '../data/review_annotation_notes.dart';
 import '../data/pdg_repository.dart';
 import '../data/snapshot_store.dart';
 import '../data/sql_executor.dart';
@@ -39,11 +40,22 @@ class AppBootstrap {
       final notesResult = await notesFuture;
       // A notes database with a newer/foreign schema is not an app failure;
       // its error state is surfaced on the Notes page instead.
-      final notesStore = notesResult.store;
+      var notesStore = notesResult.store;
+      var notesError = notesResult.error;
       if (notesStore == null) {
-        debugPrint('Notes unavailable: ${notesResult.error}');
+        debugPrint('Notes unavailable: $notesError');
       } else {
-        await notesStore.cleanupLegacyMeasurementMarkers();
+        // Cleanup is a notes-only write. A locked/corrupt/full notes DB must
+        // not turn a healthy PDG startup into an app failure.
+        try {
+          await notesStore.cleanupLegacyMeasurementMarkers();
+          await ReviewAnnotationNotes.ensureMigrated(notesStore);
+        } catch (error) {
+          debugPrint('Notes cleanup failed; disabling notes: $error');
+          notesError = error;
+          await notesStore.close();
+          notesStore = null;
+        }
       }
       final settings = SettingsController(
         userStore,
@@ -64,7 +76,7 @@ class AppBootstrap {
         snapshotPath: prepared.path,
         copiedFromBundle: prepared.copiedFromBundle,
         notes: notesStore,
-        notesError: notesResult.error,
+        notesError: notesError,
         notesChanges: notesChanges,
       );
     } catch (error) {

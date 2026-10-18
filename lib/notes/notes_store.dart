@@ -1019,6 +1019,7 @@ class NotesStore {
             if (!collectionIds.contains(id)) collectionIds.add(id);
           }
         }
+        final createdAt = DateTime.tryParse(map['createdAt']?.toString() ?? '');
         await create(
           uuid: uuid,
           title: map['title']?.toString() ?? '',
@@ -1026,6 +1027,7 @@ class NotesStore {
           anchors: anchors,
           tags: tags,
           collectionIds: collectionIds,
+          createdAt: createdAt,
         );
         added++;
       } catch (_) {

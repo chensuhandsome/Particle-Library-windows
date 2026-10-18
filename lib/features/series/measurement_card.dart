@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
@@ -551,13 +553,29 @@ class _MeasurementNotes extends StatefulWidget {
 class _MeasurementNotesState extends State<_MeasurementNotes> {
   List<NoteRecord> _notes = const <NoteRecord>[];
   bool _loaded = false;
+  ValueNotifier<int>? _changes;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final scope = AppScope.of(context);
+    if (!identical(scope.notesChanges, _changes)) {
+      _changes?.removeListener(_onNotesChanged);
+      _changes = scope.notesChanges..addListener(_onNotesChanged);
+    }
     if (_loaded) return;
     _loaded = true;
-    _load();
+    unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    _changes?.removeListener(_onNotesChanged);
+    super.dispose();
+  }
+
+  void _onNotesChanged() {
+    if (mounted) unawaited(_load());
   }
 
   Future<void> _load() async {

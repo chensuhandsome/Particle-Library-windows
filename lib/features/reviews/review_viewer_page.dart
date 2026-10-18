@@ -101,6 +101,11 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
     }
   }
 
+  void _notifyNotesChanged() {
+    if (!mounted) return;
+    AppScope.of(context).notesChanges.value++;
+  }
+
   Future<void> _openExternally() async {
     final uri = Uri.tryParse(widget.officialUrl);
     if (uri == null || uri.scheme != 'https') return;
@@ -225,6 +230,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
       }
       if (!mounted) return;
       setState(() => _annotations = [...additions, ..._annotations]);
+      _notifyNotesChanged();
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -308,6 +314,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
           noteId: previous.noteId,
         );
       });
+      _notifyNotesChanged();
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -343,6 +350,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
             if (item.id != annotation.id) item,
         ];
       });
+      _notifyNotesChanged();
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

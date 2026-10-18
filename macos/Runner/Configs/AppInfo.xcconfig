@@ -12,4 +12,4 @@ PRODUCT_NAME = Particle Library
 PRODUCT_BUNDLE_IDENTIFIER = com.example.pdgapp
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 Particle Library. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Particle Library contributors. Licensed under MPL-2.0.

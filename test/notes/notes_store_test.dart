@@ -254,6 +254,8 @@ void main() {
     final imported = await target.noteByUuid(original.uuid);
     expect(imported, isNotNull);
     expect(imported!.tagNames, ['todo']);
+    expect(imported.bodyMarkdown, contains('[D0](pdgid:S008)'));
+    expect(imported.createdAt, original.createdAt);
     expect(imported.anchors.single.targetId, 'pdgid:S008');
     final again = await target.importJson([original.toJson()]);
     expect(again.skipped, 1);

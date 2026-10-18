@@ -10,7 +10,7 @@ smoke test on that platform.
 | Platform | Scaffold | Build | Release | Remaining work |
 |---|---|---|---|---|
 | macOS 15+ | yes | verified | `.app` | signing/notarization for public distribution |
-| iPhone/iPad | yes | simulator + debug device install verified | Debug | Release/TestFlight signing |
+| iPhone/iPad | yes | simulator + debug/release device install verified | Development-signed app | TestFlight/App Store needs paid team |
 | Android | no | no | none | `android/`, permissions, PDFium/SQLite, asset size |
 | Windows | no | no | none | `windows/`, MSVC build, installer |
 | Linux | no | no | none | `linux/`, GTK build, package |
