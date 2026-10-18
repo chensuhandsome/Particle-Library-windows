@@ -9,7 +9,10 @@ import 'pdg_math.dart';
 String? particleNameToLatex(String source) {
   var name = source.trim();
   if (name.isEmpty) return null;
-  if (name.contains(RegExp(r'[\s\[\]{}<>,;|\\%&$#]'))) return null;
+  // PDG occasionally separates repeated subscript letters with spaces
+  // (`T_c c cbar cbar`). Spaces are not part of the particle identity.
+  name = name.replaceAll(RegExp(r'\s+'), '_');
+  if (name.contains(RegExp(r'[\[\]{}<>,;|\\%&$#]'))) return null;
   if (name == 'K0S') return r'K_{S}^{0}';
   if (name == 'K0L') return r'K_{L}^{0}';
 
@@ -49,27 +52,30 @@ String? particleNameToLatex(String source) {
     name = name.substring(0, name.length - mass!.length - 2);
   }
 
-  // Prime/star superscript. The PDG writes both `D^*(...)` and `D*(...)`.
-  String? sup;
-  final supMatch = RegExp(r"\^([*'\u2032]+)$").firstMatch(name);
-  if (supMatch != null) {
-    sup = supMatch.group(1);
-    name = name.substring(0, name.length - sup!.length - 1);
-  } else {
-    final bareSup = RegExp(r"([*'\u2032]+)$").firstMatch(name);
-    if (bareSup != null) {
-      sup = bareSup.group(1);
-      name = name.substring(0, name.length - sup!.length);
+  // Subscripts/superscripts. PDG writes multi-part subscripts as repeated
+  // underscores (`T_c_cbar_1`), so collect every trailing `_...`/`^...`
+  // segment rather than only the last one.
+  final subParts = <String>[];
+  final supParts = <String>[];
+  while (true) {
+    final script = RegExp(r"([_^])([A-Za-z0-9*'\u2032]+)$").firstMatch(name);
+    if (script == null) break;
+    final value = script.group(2)!;
+    if (script.group(1) == '_') {
+      subParts.insert(0, value);
+    } else {
+      supParts.insert(0, value);
     }
+    name = name.substring(0, script.start);
   }
-
-  // Subscript.
-  String? sub;
-  final subMatch = RegExp(r'_([A-Za-z0-9]+)$').firstMatch(name);
-  if (subMatch != null) {
-    sub = subMatch.group(1);
-    name = name.substring(0, name.length - sub!.length - 1);
+  // Bare star/prime, e.g. D*(2010) after the mass was removed.
+  final bareSup = RegExp(r"([*'\u2032]+)$").firstMatch(name);
+  if (bareSup != null) {
+    supParts.insert(0, bareSup.group(1)!);
+    name = name.substring(0, bareSup.start);
   }
+  final sub = subParts.isEmpty ? null : subParts;
+  final sup = supParts.isEmpty ? null : supParts.join();
 
   if (name.isEmpty) return null;
   if (name.contains(RegExp(r'[^A-Za-z/]'))) return null;
@@ -89,7 +95,7 @@ String? particleNameToLatex(String source) {
   if (anti) buffer.write('}');
   if (sub != null && sub.isNotEmpty) {
     buffer.write('_{');
-    buffer.write(_subLatex(sub));
+    buffer.write(_subPartsLatex(sub));
     buffer.write('}');
   }
 
@@ -159,6 +165,22 @@ String _subLatex(String sub) {
     'e' => 'e',
     _ => sub,
   };
+}
+
+String _subPartsLatex(List<String> parts) {
+  final buffer = StringBuffer();
+  for (final part in parts) {
+    if (part.length > 3 && part.endsWith('bar')) {
+      final base = part.substring(0, part.length - 3);
+      buffer.write(base.substring(0, base.length - 1));
+      buffer.write(r'\bar{');
+      buffer.write(base.substring(base.length - 1));
+      buffer.write('}');
+    } else {
+      buffer.write(_subLatex(part));
+    }
+  }
+  return buffer.toString();
 }
 
 String _supPartLatex(String part) {

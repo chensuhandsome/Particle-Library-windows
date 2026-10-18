@@ -570,6 +570,12 @@ class _ReferenceBody extends StatelessWidget {
                       label: strings.referenceTitle,
                       value: reference.title,
                       warning: reference.title.isEmpty,
+                      valueWidget: reference.title.isEmpty
+                          ? null
+                          : DescriptionText(
+                              reference.title,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
                     ),
                     if (enrichedTitle != null)
                       DataField(

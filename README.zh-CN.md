@@ -32,27 +32,9 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 ## 环境要求
 
 - macOS 12 或更高版本（通用二进制；已在 macOS 15.6 Apple Silicon 验证）；
-- iOS/iPadOS 15 或更高版本；
-- Flutter **3.47.7** / Dart **3.13.5** stable；
-- macOS/iOS 构建需要 Xcode **26.3** 和对应 iOS platform；
-- 部分插件需要 CocoaPods。
+- iOS/iPadOS 15 或更高版本。
 
-### PDG 数据快照
-
-PDG 数据库**不包含在仓库中**（体积大，且使用 CC BY 4.0 许可）。构建前放到：
-
-```text
-assets/pdgall-2026.0.sqlite
-```
-
-要求：
-
-- PDG 2026，schema 0.3；
-- SHA-256：
-  `c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a`；
-- 应用使用前会校验哈希。
-
-`pubspec.yaml` 的 asset 条目要求该文件在 `flutter test`、`flutter run` 或任意平台构建前存在。生产构建必须把快照打包进应用。
+正式发布包会内置 PDG 快照。只有从源码构建才额外需要 Flutter/Xcode 和快照文件；这些是**贡献者**要求，见 [BUILDING.md](docs/development/BUILDING.md)。
 
 ## 安装
 

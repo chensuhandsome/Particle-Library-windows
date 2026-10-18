@@ -24,10 +24,14 @@ Android, Windows or Linux build.
   **Xcode → Settings → Components**.
 - CocoaPods where a plugin requires it.
 - The PDG snapshot at `assets/pdgall-2026.0.sqlite`; see
-  [assets/README.md](../../assets/README.md). The file is not committed.
+  [assets/README.md](../../assets/README.md). The file is not committed and is
+  not downloadable from this repository. A clean clone cannot run the tests or
+  build the real database until the owner supplies it.
+- Expected snapshot: PDG 2026, schema 0.3, SHA-256
+  `c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a`.
 
-The snapshot must match the SHA-256 in the README; `flutter test`, `flutter
-run` and every platform build require the asset to be present.
+`flutter test`, `flutter run` and every platform build require the asset to be
+present.
 
 ## macOS
 

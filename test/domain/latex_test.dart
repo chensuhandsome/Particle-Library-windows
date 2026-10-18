@@ -25,6 +25,20 @@ void main() {
     expect(particleNameToLatex('Omega_c0'), r'\Omega_{c}^{0}');
     expect(particleNameToLatex('B_s^0'), r'B_{s}^{0}');
     expect(particleNameToLatex('D_s^+'), r'D_{s}^{+}');
+    expect(particleNameToLatex('T_c_c(3875)+'), r'T_{cc}(3875)^{+}');
+    expect(particleNameToLatex('T_c_cbar(4050)+'), r'T_{c\bar{c}}(4050)^{+}');
+    expect(
+      particleNameToLatex('T_c_cbar_1(3900)+'),
+      r'T_{c\bar{c}1}(3900)^{+}',
+    );
+    expect(
+      particleNameToLatex('T_c c cbar cbar(6600)+'),
+      r'T_{cc\bar{c}\bar{c}}(6600)^{+}',
+    );
+    expect(
+      particleNameToLatex('T_b_bbar_1(10610)+'),
+      r'T_{b\bar{b}1}(10610)^{+}',
+    );
   });
 
   test('bare and TeX-ish source tokens become math', () {
@@ -40,7 +54,10 @@ void main() {
   });
 
   test('PDG explanatory-text expressions convert as whole units', () {
-    expect(sourceExpressionToLatex(r'g**nu_{{{{\mathit \ell}}}}'), r'g^{\nu_{\ell}}');
+    expect(
+      sourceExpressionToLatex(r'g**nu_{{{{\mathit \ell}}}}'),
+      r'g^{\nu_{\ell}}',
+    );
     expect(sourceExpressionToLatex('g**nu_e'), r'g^{\nu_{e}}');
     expect(sourceExpressionToLatex('q**2'), r'q^{2}');
     expect(sourceExpressionToLatex('F_{{{V+A}}}'), r'F_{V+A}');
@@ -48,11 +65,53 @@ void main() {
     expect(sourceExpressionToLatex('CLEO-c'), isNull);
   });
 
+  test('dollar-delimited title math is segmented', () {
+    final segments = segmentPdgText(
+      r'Measurement at $\sqrt{s}$ = 7 TeV with a $W$ boson',
+    );
+    expect(segments.any((segment) => segment.latex == r'\sqrt{s}'), isTrue);
+    expect(segments.any((segment) => segment.latex == 'W'), isTrue);
+    expect(segments.any((segment) => segment.text == r'$\sqrt{s}$'), isFalse);
+  });
+
   test('a single-stage decay equation gets one arrow', () {
     final tokens = [
-      DecayToken({'id': 1, 'pdgid_id': 1, 'pdgid': 'S032.1', 'pdgitem_id': 1, 'name': 'D0', 'is_outgoing': 0, 'multiplier': 1, 'subdecay_id': null, 'sort': 1, 'item_type': 'P'}),
-      DecayToken({'id': 2, 'pdgid_id': 1, 'pdgid': 'S032.1', 'pdgitem_id': 2, 'name': 'K-', 'is_outgoing': 1, 'multiplier': 1, 'subdecay_id': null, 'sort': 2, 'item_type': 'P'}),
-      DecayToken({'id': 3, 'pdgid_id': 1, 'pdgid': 'S032.1', 'pdgitem_id': 3, 'name': 'pi+', 'is_outgoing': 1, 'multiplier': 1, 'subdecay_id': null, 'sort': 3, 'item_type': 'P'}),
+      DecayToken({
+        'id': 1,
+        'pdgid_id': 1,
+        'pdgid': 'S032.1',
+        'pdgitem_id': 1,
+        'name': 'D0',
+        'is_outgoing': 0,
+        'multiplier': 1,
+        'subdecay_id': null,
+        'sort': 1,
+        'item_type': 'P',
+      }),
+      DecayToken({
+        'id': 2,
+        'pdgid_id': 1,
+        'pdgid': 'S032.1',
+        'pdgitem_id': 2,
+        'name': 'K-',
+        'is_outgoing': 1,
+        'multiplier': 1,
+        'subdecay_id': null,
+        'sort': 2,
+        'item_type': 'P',
+      }),
+      DecayToken({
+        'id': 3,
+        'pdgid_id': 1,
+        'pdgid': 'S032.1',
+        'pdgitem_id': 3,
+        'name': 'pi+',
+        'is_outgoing': 1,
+        'multiplier': 1,
+        'subdecay_id': null,
+        'sort': 3,
+        'item_type': 'P',
+      }),
     ];
     final latex = decayTokensToLatex(tokens);
     expect(latex.contains(r'\longrightarrow'), isTrue);

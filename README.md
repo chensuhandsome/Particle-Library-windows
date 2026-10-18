@@ -58,35 +58,10 @@ The app is written in Flutter and currently targets **macOS (universal)** and
 
 - macOS 12 or later (universal; verified on macOS 15.6 Apple Silicon).
 - iOS/iPadOS 15 or later.
-- Flutter **3.47.7** / Dart **3.13.5** (stable channel).
-- Xcode **26.3** for macOS/iOS builds, with the iOS platform component installed.
-- CocoaPods when a plugin requires it.
 
-The project currently uses Flutter's Swift Package Manager integration for its
-Apple dependencies.
-
-### PDG snapshot
-
-The PDG database is **not committed** to this repository: it is large and is
-distributed under CC BY 4.0. Place the PDG 2026 snapshot at:
-
-```text
-assets/pdgall-2026.0.sqlite
-```
-
-Expected snapshot:
-
-- Edition: **PDG 2026**, schema **0.3**
-- SHA-256:
-  `c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a`
-- The app verifies this hash before using the data.
-
-The snapshot is not downloadable from this repository. A clean clone can run
-the UI code but **cannot run tests or build the real database** until the owner
-supplies this file. The Flutter asset entry in `pubspec.yaml` requires it before
-`flutter test`, `flutter run` or a platform build. A production build must bundle
-it as an asset; see the PDG data terms in `THIRD_PARTY_NOTICES.md`.
-
+A released build bundles the PDG snapshot. Building from source additionally
+requires Flutter/Xcode and the snapshot; those are **contributor** requirements,
+documented in [BUILDING.md](docs/development/BUILDING.md).
 
 ## Install
 

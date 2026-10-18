@@ -441,6 +441,33 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
     );
   }
 
+  void _openAnnotationsSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.65,
+        child: _ReviewAnnotationSidebar(
+          annotations: _annotations,
+          palette: context.palette,
+          strings: AppScope.of(context).strings,
+          onOpen: (annotation) {
+            Navigator.of(context).pop();
+            if (_controller.isReady) {
+              unawaited(
+                _controller.goToPage(pageNumber: annotation.pageNumber),
+              );
+            }
+          },
+          onOpenNote: _openAnnotationNote,
+          onEditNote: _editNote,
+          onDelete: _deleteAnnotation,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -492,8 +519,13 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
           ),
           IconButton(
             tooltip: strings.reviewAnnotationSidebar,
-            onPressed: () =>
-                setState(() => _showAnnotations = !_showAnnotations),
+            onPressed: () {
+              if (MediaQuery.sizeOf(context).width < 700) {
+                _openAnnotationsSheet();
+              } else {
+                setState(() => _showAnnotations = !_showAnnotations);
+              }
+            },
             icon: Badge.count(
               count: _annotations.length,
               isLabelVisible: _annotations.isNotEmpty,

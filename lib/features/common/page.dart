@@ -375,6 +375,7 @@ class DataField extends StatelessWidget {
     super.key,
     required this.label,
     required this.value,
+    this.valueWidget,
     this.icon,
     this.monospace = false,
     this.warning = false,
@@ -382,6 +383,7 @@ class DataField extends StatelessWidget {
 
   final String label;
   final String value;
+  final Widget? valueWidget;
   final IconData? icon;
   final bool monospace;
   final bool warning;
@@ -414,14 +416,16 @@ class DataField extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: SelectableText(
-              value.isEmpty ? '—' : value,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontFamily: monospace ? 'Menlo' : null,
-                fontSize: monospace ? 12 : null,
-                color: warning ? palette.warning : palette.textPrimary,
-              ),
-            ),
+            child:
+                valueWidget ??
+                SelectableText(
+                  value.isEmpty ? '—' : value,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontFamily: monospace ? 'Menlo' : null,
+                    fontSize: monospace ? 12 : null,
+                    color: warning ? palette.warning : palette.textPrimary,
+                  ),
+                ),
           ),
         ],
       ),
