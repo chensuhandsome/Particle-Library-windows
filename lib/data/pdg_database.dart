@@ -408,13 +408,8 @@ class PdgDatabase {
     );
   }
 
-  Future<List<ItemResolution>> resolveItems(List<int> itemIds) async {
-    final result = <ItemResolution>[];
-    for (final itemId in itemIds) {
-      result.add(await resolveItem(itemId));
-    }
-    return result;
-  }
+  Future<List<ItemResolution>> resolveItems(List<int> itemIds) =>
+      Future.wait(itemIds.map(resolveItem));
 
   // ---------------------------------------------------------------------------
   // Summaries and history

@@ -50,6 +50,7 @@ class FavoriteButton extends StatelessWidget {
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
+        duration: const Duration(seconds: 3),
         content: Text(added ? strings.favoritesAdded : strings.favoritesRemoved),
         action: SnackBarAction(
           label: strings.favoritesUndo,

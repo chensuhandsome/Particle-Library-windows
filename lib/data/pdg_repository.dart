@@ -29,8 +29,10 @@ class PdgRepository {
     final ancestors = results[1] as List<Entry>;
     final descendants = results[2] as List<Entry>;
     final referenceCount = results[3] as int;
-    final ids = {for (final row in ancestors) row.id, for (final row in descendants) row.id}
-        .toList(growable: false);
+    final ids = {
+      for (final row in ancestors) row.id,
+      for (final row in descendants) row.id,
+    }.toList(growable: false);
     final textsAndSummaries = await Future.wait([
       db.textsForEntries(ids),
       db.currentSummariesForEntries(ids),
@@ -74,15 +76,16 @@ class PdgRepository {
     final directMeasurementCount = results[4] as int;
     final ids = [for (final row in ancestors) row.id, entry.id];
     final texts = await db.textsForEntries(ids);
-    final currentSummaries =
-        summaries.where((row) => row.edition == currentEdition).toList(growable: false);
+    final currentSummaries = summaries
+        .where((row) => row.edition == currentEdition)
+        .toList(growable: false);
     final parent = ancestors.isEmpty ? null : ancestors.last;
     final siblings = parent == null
         ? const <Entry>[]
         : (await db.children(parent.id))
-            .where((row) => row.id != entry.id)
-            .take(10)
-            .toList(growable: false);
+              .where((row) => row.id != entry.id)
+              .take(10)
+              .toList(growable: false);
     return SeriesView(
       entry: entry,
       ancestors: ancestors,
@@ -116,13 +119,15 @@ class PdgRepository {
     final directMeasurementCount = results[6] as int;
     final ids = [for (final row in ancestors) row.id, entry.id];
     final texts = await db.textsForEntries(ids);
-    final itemIds = {for (final token in tokens) token.pdgitemId}.toList(growable: false);
-    final resolutions = <int, ItemResolution>{};
-    for (final itemId in itemIds) {
-      resolutions[itemId] = await db.resolveItem(itemId);
-    }
-    final currentSummaries =
-        summaries.where((row) => row.edition == currentEdition).toList(growable: false);
+    final itemIds = {for (final token in tokens) token.pdgitemId}
+        .toList(growable: false);
+    final resolved = await db.resolveItems(itemIds);
+    final resolutions = <int, ItemResolution>{
+      for (var i = 0; i < itemIds.length; i++) itemIds[i]: resolved[i],
+    };
+    final currentSummaries = summaries
+        .where((row) => row.edition == currentEdition)
+        .toList(growable: false);
     return ModeView(
       entry: entry,
       ancestors: ancestors,
@@ -154,8 +159,10 @@ class PdgRepository {
     final measurementCount = results[4] as int;
     final ids = [for (final row in ancestors) row.id, entry.id];
     final childIds = [for (final row in children) row.id];
-    final allSummaries = await db.currentSummariesForEntries(
-        [...ids, ...childIds]);
+    final allSummaries = await db.currentSummariesForEntries([
+      ...ids,
+      ...childIds,
+    ]);
     final byEntry = <int, List<Summary>>{};
     for (final row in allSummaries) {
       byEntry.putIfAbsent(row.pdgidId, () => []).add(row);
@@ -183,11 +190,25 @@ class PdgRepository {
       return false;
     }
     const propertyTypes = {
-      'M', 'G', 'T', 'D', 'BR', 'g', 'e', 'm', 'v', 'f', 's', 'c', 'd',
+      'M',
+      'G',
+      'T',
+      'D',
+      'BR',
+      'g',
+      'e',
+      'm',
+      'v',
+      'f',
+      's',
+      'c',
+      'd',
     };
     if (propertyTypes.contains(entry.dataType)) return true;
-    final summaryCount = (await db.summaryCountsForEntries([entry.id],
-            edition: currentEdition))[entry.id] ??
+    final summaryCount =
+        (await db.summaryCountsForEntries([
+          entry.id,
+        ], edition: currentEdition))[entry.id] ??
         0;
     if (summaryCount > 0) return true;
     return (await db.directMeasurementCount(entry.id)) > 0;
@@ -198,20 +219,28 @@ class PdgRepository {
     MeasurementCursor? cursor,
     MeasurementFilter filter = const MeasurementFilter(),
     int pageSize = 50,
-  }) =>
-      db.measurementsPage(entry.id, entry.pdgid,
-          cursor: cursor, filter: filter, pageSize: pageSize);
+  }) => db.measurementsPage(
+    entry.id,
+    entry.pdgid,
+    cursor: cursor,
+    filter: filter,
+    pageSize: pageSize,
+  );
 
-  Future<ReferenceListPage> referencesForSubtree(Entry entry,
-          {int limit = 50, int offset = 0}) =>
-      db.referencesForSubtree(entry.id, limit: limit, offset: offset);
+  Future<ReferenceListPage> referencesForSubtree(
+    Entry entry, {
+    int limit = 50,
+    int offset = 0,
+  }) => db.referencesForSubtree(entry.id, limit: limit, offset: offset);
 
   Future<List<ReferenceSeriesGroup>> referenceSeriesGroups(int referenceId) =>
       db.referenceSeriesGroups(referenceId);
 
   Future<List<MeasurementBundle>> measurementsForReferenceSeries(
-          int referenceId, int entryId, {int limit = 50}) =>
-      db.measurementsForReferenceSeries(referenceId, entryId, limit: limit);
+    int referenceId,
+    int entryId, {
+    int limit = 50,
+  }) => db.measurementsForReferenceSeries(referenceId, entryId, limit: limit);
 
   Future<List<CatalogRoot>> catalog() => db.catalogRoots();
 }

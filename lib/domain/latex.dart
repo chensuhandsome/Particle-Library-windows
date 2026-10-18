@@ -70,7 +70,7 @@ String? particleNameToLatex(String source) {
   // PDG occasionally separates repeated subscript letters with spaces
   // (`T_c c cbar cbar`). Spaces are not part of the particle identity.
   name = name.replaceAll(RegExp(r'\s+'), '_');
-  if (name.contains(RegExp(r'[\[\]{}<>,;|\\%&$#]'))) return null;
+  if (name.contains(RegExp(r'[\[\]<>,;|\\%&$#]'))) return null;
   if (name == 'K0S') return r'K_{S}^{0}';
   if (name == 'K0L') return r'K_{L}^{0}';
 
@@ -118,9 +118,15 @@ String? particleNameToLatex(String source) {
   while (true) {
     final script = RegExp(r"([_^])([A-Za-z0-9*'\u2032]+)$").firstMatch(name);
     if (script == null) break;
-    final value = script.group(2)!;
+    var value = script.group(2)!;
     if (script.group(1) == '_') {
-      subParts.insert(0, value);
+      // `D_s3*(...)` stores the star in the same token as the subscript.
+      final star = RegExp(r"([*'\u2032]+)$").firstMatch(value);
+      if (star != null) {
+        supParts.insert(0, star.group(1)!);
+        value = value.substring(0, star.start);
+      }
+      if (value.isNotEmpty) subParts.insert(0, value);
     } else {
       supParts.insert(0, value);
     }
@@ -534,7 +540,15 @@ List<PdgTextSegment> _segmentPdgTextUncached(String original) {
       final end = source.indexOf(r'$', index + 1);
       if (end > index) {
         flushPlain(index);
-        final body = source.substring(index + 1, end);
+        var body = source.substring(index + 1, end);
+        // MathML/Crossref occasionally leaves a bare `\alpha_-`; the sign is
+        // a subscript, not a binary minus.
+        body = body.replaceAllMapped(
+          RegExp(r'(\\(?:alpha|beta|gamma|mu|tau|Lambda))_([+-])$'),
+          (match) => '${match.group(1)}_{${match.group(2)}}',
+        );
+        body = body.replaceAll(RegExp(r'\^\{\s*\+\s*-\s*\}'), r'^{\pm}');
+        body = body.replaceAll(RegExp(r'\^\{\s*-\s*\+\s*\}'), r'^{\mp}');
         if (_looksLikeSafeLatex(body)) {
           segments.add(PdgTextSegment.math(body));
         } else {

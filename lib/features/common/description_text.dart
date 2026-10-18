@@ -118,13 +118,16 @@ class DescriptionText extends StatelessWidget {
   }
 
   static InlineSpan _mathSpan(String latex, String fallback, TextStyle style) {
+    final normalized = latex
+        .replaceAll(RegExp(r'\^\{\s*\+\s*-\s*\}'), r'^{\pm}')
+        .replaceAll(RegExp(r'\^\{\s*-\s*\+\s*\}'), r'^{\mp}');
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 0.5),
         child: Math.tex(
-          latex,
+          normalized,
           mathStyle: MathStyle.text,
           // Do not inherit a heading's synthetic bold weight: many math fonts
           // have no bold Greek glyphs, so f_0/a_0 would become bold while

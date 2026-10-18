@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
@@ -1650,11 +1651,11 @@ CREATE INDEX idx_note_collections_collection
             entry.key.toString(): entry.value,
         };
       } on FormatException catch (error) {
-        throw NotesException(
-          NotesErrorCode.corrupt,
-          '锚点 $id 的 context_json 无法解析。',
-          cause: error,
-        );
+        // A single damaged optional anchor context must not make every note
+        // unreadable. Keep the anchor, surface it without geometry, and leave
+        // the note body/search usable.
+        debugPrint('Ignoring malformed anchor context $id: $error');
+        context = null;
       }
     }
     return NoteAnchor(

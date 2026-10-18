@@ -60,10 +60,12 @@ class _ReferencePageState extends State<ReferencePage> {
   String? _captureLabel;
 
   String _displayTitle(Reference reference) {
-    if (reference.title.isNotEmpty) return reference.title;
+    if (reference.title.isNotEmpty) return plainReferenceTitle(reference.title);
     final enriched = _enrichedTitle;
-    if (enriched != null && enriched.isNotEmpty) return enriched;
-    return reference.displayTitle;
+    if (enriched != null && enriched.isNotEmpty) {
+      return plainReferenceTitle(enriched);
+    }
+    return plainReferenceTitle(reference.displayTitle);
   }
 
   Future<void> _lookupTitle(Reference reference) async {
@@ -568,12 +570,12 @@ class _ReferenceBody extends StatelessWidget {
                   children: [
                     DataField(
                       label: strings.referenceTitle,
-                      value: reference.title,
+                      value: plainReferenceTitle(reference.title),
                       warning: reference.title.isEmpty,
                       valueWidget: reference.title.isEmpty
                           ? null
                           : DescriptionText(
-                              reference.title,
+                              plainReferenceTitle(reference.title),
                               selectable: true,
                               style: Theme.of(context).textTheme.bodyMedium,
                             ),
@@ -942,4 +944,42 @@ class _ReferenceGroupCardState extends State<_ReferenceGroupCard> {
       ),
     );
   }
+}
+
+/// Crossref sometimes returns MathML/HTML instead of a plain title.
+///
+/// Keep the original string in raw fields, but show a readable title in the
+/// header and documents panel. PDG `$...$` math is left for [DescriptionText].
+String plainReferenceTitle(String source) {
+  if (source.isEmpty) return source;
+  var text = source;
+  if (text.contains('<')) {
+    text = text.replaceAll(
+      RegExp(r'<(script|style)[^>]*>.*?</\1>', caseSensitive: false),
+      ' ',
+    );
+    text = text.replaceAll(RegExp(r'<[^>]+>'), ' ');
+    const entities = {
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#39;': "'",
+      '&apos;': "'",
+      '&nbsp;': ' ',
+    };
+    for (final entry in entities.entries) {
+      text = text.replaceAll(entry.key, entry.value);
+    }
+    text = text.replaceAllMapped(RegExp(r'&#(x?[0-9a-fA-F]+);'), (match) {
+      final raw = match.group(1)!;
+      final code = raw.startsWith('x') || raw.startsWith('X')
+          ? int.tryParse(raw.substring(1), radix: 16)
+          : int.tryParse(raw);
+      return code == null ? match.group(0)! : String.fromCharCode(code);
+    });
+    text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+  // In plain display, a PDG charge pair reads better as the actual sign.
+  return text.replaceAll('+-', '±');
 }

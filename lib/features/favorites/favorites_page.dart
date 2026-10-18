@@ -293,6 +293,7 @@ class _FavoriteTile extends StatelessWidget {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
+                    duration: const Duration(seconds: 3),
                     content: Text(strings.favoritesRemoved),
                     action: SnackBarAction(
                       label: strings.favoritesUndo,

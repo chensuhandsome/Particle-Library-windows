@@ -80,11 +80,7 @@ class ReviewAnnotationNotes {
     required String reviewTitle,
   }) async {
     final key = _reviewKey(fileName);
-    final records = await notes.notesForTarget(
-      NoteTargetKinds.review,
-      key,
-      limit: 500,
-    );
+    final records = await notes.notesForTarget(NoteTargetKinds.review, key);
     final result = <ReviewAnnotation>[];
     for (final note in records) {
       NoteAnchor? anchor;
