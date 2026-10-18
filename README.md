@@ -11,7 +11,7 @@ Particle Library is a desktop and mobile browser for the **Particle Data Group
 PDG snapshot stays read-only and local, while notes, collections, favorites and
 PDF annotations are stored separately from the data.
 
-Built by **Feng-Kun Guo** over a weekend using **DeepSeek Harness** and
+Built over a weekend using **DeepSeek Harness** and
 **DeepSeek-V4.1-Flash-1017**.
 
 The app is written in Flutter and currently targets **macOS (universal)** and

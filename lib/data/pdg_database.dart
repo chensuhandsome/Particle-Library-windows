@@ -408,8 +408,112 @@ class PdgDatabase {
     );
   }
 
-  Future<List<ItemResolution>> resolveItems(List<int> itemIds) =>
-      Future.wait(itemIds.map(resolveItem));
+  /// Resolves a whole Mode page with a fixed number of SQL statements:
+  /// items, direct particles, recursive chains and chain particles. This is
+  /// intentionally not a `resolveItem` loop.
+  Future<List<ItemResolution>> resolveItems(List<int> itemIds) async {
+    if (itemIds.isEmpty) return const [];
+    final ids = itemIds.toSet().toList();
+    final itemRows = await executor.select(
+      'SELECT * FROM pdgitem WHERE id IN (${_placeholders(ids.length)})',
+      ids,
+    );
+    final items = {
+      for (final row in itemRows) asInt(row['id'])!: ItemRecord(row),
+    };
+    for (final id in ids) {
+      if (!items.containsKey(id)) {
+        throw NotFoundException('当前快照未收录名称项 $id。');
+      }
+    }
+
+    final directRows = await executor.select(
+      'SELECT * FROM pdgparticle WHERE pdgitem_id IN (${_placeholders(ids.length)}) ORDER BY pdgitem_id, id',
+      ids,
+    );
+    final directByItem = <int, List<Particle>>{};
+    for (final row in directRows) {
+      final itemId = asInt(row['pdgitem_id'])!;
+      directByItem.putIfAbsent(itemId, () => []).add(Particle(row));
+    }
+
+    final chainRows = await executor.select('''
+      WITH RECURSIVE chain(root_id, item_id, depth) AS (
+        SELECT id, id, 0 FROM pdgitem
+         WHERE id IN (${_placeholders(ids.length)})
+        UNION ALL
+        SELECT c.root_id, m.target_id, c.depth + 1
+          FROM chain c JOIN pdgitem_map m ON m.pdgitem_id = c.item_id
+         WHERE c.depth < 5
+      )
+      SELECT c.root_id, i.*, MIN(c.depth) AS chain_depth
+        FROM chain c JOIN pdgitem i ON i.id = c.item_id
+       GROUP BY c.root_id, i.id
+       ORDER BY c.root_id, chain_depth, i.id
+    ''', ids);
+    final chainByRoot = <int, List<ItemRecord>>{};
+    final chainIds = <int>{};
+    for (final row in chainRows) {
+      final root = asInt(row['root_id'])!;
+      final item = ItemRecord({
+        for (final e in row.entries)
+          if (e.key != 'chain_depth' && e.key != 'root_id') e.key: e.value,
+      });
+      chainByRoot.putIfAbsent(root, () => []).add(item);
+      chainIds.add(item.id);
+    }
+
+    final allParticleRows = await executor.select(
+      'SELECT * FROM pdgparticle WHERE pdgitem_id IN (${_placeholders(chainIds.length)}) ORDER BY pdgitem_id, id',
+      chainIds.toList(),
+    );
+    final particlesByItem = <int, List<Particle>>{};
+    for (final row in allParticleRows) {
+      final itemId = asInt(row['pdgitem_id'])!;
+      particlesByItem.putIfAbsent(itemId, () => []).add(Particle(row));
+    }
+
+    return [
+      for (final id in ids)
+        _resolutionFromBatch(
+          id,
+          items[id]!,
+          directByItem[id] ?? const [],
+          chainByRoot[id] ?? const [],
+          particlesByItem,
+        ),
+    ];
+  }
+
+  ItemResolution _resolutionFromBatch(
+    int itemId,
+    ItemRecord item,
+    List<Particle> direct,
+    List<ItemRecord> chain,
+    Map<int, List<Particle>> particlesByItem,
+  ) {
+    final mapped = <Particle>[];
+    final seen = <int>{for (final particle in direct) particle.id};
+    for (final record in chain) {
+      if (record.id == itemId) continue;
+      for (final particle in particlesByItem[record.id] ?? const <Particle>[]) {
+        if (seen.add(particle.id)) mapped.add(particle);
+      }
+    }
+    final all = <Particle>[];
+    final seenAll = <int>{};
+    for (final particle in [...direct, ...mapped]) {
+      if (seenAll.add(particle.id)) all.add(particle);
+    }
+    return ItemResolution(
+      item: item,
+      chain: chain,
+      directParticles: direct,
+      mappedParticles: mapped,
+      candidates: all,
+      listings: {for (final particle in all) particle.pdgid},
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // Summaries and history

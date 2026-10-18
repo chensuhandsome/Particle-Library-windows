@@ -8,7 +8,7 @@
 
 Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览器，面向高能物理及相关领域的科研使用。PDG 数据快照保持只读且保存在本机，笔记、收藏、标签和 PDF 批注与数据分开存储。
 
-由 **Feng-Kun Guo** 在周末使用 **DeepSeek Harness** 与 **DeepSeek-V4.1-Flash-1017** 构建。
+在周末使用 **DeepSeek Harness** 与 **DeepSeek-V4.1-Flash-1017** 构建。
 
 应用使用 Flutter，当前目标平台为 **macOS（通用二进制）** 与 **iPhone/iPad**，两端共享响应式布局。
 

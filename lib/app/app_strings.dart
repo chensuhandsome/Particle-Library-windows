@@ -1027,8 +1027,8 @@ class AppStrings {
   String updateAvailableTitle(String version) =>
       _t('发现新版本 $version', 'Version $version is available');
   String get settingsBuiltBy => _t(
-    '由 Feng-Kun Guo 使用 DeepSeek Harness 构建。',
-    'Built by Feng-Kun Guo using DeepSeek Harness.',
+    '使用 DeepSeek Harness 构建。',
+    'Built with DeepSeek Harness.',
   );
   String get settingsCoverageText => _t(
     '本版本完整读取条目、性质、衰变参与项、全部测量列、脚注、文献与历史汇总；结构语义只在能由原文确定时展示，无法唯一确定的片段保留原文。',

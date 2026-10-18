@@ -180,6 +180,19 @@ void main() {
     expect(resolution.candidates.length, 2);
   });
 
+  test(
+    'batch resolution returns the same listings without a query per item',
+    () async {
+      final alias = await db.itemByName('J/psi');
+      expect(alias, isNotNull);
+      final resolutions = await db.resolveItems([1593, alias!.id]);
+      expect(resolutions, hasLength(2));
+      expect(resolutions[0].listings, {'B185', 'B205'});
+      expect(resolutions[1].listings, {'M070'});
+      expect(resolutions[1].candidates.single.name, 'J/psi(1S)');
+    },
+  );
+
   test('an alias item resolves through pdgitem_map', () async {
     final item = await db.itemByName('J/psi');
     expect(item, isNotNull);

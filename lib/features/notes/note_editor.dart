@@ -141,7 +141,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     _linkHoverHideTimer?.cancel();
     _linkHoverOverlay?.remove();
     _linkHoverOverlay = null;
-    if (!_saving && _hasChanges) {
+    if (_saving || _hasChanges) {
       _flushOnDispose();
     }
     _titleController.dispose();
@@ -376,7 +376,20 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     await _persist(force: force);
   }
 
-  Future<NoteRecord?> _persist({
+  Future<NoteRecord?>? _activePersist;
+
+  Future<NoteRecord?> _persist({bool reportState = true, bool force = false}) {
+    final active = _activePersist;
+    if (active != null) return active;
+    final future = _persistBody(reportState: reportState, force: force);
+    _activePersist = future;
+    future.whenComplete(() {
+      if (identical(_activePersist, future)) _activePersist = null;
+    });
+    return future;
+  }
+
+  Future<NoteRecord?> _persistBody({
     bool reportState = true,
     bool force = false,
   }) async {
@@ -470,39 +483,53 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     final title = _committedText(_titleController);
     final body = _committedText(_bodyController);
     final tags = parseNoteTags(_committedText(_tagController));
-    final existing = _record;
-    if (existing == null &&
-        title.trim().isEmpty &&
-        body.trim().isEmpty &&
-        tags.isEmpty &&
-        _quickAnchors.isEmpty) {
-      return;
-    }
+    final anchors = _allAnchors();
+    final collectionIds = _collectionIds.toList();
     final store = widget.store;
     final changeSignal = widget.changeSignal;
+    final active = _activePersist;
     unawaited(() async {
       try {
+        // A save may already be in flight. Wait for it so the final update uses
+        // the new revision instead of racing it and losing the last edit.
+        if (active != null) {
+          await active;
+        }
+        final existing = _record;
+        if (existing == null &&
+            title.trim().isEmpty &&
+            body.trim().isEmpty &&
+            tags.isEmpty &&
+            anchors.isEmpty &&
+            collectionIds.isEmpty) {
+          return;
+        }
+        if (existing != null &&
+            title == existing.title &&
+            body == existing.bodyMarkdown &&
+            _sameTags(tags, existing.tagNames) &&
+            _sameStringSets(
+              collectionIds.toSet(),
+              existing.collections.map((collection) => collection.id).toSet(),
+            )) {
+          return;
+        }
         if (existing == null) {
           await store.create(
             title: title,
             bodyMarkdown: body,
-            anchors: _allAnchors(),
+            anchors: anchors,
             tags: tags,
-            collectionIds: _collectionIds.toList(),
+            collectionIds: collectionIds,
           );
         } else {
-          final anchorsChanged = _anchorSignature() != _savedAnchorSignature;
-          final collectionsChanged = !_sameStringSets(
-            _collectionIds,
-            _savedCollectionIds,
-          );
           await store.update(
             existing.id,
             title: title,
             bodyMarkdown: body,
-            anchors: anchorsChanged ? _allAnchors() : null,
+            anchors: anchors,
             tags: tags,
-            collectionIds: collectionsChanged ? _collectionIds.toList() : null,
+            collectionIds: collectionIds,
             expectedRevision: existing.revision,
           );
         }
