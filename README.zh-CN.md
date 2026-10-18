@@ -46,9 +46,22 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 
 ## 安装
 
-目前还没有公开的二进制 Release。未来若 GitHub Releases 提供 `.dmg`/`.zip`、`.ipa`/TestFlight 等安装包，普通用户直接下载即可，不需要 Flutter、Xcode 或源码。
+首个公开预览版是 **[Release 0.1.0](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.0)**。
 
-在此之前，macOS 可从源码构建；iOS 模拟器构建和 iPhone 上的 Debug 签名安装均已通过冒烟测试；Release/TestFlight 仍需你自己的 Apple 签名 Team。Android、Windows 和 Linux 目前还没有平台脚手架。
+- **macOS 12+（通用二进制）**：下载 Release 中的
+  `Particle-Library-macOS-0.1.0.zip`。当前为 ad-hoc 签名、未公证；首次打开请
+  **右键 → 打开**，或在 **系统设置 → 隐私与安全性** 中允许。运行前请核对
+  `SHA256SUMS.txt`。
+- **iPhone/iPad**：暂时没有公开 IPA 或 TestFlight 安装包。源码构建和开发签名安装
+  已验证；公开分发需要付费 Apple Developer Team。
+- **Android/Windows/Linux/web**：0.1.0 未构建；仓库目前只有 iOS/macOS 平台脚手架，
+  还没有 Android 或桌面平台工程。
+
+macOS 版已内置 PDG 快照，普通用户不需要 Flutter、Xcode 或源码。Release 中单独的
+`pdgall-2026.0.sqlite` 是给源码构建和 CI 使用的。
+
+打包限制：本版仍使用开发用 Bundle ID `com.example.pdgapp`，后续版本会换成可控的
+反向域名标识。详见 [RELEASING.md](docs/development/RELEASING.md)。
 
 ## 从源码构建
 

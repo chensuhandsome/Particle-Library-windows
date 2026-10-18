@@ -74,12 +74,25 @@ documented in [BUILDING.md](docs/development/BUILDING.md).
 
 ## Install
 
-There is no public binary release yet. When a [GitHub Release](https://github.com/fkguo/Particle-Library/releases) provides
-`.dmg`/`.zip`, `.ipa`/TestFlight or other installers, use those; end users do
-not need Flutter, Xcode or the source tree.
+The first public preview is **[Release 0.1.0](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.0)**.
 
-Until then, the macOS app can be built from source. An iOS simulator build and a signed Debug install on an iPhone have been
-smoke-tested; Release/TestFlight still needs your Apple signing team. Android, Windows and Linux are not yet supported by this checkout.
+- **macOS 12+ (universal)**: download
+  `Particle-Library-macOS-0.1.0.zip` from the release. It is ad-hoc signed,
+  not notarized. On first launch use **right-click → Open**, or approve it in
+  **System Settings → Privacy & Security**. Verify `SHA256SUMS.txt` first.
+- **iPhone/iPad**: there is no public IPA or TestFlight build yet. Building and
+  development-signed installation from source are verified; public distribution
+  needs a paid Apple Developer team.
+- **Android/Windows/Linux/web**: not built for 0.1.0. The repository does not
+  yet contain Android or desktop platform scaffolding beyond macOS.
+
+The macOS app bundles the PDG snapshot, so end users do not need Flutter, Xcode,
+or the repository. The separate `pdgall-2026.0.sqlite` release asset is for
+source builds and CI.
+
+Known packaging limitation: this build still uses the development bundle
+identifier `com.example.pdgapp`; a later release will switch to a controlled
+reverse-DNS identifier. See [RELEASING.md](docs/development/RELEASING.md).
 
 ## Build from source
 
