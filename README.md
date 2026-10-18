@@ -48,6 +48,8 @@ The app is written in Flutter and currently targets **macOS (Apple Silicon)** an
 - **Desktop workspace** — independently collapsible left outlines and context
   sidebars, draggable dividers, resizable panes and a compact mobile layout.
 - **Bilingual UI** — Chinese and English interface with system/light/dark themes.
+- **Update check** — a background release check plus a manual
+  **Check for updates** action in Settings → About; it opens the download page.
 - **PDF highlights are notes** — each highlight creates a normal local note
   anchored to the review, so search, tags, backlinks, export and the recycle
   bin apply without a second annotation database.
