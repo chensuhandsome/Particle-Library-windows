@@ -45,6 +45,7 @@ class _AppShellState extends State<AppShell> {
     LogicalKeyboardKey.digit1,
     LogicalKeyboardKey.digit2,
     LogicalKeyboardKey.digit3,
+    LogicalKeyboardKey.digit4,
   ];
 
   int _index = AppTab.search.index;
@@ -241,14 +242,15 @@ class _AppShellState extends State<AppShell> {
                               ),
                             ),
                             const SizedBox(width: Insets.m),
-                            IconButton(
-                              tooltip: strings.navHome,
-                              icon: const Icon(Icons.home_outlined, size: 20),
-                              onPressed: () {
-                                AppScope.of(context).homeRequests.value++;
-                                _select(AppTab.search.index);
-                              },
-                            ),
+                            if (!compact)
+                              IconButton(
+                                tooltip: strings.navHome,
+                                icon: const Icon(Icons.home_outlined, size: 20),
+                                onPressed: () {
+                                  AppScope.of(context).homeRequests.value++;
+                                  _select(AppTab.search.index);
+                                },
+                              ),
                             if (!compact) ...[
                               const SizedBox(width: Insets.xxl),
                               for (final spec in specs)
