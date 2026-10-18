@@ -1,9 +1,16 @@
+<p align="center">
+  <img src="docs/assets/quark-idle.gif" alt="Particle Library Quark" width="150">
+</p>
+
 # Particle Library
 
 Particle Library is a desktop and mobile browser for the **Particle Data Group
 (PDG)** review of particle physics. It is built for offline scientific use: the
 PDG snapshot stays read-only and local, while notes, collections, favorites and
 PDF annotations are stored separately from the data.
+
+A weekend project built with **DeepSeek Harness** and
+**DeepSeek-V4.1-Flash-1017**.
 
 The app is written in Flutter and currently targets **macOS (Apple Silicon)** and
 **iPhone/iPad**. A shared responsive layout is used for both.
@@ -199,11 +206,12 @@ docs/           design and data documentation
 
 ## Documentation
 
-- [Design](docs/PDG_App_Design.md)
-- [Data atlas](docs/PDGall_Data_Atlas.md)
-- [Math conversion rules](docs/Math_Conversion.md)
-- [Decay structure design](docs/Decay_Structure_Design.md)
-- [Toolchain record](docs/Toolchain_Record.md)
+- [Documentation index](docs/README.md)
+- [Product design](docs/design/PDG_App_Design.md)
+- [Data atlas](docs/design/PDGall_Data_Atlas.md)
+- [Math conversion rules](docs/design/Math_Conversion.md)
+- [Decay structure design](docs/design/Decay_Structure_Design.md)
+- [Toolchain record](docs/development/Toolchain_Record.md)
 
 ## License
 

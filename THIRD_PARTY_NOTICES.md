@@ -53,6 +53,5 @@ respective upstream repositories.
 ## Icons and brand artwork
 
 The Particle Library owl artwork and in-app BrandMark were created for this
-project and are included under the MPL-2.0 above. They are inspired by the
-project owner's personal ChatGPT pet; no third-party character asset is
-included.
+project and are included under the MPL-2.0 above. No third-party character
+asset is included.
