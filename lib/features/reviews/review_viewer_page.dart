@@ -279,7 +279,36 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
             .replaceAll(RegExp(r'\s+'), ' ')
             .indexOf(quote.replaceAll(RegExp(r'\s+'), ' '));
       }
-      if (start < 0) {
+      var end = start < 0
+          ? -1
+          : (start + quote.length - 1).clamp(0, pageText.fullText.length - 1);
+      if (start < 0 || pageText.charRects.isEmpty) {
+        // Stored quotes can differ from extracted PDF text after line-break
+        // normalization. Use the stored rectangles' first/last characters.
+        int nearest(Offset point) {
+          var best = 0;
+          var bestDistance = double.infinity;
+          for (var i = 0; i < pageText.charRects.length; i++) {
+            final rect = normalizePdfSelectionRect(pageText.charRects[i], page);
+            final dx = rect.center.dx - point.dx;
+            final dy = rect.center.dy - point.dy;
+            final distance = dx * dx + dy * dy;
+            if (distance < bestDistance) {
+              bestDistance = distance;
+              best = i;
+            }
+          }
+          return best;
+        }
+
+        final first = annotation.rects.first.center;
+        final last = annotation.rects.last.center;
+        final a = nearest(first);
+        final b = nearest(last);
+        start = a < b ? a : b;
+        end = a < b ? b : a;
+      }
+      if (start < 0 || end < 0) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -288,10 +317,6 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
         );
         return;
       }
-      final end = (start + quote.length - 1).clamp(
-        0,
-        pageText.fullText.length - 1,
-      );
       await _controller.textSelectionDelegate.setTextSelectionPointRange(
         PdfTextSelectionRange.fromPoints(
           PdfTextSelectionPoint(pageText, start),
@@ -604,10 +629,16 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
             height: height < 28 ? 28 : height,
             child: PdfOverlayInteractionRegion(
               onTap: (_) {
-                unawaited(_showAnnotationActions(annotation));
+                // Zotero-style direct selection: tapping a highlight selects
+                // its text and exposes the two range handles immediately.
+                unawaited(_beginAdjustRange(annotation));
                 return true;
               },
               onSecondaryTap: (_) {
+                unawaited(_showAnnotationActions(annotation));
+                return true;
+              },
+              onLongPress: (_) {
                 unawaited(_showAnnotationActions(annotation));
                 return true;
               },
