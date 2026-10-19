@@ -61,13 +61,14 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 首个公开预览版是 **[Release 0.1.0](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.0)**。
 
 - **macOS 12+（通用二进制）**：下载 Release 中的
-  `Particle-Library-macOS-0.1.0.zip`。当前为 ad-hoc 签名、未公证；首次打开请
-  **右键 → 打开**，或在 **系统设置 → 隐私与安全性** 中允许。运行前请核对
-  `SHA256SUMS.txt`。
+  `Particle-Library-0.1.0-macOS-universal.dmg`（或 `.zip`）。当前为 ad-hoc
+  签名、未公证；首次打开请 **右键 → 打开**，或在 **系统设置 → 隐私与安全性**
+  中允许。运行前请核对 `SHA256SUMS.txt`。
 - **iPhone/iPad**：暂时没有公开 IPA 或 TestFlight 安装包。源码构建和开发签名安装
   已验证；公开分发需要付费 Apple Developer Team。
 - **Android 7.0+（API 24）**：Release 中提供已签名预览 APK；现代手机用
-  `arm64-v8a`，旧 32 位设备用 `armeabi-v7a`，模拟器用 `x86_64`。详见
+  `Particle-Library-0.1.0-Android-arm64-v8a.apk`，旧 32 位设备用
+  `...-armeabi-v7a.apk`，模拟器用 `...-x86_64.apk`。详见
   [Android 构建说明](docs/development/ANDROID.md)。
 - **Windows/Linux/web**：0.1.0 未构建。
 

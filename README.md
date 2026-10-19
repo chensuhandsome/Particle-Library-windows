@@ -89,15 +89,16 @@ Source builders can download the exact snapshot used here:
 The first public preview is **[Release 0.1.0](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.0)**.
 
 - **macOS 12+ (universal)**: download
-  `Particle-Library-macOS-0.1.0.zip` from the release. It is ad-hoc signed,
-  not notarized. On first launch use **right-click → Open**, or approve it in
-  **System Settings → Privacy & Security**. Verify `SHA256SUMS.txt` first.
+  `Particle-Library-0.1.0-macOS-universal.dmg` (or the `.zip`). It is ad-hoc
+  signed, not notarized. On first launch use **right-click → Open**, or approve
+  it in **System Settings → Privacy & Security**. Verify `SHA256SUMS.txt` first.
 - **iPhone/iPad**: there is no public IPA or TestFlight build yet. Building and
   development-signed installation from source are verified; public distribution
   needs a paid Apple Developer team.
 - **Android 7.0+ (API 24)**: signed preview APKs are provided in the release:
-  use `arm64-v8a` on modern phones, `armeabi-v7a` on older 32-bit devices, and
-  `x86_64` for emulators. See [Android build notes](docs/development/ANDROID.md).
+  use `Particle-Library-0.1.0-Android-arm64-v8a.apk` on modern phones,
+  `...-armeabi-v7a.apk` on older 32-bit devices, and `...-x86_64.apk` for
+  emulators. See [Android build notes](docs/development/ANDROID.md).
 - **Windows/Linux/web**: not built for 0.1.0.
 
 The macOS app bundles the PDG snapshot, so end users do not need Flutter, Xcode,
