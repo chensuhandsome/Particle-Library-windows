@@ -528,6 +528,14 @@ class PdgTextSegment {
 List<PdgTextSegment> segmentPdgText(String original) {
   final quantum = quantumLineToLatex(original);
   if (quantum != null) return [PdgTextSegment.math(quantum)];
+  // PDG descriptions sometimes preserve spaces inside a particle name
+  // (`T_c c cbar cbar(6600)`). Treat a complete name as one math unit before
+  // the generic token scanner can split it into `T_c` + prose.
+  if (original.contains(RegExp(r'\s')) &&
+      original.contains(RegExp(r'[0-9_^()]'))) {
+    final wholeName = particleNameToLatex(original);
+    if (wholeName != null) return [PdgTextSegment.math(wholeName)];
+  }
   final cached = _segmentCache[original];
   if (cached != null) return cached;
   final result = _segmentPdgTextUncached(original);

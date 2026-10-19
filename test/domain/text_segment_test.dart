@@ -200,6 +200,12 @@ void main() {
     expect(second, containsAll([r'\xi', r'\mu', r'\delta', r'\rho']));
   });
 
+  test('spaced multi-charm particle descriptions stay one math unit', () {
+    final segments = segmentPdgText('T_c c cbar cbar(6600)');
+    expect(segments, hasLength(1));
+    expect(segments.single.latex, r'T_{cc\,\bar{c}\,\bar{c}}(6600)');
+  });
+
   test('dollar TeX and bare names both work', () {
     final segments = segmentPdgText(r'$B_s^0$ and D0');
     expect(segments.first.latex, r'B_s^0');
