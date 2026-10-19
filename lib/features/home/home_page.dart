@@ -250,7 +250,7 @@ class _HomePageState extends State<HomePage> {
         autofocus: true,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 900;
+            final wide = constraints.maxWidth >= searchSplitBreakpoint;
             final searchActive =
                 ActiveTabScope.maybeOf(context) == searchTabNavigationKey;
             _syncDetailRegistration(wide);

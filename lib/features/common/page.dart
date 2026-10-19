@@ -125,6 +125,10 @@ class _PageScaffoldState extends State<PageScaffold> {
       contextMenuBuilder: (context, state) => _buildContextMenu(context, state),
       child: Scaffold(
         backgroundColor: palette.background,
+        // AppShell already resizes its body for the keyboard. Resizing a
+        // nested Scaffold again subtracts the keyboard inset twice and can
+        // collapse the editor body to zero height.
+        resizeToAvoidBottomInset: !nested,
         appBar: AppBar(
           automaticallyImplyLeading: false,
           leading: showBack

@@ -10,6 +10,9 @@ import 'immersive_page.dart';
 /// import cycle).
 const String searchTabNavigationKey = 'search';
 
+/// Width at which the Search tab keeps the list and detail panes side by side.
+const double searchSplitBreakpoint = 900;
+
 /// A per-tab navigation stack with browser-like back/forward history.
 ///
 /// The controller is also the navigator's [NavigatorObserver]. Every route
@@ -232,13 +235,18 @@ class NavigationHub extends ChangeNotifier {
     return null;
   }
 
-  /// The controller whose top route is visibly on top: a page above the tab
-  /// root wins, otherwise the Search split-view detail pane.
-  NavigationController? get topController =>
-      backController ?? activeTabController ?? activeDetailController;
+  /// Whether the active tab's own top route is immersive. A page above the
+  /// tab root always wins over the Search split-view detail pane.
+  bool get tabChromeHidden => activeTabController?.topIsImmersive ?? false;
 
-  /// Whether the active tab's visible top route is an immersive page.
-  bool get chromeHidden => topController?.topIsImmersive ?? false;
+  /// Whether the detail pane is immersive and is the visible pane. The detail
+  /// pane never fills the window on wide Search layouts, so the shell only
+  /// treats it as full-screen below [searchSplitBreakpoint].
+  bool get detailChromeHidden {
+    final tab = activeTabController;
+    if (tab != null && tab.canGoBack) return false;
+    return activeDetailController?.topIsImmersive ?? false;
+  }
 
   bool get canGoBack => backController != null;
   bool get canGoForward => forwardController != null;

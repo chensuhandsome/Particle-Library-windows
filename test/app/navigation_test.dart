@@ -244,15 +244,17 @@ void main() {
 
     detail.push<void>(const _ImmersivePage());
     await tester.pumpAndSettle();
-    expect(hub.chromeHidden, isTrue);
+    expect(hub.tabChromeHidden, isFalse);
+    expect(hub.detailChromeHidden, isTrue);
 
     tab.push<void>(const Text('note editor'));
     await tester.pumpAndSettle();
-    expect(hub.chromeHidden, isFalse);
+    expect(hub.tabChromeHidden, isFalse);
+    expect(hub.detailChromeHidden, isFalse);
 
     tab.back();
     await tester.pumpAndSettle();
-    expect(hub.chromeHidden, isTrue);
+    expect(hub.detailChromeHidden, isTrue);
   });
 
   testWidgets('immersive chrome follows the top route, not page lifetime', (
@@ -271,12 +273,12 @@ void main() {
 
     await tester.pumpWidget(MaterialApp(home: _navigator(controller)));
     expect(controller.topIsImmersive, isFalse);
-    expect(hub.chromeHidden, isFalse);
+    expect(hub.tabChromeHidden, isFalse);
 
     controller.push<void>(const _ImmersivePage());
     await tester.pumpAndSettle();
     expect(controller.topIsImmersive, isTrue);
-    expect(hub.chromeHidden, isTrue);
+    expect(hub.tabChromeHidden, isTrue);
     expect(tester.takeException(), isNull);
 
     // A normal page above the PDF restores the global bar (and its back
@@ -284,21 +286,21 @@ void main() {
     controller.push<void>(const Text('note editor'));
     await tester.pumpAndSettle();
     expect(controller.topIsImmersive, isFalse);
-    expect(hub.chromeHidden, isFalse);
+    expect(hub.tabChromeHidden, isFalse);
 
     controller.back();
     await tester.pumpAndSettle();
     expect(controller.topIsImmersive, isTrue);
-    expect(hub.chromeHidden, isTrue);
+    expect(hub.tabChromeHidden, isTrue);
 
     controller.back();
     await tester.pumpAndSettle();
     expect(controller.topIsImmersive, isFalse);
-    expect(hub.chromeHidden, isFalse);
+    expect(hub.tabChromeHidden, isFalse);
 
     controller.forward();
     await tester.pumpAndSettle();
     expect(controller.topIsImmersive, isTrue);
-    expect(hub.chromeHidden, isTrue);
+    expect(hub.tabChromeHidden, isTrue);
   });
 }

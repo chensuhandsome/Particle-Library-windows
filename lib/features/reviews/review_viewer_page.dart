@@ -775,9 +775,15 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
     return Scaffold(
       backgroundColor: palette.background,
       appBar: AppBar(
-        toolbarHeight: narrow ? 52 : null,
+        toolbarHeight: narrow ? 48 : null,
         titleSpacing: narrow ? 0 : null,
-        title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(
+          widget.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textScaler: MediaQuery.textScalerOf(context)
+              .clamp(maxScaleFactor: 1.3),
+        ),
         actions: [
           if (_editingRange != null) ...[
             IconButton(
@@ -841,7 +847,8 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
             IconButton(
               tooltip: strings.reviewAnnotationSidebar,
               onPressed: () {
-                if (MediaQuery.sizeOf(context).width < 700) {
+                final size = MediaQuery.sizeOf(context);
+                if (size.width < 700 || size.height < 500) {
                   _openAnnotationsSheet();
                 } else {
                   setState(() => _showAnnotations = !_showAnnotations);
