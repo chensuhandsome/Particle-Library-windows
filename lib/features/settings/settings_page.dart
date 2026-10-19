@@ -12,14 +12,15 @@ import '../../app/settings_controller.dart';
 import '../../app/update_checker.dart';
 import '../../app/app_theme.dart';
 import 'zotero_cache_section.dart';
+import '../reference/zotero_setup_dialog.dart';
 import '../../data/zotero_bridge.dart';
+import '../../data/zotero_inspire_api.dart';
 import '../../data/pdg_database.dart';
 import '../../domain/labels.dart';
 import '../common/export_file.dart';
 import '../common/page.dart';
 import '../common/raw_fields.dart';
 import '../common/ui.dart';
-import '../help/help_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -38,6 +39,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _checkingUpdate = false;
   String? _updateStatus;
   bool _fullBackupBusy = false;
+  ZoteroInspireStatus? _zoteroInspireStatus;
+  bool? _zoteroRunning;
 
   @override
   void didChangeDependencies() {
@@ -45,6 +48,20 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_initialized) return;
     _initialized = true;
     _statsFuture = AppScope.of(context).database.snapshotStats();
+    if (ZoteroBridge.isSupportedPlatform &&
+        AppScope.of(context).settings.zoteroEnabled) {
+      unawaited(_probeZoteroInspire());
+    }
+  }
+
+  Future<void> _probeZoteroInspire() async {
+    final running = await const ZoteroBridge().isAvailable();
+    final status = await const ZoteroInspireApi().probe();
+    if (!mounted) return;
+    setState(() {
+      _zoteroRunning = running;
+      _zoteroInspireStatus = status;
+    });
   }
 
   Future<void> _openAppStore() async {
@@ -411,23 +428,6 @@ class _SettingsPageState extends State<SettingsPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Insets.l),
               child: SectionCard(
-                title: strings.settingsHelp,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(builder: (_) => const HelpPage()),
-                    ),
-                    icon: const Icon(Icons.menu_book_outlined, size: 18),
-                    label: Text(strings.helpTitle),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: Insets.m),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Insets.l),
-              child: SectionCard(
                 title: strings.settingsData,
                 trailing: IconButton(
                   tooltip: strings.settingsCopyHash,
@@ -485,7 +485,86 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             if (ZoteroBridge.isSupportedPlatform) ...[
               const SizedBox(height: Insets.m),
-              const ZoteroCacheSection(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Insets.l),
+                child: SectionCard(
+                  title: strings.settingsZotero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(strings.settingsZoteroEnabled),
+                        subtitle: Text(
+                          strings.settingsZoteroEnabledHint,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: palette.textSecondary),
+                        ),
+                        value: scope.settings.zoteroEnabled,
+                        onChanged: (value) {
+                          scope.settings.setZoteroEnabled(value);
+                          if (value && _zoteroInspireStatus == null) {
+                            unawaited(_probeZoteroInspire());
+                          }
+                        },
+                      ),
+                      if (scope.settings.zoteroEnabled &&
+                          _zoteroInspireStatus != null) ...[
+                        Builder(
+                          builder: (context) {
+                            final status = _zoteroInspireStatus!;
+                            final text = status.canAdd
+                                ? (status.version == null
+                                      ? strings.settingsZoteroAddAvailable
+                                      : strings
+                                            .settingsZoteroAddAvailableVersion(
+                                              status.version!,
+                                            ))
+                                : status.available
+                                ? strings.settingsZoteroAddTooOld(
+                                    status.version ?? '?',
+                                  )
+                                : _zoteroRunning == true
+                                ? strings.settingsZoteroPluginMissing
+                                : strings.settingsZoteroNotRunning;
+                            return Text(
+                              text,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: status.canAdd
+                                        ? palette.textSecondary
+                                        : palette.warning,
+                                  ),
+                            );
+                          },
+                        ),
+                        if (!_zoteroInspireStatus!.canAdd)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: () => showZoteroInspireSetupDialog(
+                                context,
+                                strings: strings,
+                                reason: zoteroSetupReasonFor(
+                                  _zoteroInspireStatus!,
+                                ),
+                                currentVersion: _zoteroInspireStatus!.version,
+                                zoteroRunning: _zoteroRunning == true,
+                              ),
+                              icon: const Icon(
+                                Icons.download_outlined,
+                                size: 16,
+                              ),
+                              label: Text(strings.settingsZoteroInstallUpdate),
+                            ),
+                          ),
+                      ],
+                      if (scope.settings.zoteroEnabled)
+                        const ZoteroCacheSection(embedded: true),
+                    ],
+                  ),
+                ),
+              ),
             ],
             const SizedBox(height: Insets.m),
             Padding(
@@ -795,6 +874,12 @@ class _SettingsPageState extends State<SettingsPage> {
                           ?.copyWith(color: palette.textSecondary),
                     ),
                     const SizedBox(height: Insets.s),
+                    Text(
+                      strings.settingsVersionValue(appVersion),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: palette.textSecondary),
+                    ),
+                    const SizedBox(height: Insets.xs),
                     OutlinedButton.icon(
                       onPressed: _checkingUpdate ? null : _checkUpdates,
                       icon: _checkingUpdate

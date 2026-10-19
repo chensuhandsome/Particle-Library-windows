@@ -9,6 +9,8 @@ import '../../domain/display.dart';
 import '../../domain/filters.dart';
 import '../../domain/labels.dart';
 import '../../domain/reference_title.dart';
+import '../../data/reference_metadata.dart';
+import '../../user/user_store.dart';
 import '../../domain/models.dart';
 import '../../notes/notes.dart';
 import '../notes/notes_entity.dart';
@@ -18,6 +20,25 @@ import '../common/description_text.dart';
 import '../common/display_value.dart';
 import '../common/raw_fields.dart';
 import '../common/ui.dart';
+
+final Map<String, Future<String?>> _referenceTitleFutures =
+    <String, Future<String?>>{};
+
+Future<String?> _resolveReferenceTitle(UserStore store, Reference reference) {
+  final doi = ReferenceMetadataService.normalizeDoi(reference.doi);
+  final key = doi.toLowerCase();
+  return _referenceTitleFutures.putIfAbsent(key, () async {
+    try {
+      final result = await const ReferenceMetadataService().fetchTitleByDoi(
+        doi,
+      );
+      await store.cacheReferenceTitle(doi, result.title, source: result.source);
+      return result.title;
+    } catch (_) {
+      return null;
+    }
+  });
+}
 
 class MeasurementCard extends StatelessWidget {
   const MeasurementCard({
@@ -157,9 +178,8 @@ class MeasurementCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      DescriptionText(
-                        cleanReferenceTitle(reference.displayTitle),
-                        maxLines: 2,
+                      _MeasurementReferenceTitle(
+                        reference: reference,
                         style: Theme.of(context).textTheme.bodyMedium
                             ?.copyWith(color: palette.primary),
                       ),
@@ -543,6 +563,42 @@ class _ErrorTable extends StatelessWidget {
 }
 
 /// Compact backlink list for notes attached to this exact measurement row.
+class _MeasurementReferenceTitle extends StatelessWidget {
+  const _MeasurementReferenceTitle({
+    required this.reference,
+    required this.style,
+  });
+
+  final Reference reference;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = AppScope.of(context).store;
+    final local = cleanReferenceTitle(reference.displayTitle);
+    final cached = store.cachedReferenceTitle(reference.doi);
+    final cachedTitle = cached == null
+        ? null
+        : cleanReferenceTitle(cached.title);
+    final current = cachedTitle ?? local;
+    final needsEnrichment = referenceTitleLooksTruncated(current);
+    if (!needsEnrichment ||
+        !ReferenceMetadataService.isValidDoi(reference.doi)) {
+      return DescriptionText(current, maxLines: 2, style: style);
+    }
+    return FutureBuilder<String?>(
+      future: _resolveReferenceTitle(store, reference),
+      builder: (context, snapshot) {
+        final resolved = snapshot.data;
+        final title = resolved == null
+            ? '$current…'
+            : cleanReferenceTitle(resolved);
+        return DescriptionText(title, maxLines: 2, style: style);
+      },
+    );
+  }
+}
+
 class _MeasurementNotes extends StatefulWidget {
   const _MeasurementNotes({required this.measurement});
 

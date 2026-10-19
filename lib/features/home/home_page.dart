@@ -6,13 +6,13 @@ import 'package:flutter/services.dart';
 import '../../app/app_scope.dart';
 import '../../app/debug_hooks.dart';
 import '../../app/app_strings.dart';
+import '../../app/navigation.dart';
 import '../../app/app_theme.dart';
 import '../../data/pdg_database.dart';
 import '../../search/search_service.dart';
 import '../catalog/catalog_page.dart';
 import '../common/async_view.dart';
 import '../common/description_text.dart';
-import '../common/detail_scope.dart';
 import '../common/math_text.dart';
 import '../common/page.dart';
 import '../common/resize_handle.dart';
@@ -33,7 +33,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focus = FocusNode();
-  final GlobalKey<NavigatorState> _detailKey = GlobalKey<NavigatorState>();
   final ValueNotifier<SearchResults?> _results = ValueNotifier(null);
 
   SearchScope _scope = SearchScope.all;
@@ -48,6 +47,10 @@ class _HomePageState extends State<HomePage> {
 
   bool _initialized = false;
   ValueNotifier<int>? _homeRequests;
+  NavigationController? _detailController;
+  NavigationHub? _navigationHub;
+  NavigationHub? _ownedNavigationHub;
+  bool? _detailRegisteredWide;
 
   @override
   void didChangeDependencies() {
@@ -57,6 +60,17 @@ class _HomePageState extends State<HomePage> {
     _homeRequests = AppScope.of(context).homeRequests;
     _homeRequests!.addListener(_onHomeRequested);
     _statsFuture = AppScope.of(context).database.snapshotStats();
+    final providedHub = NavigationHubScope.maybeOf(context);
+    final hub = providedHub ?? (_ownedNavigationHub ??= NavigationHub());
+    _navigationHub = hub;
+    final detailController = NavigationController(
+      hub: hub,
+      rootBuilder: (_) => _DetailPlaceholder(
+        onOpenCatalog: () => _openCatalog(true),
+        statsFuture: _statsFuture,
+      ),
+    );
+    _detailController = detailController;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(AppScope.of(context).search.warmNameIndex());
     });
@@ -74,6 +88,15 @@ class _HomePageState extends State<HomePage> {
     _homeRequests?.removeListener(_onHomeRequested);
     if (debugSearchHook != null) debugSearchHook = null;
     _debounce?.cancel();
+    final detailController = _detailController;
+    if (detailController != null) {
+      _navigationHub?.unregisterDetail(
+        searchTabNavigationKey,
+        detailController,
+      );
+      detailController.dispose();
+    }
+    _ownedNavigationHub?.dispose();
     _controller.dispose();
     _focus.dispose();
     _results.dispose();
@@ -82,7 +105,7 @@ class _HomePageState extends State<HomePage> {
 
   void _onHomeRequested() {
     _debounce?.cancel();
-    _detailKey.currentState?.popUntil((route) => route.isFirst);
+    _detailController?.resetToRoot();
     _controller.clear();
     _results.value = null;
     setState(() {
@@ -92,6 +115,23 @@ class _HomePageState extends State<HomePage> {
       _inFlightKey = null;
     });
     _focus.requestFocus();
+  }
+
+  void _syncDetailRegistration(bool wide) {
+    final controller = _detailController;
+    if (controller == null) return;
+    if (wide) {
+      if (_detailRegisteredWide == true) return;
+      _detailRegisteredWide = true;
+      _navigationHub?.registerDetail(searchTabNavigationKey, controller);
+      return;
+    }
+    if (_detailRegisteredWide == false) return;
+    _detailRegisteredWide = false;
+    _navigationHub?.unregisterDetail(searchTabNavigationKey, controller);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) controller.resetToRoot();
+    });
   }
 
   void _onTextChanged() {
@@ -162,55 +202,38 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openInspireSearch(String query) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => InspireSearchPage(initialQuery: query.trim()),
-      ),
+    unawaited(
+      AppNav.push<void>(context, InspireSearchPage(initialQuery: query.trim())),
     );
   }
 
   void _openCatalog(bool wide) {
     const page = CatalogPage();
-    if (wide) {
-      _detailKey.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => page),
-        (route) => route.isFirst,
-      );
+    final controller = _detailController;
+    if (wide && controller != null) {
+      unawaited(controller.push<void>(page));
     } else {
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+      unawaited(AppNav.push<void>(context, page));
     }
   }
 
   void _openHit(SearchHit hit, {required bool wide}) {
-    final navigator = wide ? _detailKey.currentState : null;
+    final Widget page;
     if (hit.kind == SearchGroupKind.note && hit.note != null) {
-      unawaited(
-        AppScope.of(context).store.addRecent(_controller.text, _scope.name),
-      );
-      if (navigator != null) {
-        navigator.push(
-          MaterialPageRoute(builder: (_) => NoteEditorPage(note: hit.note)),
-        );
-      } else {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => NoteEditorPage(note: hit.note)),
-        );
-      }
-      return;
+      page = NoteEditorPage(note: hit.note!);
+    } else if (hit.kind == SearchGroupKind.reference) {
+      page = ReferencePage(referenceId: hit.referenceId!);
+    } else {
+      page = EntryRoutePage(pdgid: hit.openPdgid);
     }
-    final page = hit.kind == SearchGroupKind.reference
-        ? ReferencePage(referenceId: hit.referenceId!)
-        : EntryRoutePage(pdgid: hit.openPdgid);
     unawaited(
       AppScope.of(context).store.addRecent(_controller.text, _scope.name),
     );
-    if (navigator != null) {
-      navigator.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => page),
-        (route) => route.isFirst,
-      );
+    final controller = _detailController;
+    if (wide && controller != null) {
+      unawaited(controller.push<void>(page));
     } else {
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+      unawaited(AppNav.push<void>(context, page));
     }
   }
 
@@ -228,6 +251,9 @@ class _HomePageState extends State<HomePage> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= 900;
+            final searchActive =
+                ActiveTabScope.maybeOf(context) == searchTabNavigationKey;
+            _syncDetailRegistration(wide);
             if (!wide) {
               return _SearchPanel(
                 controller: _controller,
@@ -303,18 +329,28 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 Expanded(
-                  child: DetailNavigatorScope(
-                    navigatorKey: _detailKey,
-                    child: Navigator(
-                      key: _detailKey,
-                      onGenerateRoute: (settings) => MaterialPageRoute(
-                        settings: settings,
-                        builder: (_) => _DetailPlaceholder(
-                          onOpenCatalog: () => _openCatalog(true),
-                          statsFuture: _statsFuture,
+                  child: Builder(
+                    builder: (context) {
+                      final controller = _detailController;
+                      if (controller == null) {
+                        return const SizedBox.shrink();
+                      }
+                      return NavigatorPopHandler<void>(
+                        enabled: searchActive,
+                        onPopWithResult: (_) => controller.back(),
+                        child: NavigationScope(
+                          controller: controller,
+                          child: Navigator(
+                            key: controller.navigatorKey,
+                            observers: <NavigatorObserver>[controller],
+                            onGenerateRoute: (settings) => MaterialPageRoute(
+                              settings: settings,
+                              builder: controller.rootBuilder,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
               ],

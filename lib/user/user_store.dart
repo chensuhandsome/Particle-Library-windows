@@ -116,6 +116,8 @@ class AppSettings {
     this.sidebarMode = 'auto',
     this.noteLinkMode = 'page',
     this.lastUpdateCheck = '',
+    this.autoUpdateZoteroIndex = true,
+    this.zoteroEnabled = true,
   });
 
   final String theme;
@@ -131,6 +133,12 @@ class AppSettings {
   /// Local date (YYYY-MM-DD) of the last automatic update check.
   final String lastUpdateCheck;
 
+  /// Rebuild the local Zotero item index at most once per day.
+  final bool autoUpdateZoteroIndex;
+
+  /// Whether the optional Zotero integration is enabled at all.
+  final bool zoteroEnabled;
+
   AppSettings copyWith({
     String? theme,
     String? locale,
@@ -139,6 +147,8 @@ class AppSettings {
     String? sidebarMode,
     String? noteLinkMode,
     String? lastUpdateCheck,
+    bool? autoUpdateZoteroIndex,
+    bool? zoteroEnabled,
   }) => AppSettings(
     theme: theme ?? this.theme,
     locale: locale ?? this.locale,
@@ -147,6 +157,8 @@ class AppSettings {
     sidebarMode: sidebarMode ?? this.sidebarMode,
     noteLinkMode: noteLinkMode ?? this.noteLinkMode,
     lastUpdateCheck: lastUpdateCheck ?? this.lastUpdateCheck,
+    autoUpdateZoteroIndex: autoUpdateZoteroIndex ?? this.autoUpdateZoteroIndex,
+    zoteroEnabled: zoteroEnabled ?? this.zoteroEnabled,
   );
 
   Map<String, Object?> toJson() => {
@@ -157,6 +169,8 @@ class AppSettings {
     'sidebarMode': sidebarMode,
     'noteLinkMode': noteLinkMode,
     'lastUpdateCheck': lastUpdateCheck,
+    'autoUpdateZoteroIndex': autoUpdateZoteroIndex,
+    'zoteroEnabled': zoteroEnabled,
   };
 
   static AppSettings fromJson(Object? value) {
@@ -171,6 +185,8 @@ class AppSettings {
     final sidebar = map['sidebarMode']?.toString();
     final noteLink = map['noteLinkMode']?.toString();
     final lastUpdate = map['lastUpdateCheck']?.toString() ?? '';
+    final autoUpdateZotero = map['autoUpdateZoteroIndex'];
+    final zoteroEnabled = map['zoteroEnabled'];
     return AppSettings(
       theme: theme == 'light' || theme == 'dark' ? theme! : 'system',
       locale: locale == 'zh' || locale == 'en' ? locale! : 'system',
@@ -179,6 +195,8 @@ class AppSettings {
       sidebarMode: sidebar == 'always' || sidebar == 'off' ? sidebar! : 'auto',
       noteLinkMode: noteLink == 'sidebar' ? 'sidebar' : 'page',
       lastUpdateCheck: lastUpdate,
+      autoUpdateZoteroIndex: autoUpdateZotero is bool ? autoUpdateZotero : true,
+      zoteroEnabled: zoteroEnabled is bool ? zoteroEnabled : true,
     );
   }
 }

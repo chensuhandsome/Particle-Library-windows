@@ -4,6 +4,7 @@ import '../../app/app_scope.dart';
 import '../../app/navigation.dart';
 import '../../data/review_annotation_notes.dart';
 import '../../data/review_cache.dart';
+import '../common/snack_bars.dart';
 import 'review_index.dart';
 import 'review_viewer_page.dart';
 import 'reviews_page.dart';
@@ -43,18 +44,13 @@ Future<bool> openReviewLink(BuildContext context, String target) async {
   if (!await local.exists()) {
     if (!context.mounted) return true;
     final strings = AppScope.of(context).strings;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(strings.reviewNotCached),
-        action: SnackBarAction(
-          label: strings.reviewsTitle,
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const ReviewsPage()),
-            );
-          },
-        ),
-      ),
+    showActionSnackBar(
+      ScaffoldMessenger.of(context),
+      message: strings.reviewNotCached,
+      actionLabel: strings.reviewsTitle,
+      onAction: () {
+        AppNav.push<void>(context, const ReviewsPage());
+      },
     );
     return true;
   }

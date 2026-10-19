@@ -144,14 +144,12 @@ class _CatalogPageState extends State<CatalogPage> {
                     if (_category != null &&
                         _category != ParticleCategory.unknown)
                       OutlinedButton.icon(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => ReviewsPage(
-                              initialQuery: reviewQueryForCategory(_category!),
-                              initialFiles:
-                                  categoryReviewFiles[_category]?.toSet() ??
-                                  const <String>{},
-                            ),
+                        onPressed: () => AppNav.push<void>(
+                          context,
+                          ReviewsPage(
+                            initialFiles:
+                                categoryReviewFiles[_category]?.toSet() ??
+                                const <String>{},
                           ),
                         ),
                         icon: const Icon(Icons.menu_book_outlined, size: 17),

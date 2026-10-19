@@ -4,6 +4,7 @@ import '../../app/app_scope.dart';
 import '../../domain/models.dart';
 import '../../domain/reference_title.dart';
 import '../../user/user_store.dart';
+import 'snack_bars.dart';
 
 class FavoriteButton extends StatelessWidget {
   const FavoriteButton({
@@ -50,19 +51,11 @@ class FavoriteButton extends StatelessWidget {
     final strings = scope.strings;
     final added = await scope.store.toggleFavorite(favorite);
     if (!context.mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 3),
-        content: Text(
-          added ? strings.favoritesAdded : strings.favoritesRemoved,
-        ),
-        action: SnackBarAction(
-          label: strings.favoritesUndo,
-          onPressed: () => scope.store.toggleFavorite(favorite),
-        ),
-      ),
+    showUndoSnackBar(
+      ScaffoldMessenger.of(context),
+      message: added ? strings.favoritesAdded : strings.favoritesRemoved,
+      undoLabel: strings.favoritesUndo,
+      onUndo: () => scope.store.toggleFavorite(favorite),
     );
   }
 }

@@ -260,17 +260,13 @@ class _ParticleBodyState extends State<_ParticleBody> {
                 IconButton(
                   tooltip: strings.reviewsTitle,
                   icon: const Icon(Icons.menu_book_outlined, size: 19),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => ReviewsPage(
-                        initialFiles: category == null
-                            ? const <String>{}
-                            : categoryReviewFiles[category.category]?.toSet() ??
-                                  const <String>{},
-                        initialQuery: category == null
-                            ? view.entry.description
-                            : '',
-                      ),
+                  onPressed: () => AppNav.push<void>(
+                    context,
+                    ReviewsPage(
+                      initialFiles: category == null
+                          ? const <String>{}
+                          : categoryReviewFiles[category.category]?.toSet() ??
+                                const <String>{},
                     ),
                   ),
                 ),

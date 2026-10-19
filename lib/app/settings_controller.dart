@@ -46,6 +46,8 @@ class SettingsController extends ChangeNotifier {
   bool get detailedMode => _settings.detailedMode;
   String get sidebarMode => _settings.sidebarMode;
   String get noteLinkMode => _settings.noteLinkMode;
+  bool get autoUpdateZoteroIndex => _settings.autoUpdateZoteroIndex;
+  bool get zoteroEnabled => _settings.zoteroEnabled;
 
   void reloadFromStore() {
     _settings = store.settings;
@@ -64,6 +66,20 @@ class SettingsController extends ChangeNotifier {
     final normalized = value == 'sidebar' ? 'sidebar' : 'page';
     if (_settings.noteLinkMode == normalized) return;
     _settings = _settings.copyWith(noteLinkMode: normalized);
+    notifyListeners();
+    await store.setSettings(_settings);
+  }
+
+  Future<void> setAutoUpdateZoteroIndex(bool value) async {
+    if (_settings.autoUpdateZoteroIndex == value) return;
+    _settings = _settings.copyWith(autoUpdateZoteroIndex: value);
+    notifyListeners();
+    await store.setSettings(_settings);
+  }
+
+  Future<void> setZoteroEnabled(bool value) async {
+    if (_settings.zoteroEnabled == value) return;
+    _settings = _settings.copyWith(zoteroEnabled: value);
     notifyListeners();
     await store.setSettings(_settings);
   }
@@ -92,6 +108,14 @@ class SettingsController extends ChangeNotifier {
   Future<void> setTextScale(double scale) async {
     if ((_settings.textScale - scale).abs() < 0.001) return;
     _settings = _settings.copyWith(textScale: scale);
+    notifyListeners();
+    await store.setSettings(_settings);
+  }
+
+  /// Records the local day of the last successful automatic update check.
+  Future<void> markUpdateChecked(String date) async {
+    if (_settings.lastUpdateCheck == date) return;
+    _settings = _settings.copyWith(lastUpdateCheck: date);
     notifyListeners();
     await store.setSettings(_settings);
   }

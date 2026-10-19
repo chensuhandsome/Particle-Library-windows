@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/app_scope.dart';
@@ -11,10 +12,14 @@ import '../../data/inspire_bibtex.dart';
 import '../../data/inspire_literature_search.dart';
 import '../../data/zotero_bridge.dart';
 import '../../data/zotero_cache.dart';
+import '../../data/zotero_inspire_api.dart';
 import '../common/async_view.dart';
 import '../common/description_text.dart';
 import '../common/page.dart';
+import '../common/snack_bars.dart';
 import '../common/ui.dart';
+import '../common/zotero_icon.dart';
+import 'zotero_setup_dialog.dart';
 import 'reference_page.dart';
 
 /// Online INSPIRE search for authors, titles and other bibliographic terms
@@ -32,11 +37,18 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
   late final TextEditingController _controller;
   final _service = InspireLiteratureSearchService();
   final _zotero = const ZoteroBridge();
-  bool get _zoteroSupported => ZoteroBridge.isSupportedPlatform;
+  final _zoteroInspire = const ZoteroInspireApi();
+  bool get _zoteroSupported =>
+      ZoteroBridge.isSupportedPlatform &&
+      (AppScope.maybeOf(context)?.settings.zoteroEnabled ?? false);
+  bool _zoteroInitialized = false;
   bool? _zoteroAvailable;
+  ZoteroInspireStatus? _zoteroInspireStatus;
+  int? _zoteroAddBusy;
   Timer? _zoteroProbeTimer;
   int _zoteroProbeAttempts = 0;
   int? _zoteroBusy;
+  int? _bibtexBusy;
   final Map<String, Future<String?>> _zoteroKeys = <String, Future<String?>>{};
   List<InspireLiteratureHit> _hits = const <InspireLiteratureHit>[];
   bool _loading = false;
@@ -61,10 +73,15 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     if (widget.initialQuery.trim().isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _search());
     }
-    if (_zoteroSupported) {
-      unawaited(_loadZoteroCache());
-      unawaited(_probeZotero());
-    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_zoteroInitialized || !_zoteroSupported) return;
+    _zoteroInitialized = true;
+    unawaited(_loadZoteroCache());
+    unawaited(_probeZotero());
   }
 
   Future<void> _loadZoteroCache() async {
@@ -299,7 +316,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     final entries = <(String, String)>[
       ('local', strings.inspireFilterLocal),
       ('notLocal', strings.inspireFilterNotLocal),
-      if (_zoteroSupported) ...[
+      if (_zoteroSupported && _zoteroCache != null) ...[
         ('zotero', strings.inspireFilterZotero),
         ('notZotero', strings.inspireFilterNotZotero),
       ],
@@ -334,6 +351,8 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     _zoteroProbeTimer?.cancel();
     setState(() => _zoteroAvailable = available || _zoteroCache != null);
     if (available) {
+      unawaited(_probeZoteroInspire());
+      unawaited(_autoUpdateZoteroCache());
       if (_hits.isNotEmpty) unawaited(_prefetchPresence(_hits));
       return;
     }
@@ -345,6 +364,84 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
         const Duration(seconds: 3),
         () => unawaited(_probeZotero()),
       );
+    }
+  }
+
+  Future<void> _probeZoteroInspire() async {
+    if (!_zoteroSupported) return;
+    final status = await _zoteroInspire.probe();
+    if (!mounted) return;
+    setState(() => _zoteroInspireStatus = status);
+  }
+
+  Future<void> _addToZotero(InspireLiteratureHit hit) async {
+    if (_zoteroAddBusy != null || _zoteroBusy != null) return;
+    final strings = AppScope.of(context).strings;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _zoteroAddBusy = hit.recid);
+    try {
+      final recid = '${hit.recid}';
+      String? existing;
+      try {
+        existing = await _zotero.findItemKey(
+          recid: recid,
+          doi: hit.doi,
+          arxivId: hit.arxivId,
+        );
+      } catch (_) {
+        // The plugin still checks for duplicates before creating.
+      }
+      if (!mounted) return;
+      if (existing != null && existing.isNotEmpty) {
+        _zoteroKeys[recid] = Future<String?>.value(existing);
+        setState(() => _zoteroPresence[hit.recid] = true);
+        await _launchZoteroItem(existing);
+        return;
+      }
+      final result = await _zoteroInspire.addItemWithPicker(recid);
+      if (!mounted || result == null) return;
+      _zoteroKeys[recid] = Future<String?>.value(result.itemKey);
+      setState(() => _zoteroPresence[hit.recid] = true);
+      showActionSnackBar(
+        messenger,
+        message: result.existing
+            ? strings.inspireAlreadyInZotero
+            : strings.inspireAddedToZotero,
+        actionLabel: strings.zoteroOpen,
+        onAction: () => _launchZoteroItem(result.itemKey),
+      );
+    } on ZoteroInspireException catch (error) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '${strings.inspireAddToZoteroFailed}: ${error.message}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('${strings.inspireAddToZoteroFailed}: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _zoteroAddBusy = null);
+    }
+  }
+
+  Future<void> _autoUpdateZoteroCache() async {
+    if (!_zoteroSupported || !mounted) return;
+    if (!AppScope.of(context).settings.autoUpdateZoteroIndex) return;
+    try {
+      final index = await ZoteroIndexAutoUpdater.updateIfDue();
+      if (!mounted || index == null) return;
+      setState(() {
+        _zoteroCache = index;
+        _zoteroAvailable = true;
+      });
+      if (_hits.isNotEmpty) unawaited(_prefetchPresence(_hits));
+    } catch (_) {
+      // The per-row Zotero action still works without the speed cache.
     }
   }
 
@@ -395,11 +492,23 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
       if (key != null && key.isNotEmpty) {
         _zoteroKeys[recid] = Future<String?>.value(key);
         setState(() => _zoteroPresence[hit.recid] = true);
-        await _openZoteroItem(hit, key);
+        await _launchZoteroItem(key);
         return;
       }
       _zoteroKeys.remove(recid);
       setState(() => _zoteroPresence[hit.recid] = false);
+      final status = _zoteroInspireStatus;
+      if (status != null && !status.canAdd) {
+        final copy = await showZoteroInspireSetupDialog(
+          context,
+          strings: strings,
+          reason: zoteroSetupReasonFor(status),
+          currentVersion: status.version,
+          zoteroRunning: _zoteroAvailable == true,
+          offerBibtex: true,
+        );
+        if (!copy || !mounted) return;
+      }
       final bibtex = await const InspireBibtexService().fetchBibtex(
         inspireId: recid,
         doi: hit.doi,
@@ -420,14 +529,35 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     }
   }
 
+  Future<void> _copyBibtex(InspireLiteratureHit hit) async {
+    if (_bibtexBusy != null) return;
+    final strings = AppScope.of(context).strings;
+    setState(() => _bibtexBusy = hit.recid);
+    try {
+      final text = await const InspireBibtexService().fetchBibtex(
+        inspireId: '${hit.recid}',
+        doi: hit.doi,
+      );
+      if (!mounted) return;
+      await Clipboard.setData(ClipboardData(text: text));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(strings.referenceBibtexCopied)));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${strings.referenceBibtexFailed}: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _bibtexBusy = null);
+    }
+  }
+
   Future<void> _openZoteroItem(InspireLiteratureHit hit, String key) async {
     if (_zoteroBusy != null) return;
     setState(() => _zoteroBusy = hit.recid);
     try {
-      await launchUrl(
-        Uri.parse('zotero://select/library/items/$key'),
-        mode: LaunchMode.externalApplication,
-      );
+      await _launchZoteroItem(key);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -441,6 +571,11 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
       if (mounted) setState(() => _zoteroBusy = null);
     }
   }
+
+  Future<void> _launchZoteroItem(String key) => launchUrl(
+    Uri.parse('zotero://select/library/items/$key'),
+    mode: LaunchMode.externalApplication,
+  );
 
   Future<int?> _localFuture(String doi) {
     final key = doi.trim().toLowerCase();
@@ -540,8 +675,10 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
                   for (final entry in <(String, String)>[
                     ('local', strings.inspireFilterLocal),
                     ('notLocal', strings.inspireFilterNotLocal),
-                    ('zotero', strings.inspireFilterZotero),
-                    ('notZotero', strings.inspireFilterNotZotero),
+                    if (_zoteroCache != null) ...[
+                      ('zotero', strings.inspireFilterZotero),
+                      ('notZotero', strings.inspireFilterNotZotero),
+                    ],
                     ('published', strings.inspireFilterPublished),
                     ('preprint', strings.inspireFilterPreprint),
                     ('highCited', strings.inspireFilterHighCited),
@@ -554,6 +691,17 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
                         onDeleted: () => _toggleFilter(entry.$1),
                       ),
                 ],
+              ),
+            ),
+          if (_zoteroSupported &&
+              _zoteroAvailable == true &&
+              _zoteroCache == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                strings.inspireZoteroCacheHint,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: palette.textSecondary),
               ),
             ),
           if (_loading)
@@ -709,6 +857,80 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     ].join(' · ');
   }
 
+  Widget _zoteroButton(
+    BuildContext context,
+    InspireLiteratureHit hit,
+    AppStrings strings,
+  ) {
+    final palette = context.palette;
+    final canAdd = _zoteroInspireStatus?.canAdd == true;
+    final busy = _zoteroBusy == hit.recid || _zoteroAddBusy == hit.recid;
+    final disabled = _zoteroBusy != null || _zoteroAddBusy != null;
+    if (_zoteroCache == null) {
+      // Zotero is running but no item index has been built yet. Let the
+      // single-button flow do the lookup only when pressed, instead of one
+      // HTTP query per row.
+      return Tooltip(
+        message: canAdd
+            ? strings.inspireZoteroFindOrAdd
+            : strings.inspireZoteroFind,
+        child: OutlinedButton.icon(
+          onPressed: disabled
+              ? null
+              : () => canAdd ? _addToZotero(hit) : _retryZotero(hit),
+          icon: busy
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const ZoteroIcon(size: 16),
+          label: Text(strings.inspireZotero),
+        ),
+      );
+    }
+    return FutureBuilder<String?>(
+      future: _zoteroKey(hit),
+      builder: (context, snapshot) {
+        final loading = snapshot.connectionState != ConnectionState.done;
+        final key = snapshot.data;
+        final inZotero = key != null && key.isNotEmpty;
+        return Tooltip(
+          message: loading
+              ? strings.commonLoading
+              : inZotero
+              ? strings.zoteroOpen
+              : canAdd
+              ? strings.inspireZoteroFindOrAdd
+              : strings.inspireZoteroRetry,
+          child: OutlinedButton.icon(
+            style: inZotero
+                ? null
+                : OutlinedButton.styleFrom(
+                    foregroundColor: palette.textSecondary,
+                    side: BorderSide(color: palette.divider),
+                  ),
+            onPressed: loading || disabled
+                ? null
+                : () => inZotero
+                      ? _openZoteroItem(hit, key)
+                      : canAdd
+                      ? _addToZotero(hit)
+                      : _retryZotero(hit),
+            icon: busy
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const ZoteroIcon(size: 16),
+            label: Text(strings.inspireZotero),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _hitTile(
     BuildContext context,
     InspireLiteratureHit hit,
@@ -774,54 +996,28 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
                     );
                   },
                 ),
-                if (_zoteroSupported &&
-                    _zoteroAvailable == true &&
-                    _zoteroCache != null)
-                  FutureBuilder<String?>(
-                    future: _zoteroKey(hit),
-                    builder: (context, snapshot) {
-                      final loading =
-                          snapshot.connectionState != ConnectionState.done;
-                      final key = snapshot.data;
-                      final inZotero = key != null && key.isNotEmpty;
-                      final busy = _zoteroBusy == hit.recid;
-                      return Tooltip(
-                        message: loading
-                            ? strings.commonLoading
-                            : inZotero
-                            ? strings.zoteroOpen
-                            : strings.inspireZoteroRetry,
-                        child: OutlinedButton.icon(
-                          style: inZotero
-                              ? null
-                              : OutlinedButton.styleFrom(
-                                  foregroundColor: palette.textSecondary,
-                                  side: BorderSide(color: palette.divider),
-                                ),
-                          onPressed: loading || _zoteroBusy != null
-                              ? null
-                              : () => inZotero
-                                    ? _openZoteroItem(hit, key)
-                                    : _retryZotero(hit),
-                          icon: busy
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Icon(
-                                  inZotero
-                                      ? Icons.library_books_outlined
-                                      : Icons.content_copy,
-                                  size: 16,
-                                ),
-                          label: Text(strings.inspireZotero),
-                        ),
-                      );
-                    },
+                if (_zoteroSupported && _zoteroAvailable == true)
+                  _zoteroButton(context, hit, strings),
+                Tooltip(
+                  message: strings.referenceCopyBibtex,
+                  child: OutlinedButton.icon(
+                    onPressed: _bibtexBusy == null
+                        ? () => _copyBibtex(hit)
+                        : null,
+                    icon: _bibtexBusy == hit.recid
+                        ? const SizedBox(
+                            width: 15,
+                            height: 15,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.copy_all, size: 16),
+                    label: Text(
+                      _bibtexBusy == hit.recid
+                          ? strings.referenceCopyBibtexRunning
+                          : strings.referenceCopyBibtex,
+                    ),
                   ),
+                ),
                 TextButton.icon(
                   onPressed: () => launchUrl(
                     Uri.parse(hit.inspireUrl),

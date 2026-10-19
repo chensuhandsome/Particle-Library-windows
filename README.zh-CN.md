@@ -70,10 +70,10 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
 
 ## 安装
 
-首个公开预览版是 **[Release 0.1.2](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.2)**。
+最新版本是 **[Release 0.1.3](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.3)**。
 
 - **macOS 12+（通用二进制）**：下载 Release 中的
-  `Particle-Library-0.1.2-macOS-universal.dmg`（或 `.zip`）。当前为 ad-hoc
+  `Particle-Library-0.1.3-macOS-universal.dmg`（或 `.zip`）。当前为 ad-hoc
   签名、未公证；运行前请核对 `SHA256SUMS.txt`。
 
   **首次打开被 macOS 拦截时**，任选一种：
@@ -92,10 +92,10 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
 - **iPhone/iPad**：暂时没有公开 IPA 或 TestFlight 安装包。源码构建和开发签名安装
   已验证；公开分发需要付费 Apple Developer Team。
 - **Android 7.0+（API 24）**：Release 中提供已签名预览 APK；现代手机用
-  `Particle-Library-0.1.2-Android-arm64-v8a.apk`，旧 32 位设备用
-  `Particle-Library-0.1.2-Android-armeabi-v7a.apk`。详见
+  `Particle-Library-0.1.3-Android-arm64-v8a.apk`，旧 32 位设备用
+  `Particle-Library-0.1.3-Android-armeabi-v7a.apk`。详见
   [Android 构建说明](docs/development/ANDROID.md)。
-- **Windows/Linux/web**：0.1.2 未构建。
+- **Windows/Linux/web**：0.1.3 未构建。
 
 macOS 版已内置 PDG 快照，普通用户不需要 Flutter、Xcode 或源码。源码构建者可直接下载
 [`pdgall-2026.0.sqlite`](https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite)（

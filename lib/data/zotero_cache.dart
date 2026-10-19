@@ -35,6 +35,9 @@ class ZoteroCacheIndex {
 
   static const int _formatVersion = 1;
 
+  /// The automatic updater rebuilds the index at most once per this interval.
+  static const Duration refreshInterval = Duration(hours: 24);
+
   final DateTime builtAt;
   final int sourceItems;
   final int indexedItems;
@@ -42,6 +45,9 @@ class ZoteroCacheIndex {
   final Map<String, String> doiKeys;
   final Map<String, String> arxivKeys;
   final Map<String, String> titles;
+
+  /// True when the index is older than [refreshInterval].
+  bool get isStale => DateTime.now().isAfter(builtAt.add(refreshInterval));
 
   String? findItemKey({String? recid, String? doi, String? arxivId}) {
     final recidKey = recid?.trim() ?? '';
@@ -218,5 +224,83 @@ class ZoteroCacheBuilder {
       'Particle Library/0.1 (Zotero index)',
     );
     return request.close();
+  }
+}
+
+/// Rebuilds the local Zotero index when it is missing or older than one day.
+///
+/// This is a speed cache for large libraries, never a prerequisite for the
+/// single-item Zotero actions. Failures leave the previous index untouched.
+class ZoteroIndexAutoUpdater {
+  ZoteroIndexAutoUpdater._();
+
+  static Future<ZoteroCacheIndex?>? _inFlight;
+
+  /// Returns the cached index, rebuilding it only when due.
+  static Future<ZoteroCacheIndex?> updateIfDue() {
+    final running = _inFlight;
+    if (running != null) return running;
+    final future = _run();
+    _inFlight = future;
+    future.whenComplete(() {
+      if (identical(_inFlight, future)) _inFlight = null;
+    }).ignore();
+    return future;
+  }
+
+  static Future<ZoteroCacheIndex?> _run() async {
+    if (!ZoteroBridge.isSupportedPlatform) return null;
+    final previous = await ZoteroCacheIndex.load();
+    if (previous != null && !previous.isStale) return previous;
+    final attemptFile = await _attemptFile();
+    final lastAttempt = await _readAttempt(attemptFile);
+    // A failed scan (for example, a library with no identifiable items) must
+    // not be repeated on every launch.
+    if (lastAttempt != null &&
+        DateTime.now().difference(lastAttempt) <
+            ZoteroCacheIndex.refreshInterval) {
+      return previous;
+    }
+    if (!await const ZoteroBridge().isAvailable()) return previous;
+    await _markAttempt(attemptFile);
+    final index = await ZoteroCacheBuilder.build();
+    await index.save();
+    return index;
+  }
+
+  /// Allows the next automatic update to run immediately after a manual clear.
+  static Future<void> clearAttempt() async {
+    try {
+      final file = await _attemptFile();
+      if (await file.exists()) await file.delete();
+    } catch (_) {
+      // The marker is only a throttle; a leftover one cannot corrupt data.
+    }
+  }
+
+  static Future<File> _attemptFile() async {
+    final indexFile = await ZoteroCacheIndex.defaultFile();
+    return File('${indexFile.path}.attempt');
+  }
+
+  static Future<DateTime?> _readAttempt(File file) async {
+    try {
+      if (!await file.exists()) return null;
+      return DateTime.tryParse(await file.readAsString());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> _markAttempt(File file) async {
+    try {
+      await file.parent.create(recursive: true);
+      await file.writeAsString(
+        DateTime.now().toUtc().toIso8601String(),
+        flush: true,
+      );
+    } catch (_) {
+      // Best effort; without the marker the next launch may retry once.
+    }
   }
 }

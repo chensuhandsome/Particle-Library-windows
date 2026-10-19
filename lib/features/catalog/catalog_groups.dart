@@ -210,18 +210,6 @@ CatalogGroup? catalogGroupForRoot(CatalogRoot root) {
   return catalogGroupFor(root.entry);
 }
 
-/// Initial title filter for the Reviews page when opened from a catalog
-/// category. The full review index remains searchable afterwards.
-String reviewQueryForCategory(ParticleCategory category) => switch (category) {
-  ParticleCategory.gaugeHiggs => 'Higgs',
-  ParticleCategory.lepton => 'neutrino',
-  ParticleCategory.quark => 'CKM',
-  ParticleCategory.meson => 'meson',
-  ParticleCategory.baryon => 'baryon',
-  ParticleCategory.search => 'searches',
-  ParticleCategory.unknown => '',
-};
-
 /// Review PDFs shown by PDG Live's category-level "reviews" button.
 const Map<ParticleCategory, List<String>> categoryReviewFiles = {
   ParticleCategory.gaugeHiggs: [

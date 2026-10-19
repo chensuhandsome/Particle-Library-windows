@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/navigation.dart';
 import '../../app/app_theme.dart';
 import '../../notes/notes.dart';
 import '../notes/note_capture.dart';
@@ -117,18 +118,23 @@ class _PageScaffoldState extends State<PageScaffold> {
     final bottom = widget.bottom;
     final floatingActionButton = widget.floatingActionButton;
     final canPop = Navigator.of(context).canPop();
+    final nested = NavigationScope.maybeOf(context) != null;
+    final showBack = canPop && !nested;
     return SelectionArea(
       onSelectionChanged: (content) => _selectedText = content?.plainText ?? '',
       contextMenuBuilder: (context, state) => _buildContextMenu(context, state),
       child: Scaffold(
         backgroundColor: palette.background,
         appBar: AppBar(
-          leading: canPop
+          automaticallyImplyLeading: false,
+          leading: showBack
               ? IconButton(
                   tooltip: AppScope.of(context).strings.commonBack,
                   icon: const Icon(Icons.arrow_back, size: 20),
                   onPressed: () => Navigator.of(context).maybePop(),
                 )
+              : nested
+              ? null
               : Padding(
                   padding: const EdgeInsets.only(left: 12),
                   child: Align(
@@ -136,7 +142,7 @@ class _PageScaffoldState extends State<PageScaffold> {
                     child: BrandMark(size: 26),
                   ),
                 ),
-          titleSpacing: canPop ? 0 : 8,
+          titleSpacing: showBack ? 0 : (nested ? 16 : 8),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -171,7 +177,7 @@ class _PageScaffoldState extends State<PageScaffold> {
                   );
                 },
               ),
-            if (canPop)
+            if (showBack)
               IconButton(
                 tooltip: AppScope.of(context).strings.navHome,
                 icon: const Icon(Icons.home_outlined, size: 19),

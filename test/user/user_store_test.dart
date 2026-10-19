@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pdgapp/app/settings_controller.dart';
 import 'package:pdgapp/user/user_store.dart';
 
 void main() {
@@ -60,4 +61,44 @@ void main() {
     expect(reopened.settings.noteLinkMode, 'sidebar');
     await dir.delete(recursive: true);
   });
+
+  test('automatic update check date persists across restarts', () async {
+    final dir = await Directory.systemTemp.createTemp('pdgapp-store-');
+    final path = '${dir.path}/user_store.json';
+    final store = await UserStore.open(overridePath: path);
+    final settings = SettingsController(store);
+
+    expect(settings.settings.lastUpdateCheck, isEmpty);
+    await settings.markUpdateChecked('2026-10-19');
+    expect(settings.settings.lastUpdateCheck, '2026-10-19');
+
+    final reopened = await UserStore.open(overridePath: path);
+    expect(reopened.settings.lastUpdateCheck, '2026-10-19');
+    await dir.delete(recursive: true);
+  });
+
+  test(
+    'Zotero integration and index auto-update default on and persist',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('pdgapp-store-');
+      final path = '${dir.path}/user_store.json';
+      final store = await UserStore.open(overridePath: path);
+      final settings = SettingsController(store);
+
+      expect(AppSettings.fromJson(<String, Object?>{}).zoteroEnabled, isTrue);
+      expect(
+        AppSettings.fromJson(<String, Object?>{}).autoUpdateZoteroIndex,
+        isTrue,
+      );
+      expect(settings.zoteroEnabled, isTrue);
+      expect(settings.autoUpdateZoteroIndex, isTrue);
+
+      await settings.setZoteroEnabled(false);
+      await settings.setAutoUpdateZoteroIndex(false);
+      final reopened = await UserStore.open(overridePath: path);
+      expect(reopened.settings.zoteroEnabled, isFalse);
+      expect(reopened.settings.autoUpdateZoteroIndex, isFalse);
+      await dir.delete(recursive: true);
+    },
+  );
 }

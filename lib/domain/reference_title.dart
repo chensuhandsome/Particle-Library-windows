@@ -224,3 +224,18 @@ String _subscript(String value) {
   if (mapped.every((v) => v != null)) return mapped.join();
   return value.isEmpty ? '' : '_($value)';
 }
+
+/// Some snapshot titles are cut off mid-sentence (e.g. "... Analysis of").
+/// This conservative check only flags endings that cannot be a complete title.
+bool referenceTitleLooksTruncated(String title) {
+  final value = title.trim();
+  if (value.isEmpty || value.endsWith('…') || value.endsWith('...')) {
+    return false;
+  }
+  if (RegExp(r'(?:->|-->|→|=)$').hasMatch(value)) return true;
+  return RegExp(
+    r'(?:^|\s)(?:of|the|in|on|for|and|to|with|at|from|by|as|a|an|or|via|'
+    r'using|between|into|under|over)$',
+    caseSensitive: false,
+  ).hasMatch(value);
+}

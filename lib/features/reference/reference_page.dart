@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/app_strings.dart';
 import '../../app/app_theme.dart';
 import '../../app/navigation.dart';
 import '../../core/errors.dart';
@@ -12,6 +13,7 @@ import '../../data/pdg_database.dart';
 import '../../data/inspire_bibtex.dart';
 import '../../data/zotero_bridge.dart';
 import '../../data/zotero_cache.dart';
+import '../../data/zotero_inspire_api.dart';
 import '../../data/reference_metadata.dart';
 import '../../domain/labels.dart';
 import '../../domain/models.dart';
@@ -23,7 +25,10 @@ import '../common/favorite_button.dart';
 import '../common/page.dart';
 import '../common/page_outline.dart';
 import '../common/raw_fields.dart';
+import '../common/snack_bars.dart';
 import '../common/ui.dart';
+import '../common/zotero_icon.dart';
+import 'zotero_setup_dialog.dart';
 import '../../notes/notes.dart';
 import '../notes/notes_anchor.dart';
 import '../notes/notes_entity.dart';
@@ -57,6 +62,8 @@ class _ReferencePageState extends State<ReferencePage> {
   String? _citeKey;
   bool _citeKeyLoading = false;
   bool _zoteroBusy = false;
+  bool _zoteroProbed = false;
+  ZoteroInspireStatus? _zoteroInspireStatus;
   List<NoteAnchorInput> _captureAnchors = const <NoteAnchorInput>[];
   String? _captureLabel;
 
@@ -127,16 +134,77 @@ class _ReferencePageState extends State<ReferencePage> {
     });
   }
 
+  Future<void> _probeZoteroInspire() async {
+    if (!ZoteroBridge.isSupportedPlatform) return;
+    if (!AppScope.of(context).settings.zoteroEnabled) return;
+    final status = await const ZoteroInspireApi().probe();
+    if (!mounted) return;
+    setState(() => _zoteroInspireStatus = status);
+  }
+
+  Future<void> _addToZoteroFromPlugin(
+    Reference reference,
+    AppStrings strings,
+  ) async {
+    final recid = reference.inspireId.trim();
+    if (!RegExp(r'^\d+$').hasMatch(recid)) return;
+    final result = await const ZoteroInspireApi().addItemWithPicker(recid);
+    if (!mounted || result == null) return;
+    showActionSnackBar(
+      ScaffoldMessenger.of(context),
+      message: result.existing
+          ? strings.inspireAlreadyInZotero
+          : strings.inspireAddedToZotero,
+      actionLabel: strings.zoteroOpen,
+      onAction: () => _launchZoteroItem(result.itemKey),
+    );
+  }
+
+  Future<void> _launchZoteroItem(String key) => launchUrl(
+    Uri.parse('zotero://select/library/items/$key'),
+    mode: LaunchMode.externalApplication,
+  );
+
   Future<void> _openZotero(Reference reference) async {
     if (_zoteroBusy) return;
     final strings = AppScope.of(context).strings;
     setState(() => _zoteroBusy = true);
     try {
-      final bridge = const ZoteroBridge();
-      if (!await bridge.isAvailable()) {
+      var status = _zoteroInspireStatus;
+      if (status == null) {
+        status = await const ZoteroInspireApi().probe();
         if (!mounted) return;
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(strings.zoteroNotRunning)));
+        _zoteroInspireStatus = status;
+      }
+      final hasRecid = RegExp(r'^\d+$').hasMatch(reference.inspireId.trim());
+      final canAdd = status.canAdd && hasRecid;
+      final bridge = const ZoteroBridge();
+      final zoteroRunning = await bridge.isAvailable();
+      Future<void> offerSetup() async {
+        if (!hasRecid) {
+          await _copyReferenceBibtexFallback(reference, strings);
+          return;
+        }
+        final copy = await showZoteroInspireSetupDialog(
+          context,
+          strings: strings,
+          reason: zoteroSetupReasonFor(status!),
+          currentVersion: status.version,
+          zoteroRunning: zoteroRunning,
+          offerBibtex: true,
+        );
+        if (copy && mounted) {
+          await _copyReferenceBibtexFallback(reference, strings);
+        }
+      }
+
+      if (!zoteroRunning) {
+        if (!mounted) return;
+        if (canAdd) {
+          await _addToZoteroFromPlugin(reference, strings);
+          return;
+        }
+        await offerSetup();
         return;
       }
       final index = await ZoteroCacheIndex.load();
@@ -148,21 +216,23 @@ class _ReferencePageState extends State<ReferencePage> {
           );
       if (!mounted) return;
       if (key != null && key.isNotEmpty) {
-        await launchUrl(
-          Uri.parse('zotero://select/library/items/$key'),
-          mode: LaunchMode.externalApplication,
-        );
+        await _launchZoteroItem(key);
         return;
       }
-      final bibtex = await const InspireBibtexService().fetchBibtex(
-        inspireId: reference.inspireId,
-        doi: reference.doi,
+      if (canAdd) {
+        await _addToZoteroFromPlugin(reference, strings);
+        return;
+      }
+      await offerSetup();
+    } on ZoteroInspireException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${strings.inspireAddToZoteroFailed}: ${error.message}',
+          ),
+        ),
       );
-      if (!mounted) return;
-      await copyText(context, bibtex, message: strings.inspireZoteroCopied);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(strings.inspireZoteroNotFound)));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -171,6 +241,29 @@ class _ReferencePageState extends State<ReferencePage> {
     } finally {
       if (mounted) setState(() => _zoteroBusy = false);
     }
+  }
+
+  Future<void> _copyReferenceBibtexFallback(
+    Reference reference,
+    AppStrings strings,
+  ) async {
+    final bibtex = await const InspireBibtexService().fetchBibtex(
+      inspireId: reference.inspireId,
+      doi: reference.doi,
+    );
+    if (!mounted) return;
+    await copyText(context, bibtex, message: strings.inspireZoteroCopied);
+    if (!mounted) return;
+    final hasRecid = RegExp(r'^\d+$').hasMatch(reference.inspireId.trim());
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          hasRecid
+              ? strings.inspireZoteroAddUnavailable
+              : strings.inspireZoteroNotFound,
+        ),
+      ),
+    );
   }
 
   Future<void> _copyBibtex(Reference reference) async {
@@ -202,6 +295,10 @@ class _ReferencePageState extends State<ReferencePage> {
     if (_initialized) return;
     _initialized = true;
     _future = _load();
+    if (AppScope.of(context).settings.zoteroEnabled && !_zoteroProbed) {
+      _zoteroProbed = true;
+      unawaited(_probeZoteroInspire());
+    }
     _future.then((data) {
       if (!mounted) return;
       final scope = AppScope.of(context);
@@ -294,11 +391,14 @@ class _ReferencePageState extends State<ReferencePage> {
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (ZoteroBridge.isSupportedPlatform &&
+                if (scope.settings.zoteroEnabled &&
+                    ZoteroBridge.isSupportedPlatform &&
                     (reference.inspireId.isNotEmpty ||
                         reference.doi.isNotEmpty))
                   IconButton(
-                    tooltip: strings.zoteroOpen,
+                    tooltip: _zoteroInspireStatus?.canAdd == true
+                        ? strings.inspireZoteroFindOrAdd
+                        : strings.zoteroOpen,
                     onPressed: _zoteroBusy
                         ? null
                         : () => _openZotero(reference),
@@ -308,7 +408,7 @@ class _ReferencePageState extends State<ReferencePage> {
                             height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.library_books_outlined, size: 20),
+                        : const ZoteroIcon(size: 20),
                   ),
                 EntityNotesButton(
                   targets: notes.targets,
@@ -632,21 +732,25 @@ class _ReferenceBody extends StatelessWidget {
                       runSpacing: 6,
                       children: [
                         if (doiUri != null)
-                          OutlinedButton.icon(
-                            onPressed: () => _launch(context, doiUri),
-                            icon: const Icon(Icons.open_in_new, size: 16),
-                            label: Text(strings.referenceOpenDoi),
+                          Tooltip(
+                            message: strings.referenceOpenDoi,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _launch(context, doiUri),
+                              icon: const Icon(Icons.open_in_new, size: 16),
+                              label: Text(strings.referenceDoi),
+                            ),
                           ),
                         if (inspireUri != null)
-                          OutlinedButton.icon(
-                            onPressed: () => _launch(context, inspireUri),
-                            icon: const Icon(Icons.open_in_new, size: 16),
-                            label: Text(
-                              inspireDirect
-                                  ? strings.referenceOpenInspire
-                                  : inspireViaDoi
-                                  ? strings.referenceSearchInspireDoi
-                                  : strings.referenceSearchInspireTitle,
+                          Tooltip(
+                            message: inspireDirect
+                                ? strings.referenceOpenInspire
+                                : inspireViaDoi
+                                ? strings.referenceSearchInspireDoi
+                                : strings.referenceSearchInspireTitle,
+                            child: OutlinedButton.icon(
+                              onPressed: () => _launch(context, inspireUri),
+                              icon: const Icon(Icons.open_in_new, size: 16),
+                              label: const Text('INSPIRE'),
                             ),
                           ),
                         Tooltip(

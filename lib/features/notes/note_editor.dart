@@ -8,6 +8,7 @@ import '../../app/app_theme.dart';
 import '../../notes/notes.dart';
 import '../common/description_text.dart';
 import '../common/page.dart';
+import '../common/snack_bars.dart';
 import '../common/ui.dart';
 import 'notes_format.dart';
 import 'tag_tools.dart';
@@ -985,28 +986,17 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     if (confirmed != true || !mounted) return;
     _autosaveTimer?.cancel();
     final messenger = ScaffoldMessenger.of(context);
-    final snackWidth = (MediaQuery.sizeOf(context).width - 64).clamp(
-      280.0,
-      460.0,
-    );
     try {
       await widget.store.delete(record.id);
       widget.changeSignal?.value++;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(strings.notesDeleted),
-          width: snackWidth,
-          duration: const Duration(seconds: 4),
-          showCloseIcon: true,
-          action: SnackBarAction(
-            label: strings.notesUndo,
-            onPressed: () async {
-              await widget.store.restore(record.id);
-              widget.changeSignal?.value++;
-              messenger.hideCurrentSnackBar();
-            },
-          ),
-        ),
+      showUndoSnackBar(
+        messenger,
+        message: strings.notesDeleted,
+        undoLabel: strings.notesUndo,
+        onUndo: () async {
+          await widget.store.restore(record.id);
+          widget.changeSignal?.value++;
+        },
       );
       widget.onDeleted?.call();
     } catch (error) {

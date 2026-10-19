@@ -29,4 +29,25 @@ void main() {
     expect(loaded.titleFor('FLWSX2DD'), contains('Predicting'));
     await temp.delete(recursive: true);
   });
+
+  test('cache is stale only after the 24 hour refresh interval', () {
+    ZoteroCacheIndex index(DateTime builtAt) => ZoteroCacheIndex(
+      builtAt: builtAt,
+      sourceItems: 0,
+      indexedItems: 0,
+      recidKeys: const {},
+      doiKeys: const {},
+      arxivKeys: const {},
+      titles: const {},
+    );
+
+    expect(
+      index(DateTime.now().subtract(const Duration(hours: 23))).isStale,
+      isFalse,
+    );
+    expect(
+      index(DateTime.now().subtract(const Duration(hours: 25))).isStale,
+      isTrue,
+    );
+  });
 }
