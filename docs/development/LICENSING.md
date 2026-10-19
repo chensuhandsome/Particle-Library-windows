@@ -35,7 +35,7 @@ PDG's terms. The app stores cached copies locally for reading only.
 - `sqlite3`, `sqlite3_flutter_libs`, `pdfrx`, `pdfrx_engine`, `pdfium_flutter`: MIT
 - `flutter_math_fork`: Apache-2.0; bundled KaTeX fonts: MIT
 - `flutter_svg`: MIT
-- `path_provider`, `url_launcher`, `file_selector`, `crypto`, `in_app_purchase`: BSD-3-Clause
+- `path_provider`, `url_launcher`, `file_selector`, `crypto`: BSD-3-Clause
 - `archive`, `html`: MIT
 - PDFium: BSD-3-Clause; SQLite: public domain
 

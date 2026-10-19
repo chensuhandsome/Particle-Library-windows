@@ -114,7 +114,6 @@ class AppSettings {
     this.textScale = 1.0,
     this.detailedMode = true,
     this.sidebarMode = 'auto',
-    this.supporter = false,
     this.noteLinkMode = 'page',
     this.lastUpdateCheck = '',
   });
@@ -124,7 +123,6 @@ class AppSettings {
   final double textScale;
   final bool detailedMode;
   final String sidebarMode;
-  final bool supporter;
 
   /// How a link inside a note opens: `page` navigates to the PDG page,
   /// `sidebar` previews it beside the note.
@@ -139,7 +137,6 @@ class AppSettings {
     double? textScale,
     bool? detailedMode,
     String? sidebarMode,
-    bool? supporter,
     String? noteLinkMode,
     String? lastUpdateCheck,
   }) => AppSettings(
@@ -180,7 +177,6 @@ class AppSettings {
       textScale: _normalizeTextScale(scale ?? 1.0),
       detailedMode: detailed is bool ? detailed : true,
       sidebarMode: sidebar == 'always' || sidebar == 'off' ? sidebar! : 'auto',
-      supporter: map['supporter'] == true,
       noteLinkMode: noteLink == 'sidebar' ? 'sidebar' : 'page',
       lastUpdateCheck: lastUpdate,
     );
@@ -345,15 +341,13 @@ class UserStore extends ChangeNotifier {
   }
 
   /// Restores a full backup. Settings/favorites are merged rather than
-  /// deleting anything local; the Apple Supporter entitlement is never taken
-  /// from a backup file.
+  /// deleting anything local.
   Future<void> importData(Map<String, Object?> incoming) async {
-    final currentSupporter = settings.supporter;
     final rawSettings = incoming['settings'];
     if (rawSettings is Map) {
       final restored = AppSettings.fromJson(
         Map<String, Object?>.from(rawSettings),
-      ).copyWith(supporter: currentSupporter);
+      );
       _data['settings'] = restored.toJson();
     }
     final rawFavorites = incoming['favorites'];

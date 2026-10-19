@@ -49,7 +49,6 @@ the generated macOS application's `NOTICES.Z`.
 | `flutter_svg` | MIT |
 | `file_selector` | BSD-3-Clause |
 | `archive` | MIT |
-| `in_app_purchase` | BSD-3-Clause |
 | `html` | MIT |
 | SQLite (via `sqlite3`, `sqlite3_flutter_libs`) | Public domain / MIT |
 | KaTeX fonts bundled by `flutter_math_fork` | MIT |

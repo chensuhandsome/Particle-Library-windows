@@ -15,20 +15,10 @@ product. No account or login is required.
    create a highlight; tap the highlight to show range handles.
 5. Open Settings → About and coverage → Check for updates. On iOS this reports
    that updates are delivered by the App Store and does not open GitHub.
-6. If the Supporter product is configured: Settings → About and coverage →
-   Supporter; purchase is optional and unlocks a cosmetic badge only.
 
 A network connection is required only for downloading PDG review PDFs and
 optional Crossref/INSPIRE lookups. Core PDG data, notes and search work
 offline.
-
-## In-app purchase
-
-- Product ID: `io.github.fkguo.particlelibrary.supporter`
-- Type: non-consumable
-- Price: $0.99
-- Benefit: permanent cosmetic Supporter badge; all core features remain free.
-- Restore Purchases is available in the same section.
 
 ## Privacy
 

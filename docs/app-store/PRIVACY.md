@@ -2,8 +2,8 @@
 
 Last updated: 2026-10-19
 
-Particle Library is an offline reader for the Particle Data Group (PDG) Review
-of Particle Physics. It is not an official PDG application.
+Particle Library is a free, offline reader for the Particle Data Group (PDG)
+Review of Particle Physics. It is not an official PDG application.
 
 ## Data we collect
 
@@ -42,12 +42,6 @@ privacy policies. The developer does not receive or retain those requests.
 
 On iOS, update checks use the App Store only; the app does not contact GitHub
 for updates.
-
-## In-app purchases
-
-Particle Library is free. An optional one-time Supporter purchase unlocks a
-cosmetic badge and supports maintenance. Payment is processed by Apple. The
-developer does not receive your payment details.
 
 ## Children
 

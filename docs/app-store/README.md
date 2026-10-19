@@ -15,9 +15,8 @@ flutter build ipa --release \
 
 Before submission:
 
-1. Create the non-consumable Supporter product in App Store Connect.
-2. Host the privacy policy at a public URL.
-3. Capture the required screenshot sizes.
-4. Verify that Settings → About no longer links to GitHub updates on iOS.
-5. Complete App Privacy as “Data Not Collected”; the project does not plan to
+1. Host the privacy policy at a public URL.
+2. Capture the required screenshot sizes.
+3. Verify that Settings → About no longer links to GitHub updates on iOS.
+4. Complete App Privacy as “Data Not Collected”; the project does not plan to
    add analytics or account services.

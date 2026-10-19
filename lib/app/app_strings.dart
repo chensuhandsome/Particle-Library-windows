@@ -1041,22 +1041,6 @@ class AppStrings {
   );
   String updateAvailableTitle(String version) =>
       _t('发现新版本 $version', 'Version $version is available');
-  String get settingsSupporterTitle => _t('支持者', 'Supporter');
-  String get settingsSupporterDescription => _t(
-    '可选的一次性购买，解锁支持者徽章，用于支持应用维护和后续更新。所有核心功能保持免费。',
-    'An optional one-time purchase that unlocks a supporter badge. It helps fund maintenance and future updates. All core features remain free.',
-  );
-  String get settingsSupporterThanks => _t(
-    '感谢你支持 Particle Library。',
-    'Thank you for supporting Particle Library.',
-  );
-  String get settingsSupporterBuy => _t('支持开发', 'Support development');
-  String get settingsSupporterRestore => _t('恢复购买', 'Restore purchases');
-  String get settingsSupporterUnavailable => _t(
-    '暂时无法读取 App Store 商品信息。请稍后重试。',
-    'The App Store product is temporarily unavailable. Try again later.',
-  );
-  String get settingsSupporterPending => _t('正在处理…', 'Processing…');
   String get settingsBuiltBy =>
       _t('使用 DeepSeek Harness 构建。', 'Built with DeepSeek Harness.');
   String get settingsCoverageText => _t(

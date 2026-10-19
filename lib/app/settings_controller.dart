@@ -43,7 +43,6 @@ class SettingsController extends ChangeNotifier {
   };
 
   double get textScale => _settings.textScale;
-  bool get supporter => _settings.supporter;
   bool get detailedMode => _settings.detailedMode;
   String get sidebarMode => _settings.sidebarMode;
   String get noteLinkMode => _settings.noteLinkMode;
@@ -86,13 +85,6 @@ class SettingsController extends ChangeNotifier {
   Future<void> setLocale(String locale) async {
     if (_settings.locale == locale) return;
     _settings = _settings.copyWith(locale: locale);
-    notifyListeners();
-    await store.setSettings(_settings);
-  }
-
-  Future<void> setSupporter(bool value) async {
-    if (_settings.supporter == value) return;
-    _settings = _settings.copyWith(supporter: value);
     notifyListeners();
     await store.setSettings(_settings);
   }

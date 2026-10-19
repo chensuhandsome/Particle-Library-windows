@@ -39,12 +39,3 @@ annotations, offline
 The project does not plan to add analytics, advertising or account services.
 Select **Data Not Collected** unless a future release introduces a service that
 changes that answer; in that case update the privacy policy first.
-
-## In-app purchase
-
-- Reference name: Supporter
-- Product ID: `io.github.fkguo.particlelibrary.supporter`
-- Type: Non-Consumable
-- Price: $0.99
-- Description: An optional one-time purchase that unlocks a supporter badge. It
-  helps fund maintenance and future updates. All core features remain free.

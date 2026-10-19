@@ -3,14 +3,12 @@ import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/app_scope.dart';
 import '../../app/app_strings.dart';
 import '../../app/full_backup.dart';
 import '../../app/settings_controller.dart';
-import '../../app/supporter_store.dart';
 import '../../app/update_checker.dart';
 import '../../app/app_theme.dart';
 import 'zotero_cache_section.dart';
@@ -39,12 +37,6 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _initialized = false;
   bool _checkingUpdate = false;
   String? _updateStatus;
-  SupporterStore? _supporterStore;
-  ProductDetails? _supporterProduct;
-  bool _supporterInitialized = false;
-  bool _supporterLoading = false;
-  bool _supporterBusy = false;
-  String? _supporterMessage;
   bool _fullBackupBusy = false;
 
   @override
@@ -53,91 +45,6 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_initialized) return;
     _initialized = true;
     _statsFuture = AppScope.of(context).database.snapshotStats();
-    if (!_supporterInitialized && SupporterStore.isSupportedPlatform) {
-      _supporterInitialized = true;
-      _supporterStore = SupporterStore(
-        onEntitlement: (value) {
-          if (!mounted) return;
-          unawaited(AppScope.of(context).settings.setSupporter(value));
-        },
-      );
-      unawaited(_loadSupporter());
-    }
-  }
-
-  Future<void> _loadSupporter() async {
-    final store = _supporterStore;
-    if (store == null) return;
-    setState(() {
-      _supporterLoading = true;
-      _supporterMessage = null;
-    });
-    try {
-      await store.initialize();
-      final product = await store.product();
-      if (!mounted) return;
-      setState(() {
-        _supporterProduct = product;
-        _supporterMessage = product == null
-            ? AppScope.of(context).strings.settingsSupporterUnavailable
-            : null;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(
-        () =>
-            _supporterMessage = AppScope.of(context)
-                .strings
-                .settingsSupporterUnavailable,
-      );
-    } finally {
-      if (mounted) setState(() => _supporterLoading = false);
-    }
-  }
-
-  Future<void> _buySupporter() async {
-    final store = _supporterStore;
-    final product = _supporterProduct;
-    if (store == null || product == null || _supporterBusy) return;
-    setState(() {
-      _supporterBusy = true;
-      _supporterMessage = AppScope.of(context).strings.settingsSupporterPending;
-    });
-    try {
-      await store.buy(product);
-    } catch (_) {
-      if (!mounted) return;
-      setState(
-        () =>
-            _supporterMessage = AppScope.of(context)
-                .strings
-                .settingsSupporterUnavailable,
-      );
-    } finally {
-      if (mounted) setState(() => _supporterBusy = false);
-    }
-  }
-
-  Future<void> _restoreSupporter() async {
-    final store = _supporterStore;
-    if (store == null || _supporterBusy) return;
-    setState(() {
-      _supporterBusy = true;
-      _supporterMessage = AppScope.of(context).strings.settingsSupporterPending;
-    });
-    try {
-      await store.restore();
-    } catch (_) {
-      if (!mounted) return;
-      setState(
-        () =>
-            _supporterMessage = AppScope.of(context)
-                .strings
-                .settingsSupporterUnavailable,
-      );
-    } finally {
-      if (mounted) setState(() => _supporterBusy = false);
-    }
   }
 
   Future<void> _openAppStore() async {
@@ -887,79 +794,6 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(color: palette.textSecondary),
                     ),
-                    if (SupporterStore.isSupportedPlatform &&
-                        (settings.supporter || _supporterProduct != null)) ...[
-                      const SizedBox(height: Insets.s),
-                      const Divider(height: 1),
-                      const SizedBox(height: Insets.s),
-                      Row(
-                        children: [
-                          const Icon(Icons.favorite_border, size: 18),
-                          const SizedBox(width: 6),
-                          Text(
-                            strings.settingsSupporterTitle,
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                          if (settings.supporter) ...[
-                            const SizedBox(width: 8),
-                            MetaChip(
-                              strings.settingsSupporterTitle,
-                              icon: Icons.favorite,
-                              tone: BadgeTone.accent,
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      if (settings.supporter)
-                        Text(
-                          strings.settingsSupporterThanks,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        )
-                      else ...[
-                        Text(
-                          strings.settingsSupporterDescription,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: Insets.s),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed:
-                                  _supporterBusy ||
-                                      _supporterLoading ||
-                                      _supporterProduct == null
-                                  ? null
-                                  : _buySupporter,
-                              icon: const Icon(Icons.favorite_border, size: 17),
-                              label: Text(
-                                _supporterProduct == null
-                                    ? strings.settingsSupporterBuy
-                                    : '${strings.settingsSupporterBuy} · ${_supporterProduct!.price}',
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: _supporterBusy
-                                  ? null
-                                  : _restoreSupporter,
-                              child: Text(strings.settingsSupporterRestore),
-                            ),
-                          ],
-                        ),
-                      ],
-                      if (!settings.supporter && _supporterMessage != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          _supporterMessage!,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: palette.textSecondary),
-                        ),
-                      ],
-                    ],
                     const SizedBox(height: Insets.s),
                     OutlinedButton.icon(
                       onPressed: _checkingUpdate ? null : _checkUpdates,

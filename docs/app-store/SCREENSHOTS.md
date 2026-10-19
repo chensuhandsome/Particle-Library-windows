@@ -23,8 +23,7 @@ Add 6.7-inch/6.1-inch only if you want device-specific layouts.
 5. **PDF review** — a highlight with the two range handles visible and the
    annotation sidebar open.
 6. **Full catalog** — the catalog entry from the top bar/overflow menu.
-7. **Settings → About and coverage** — version, update state, and Supporter
-   section only if the App Store product is configured.
+7. **Settings → About and coverage** — version and update state.
 
 ## Presentation rules
 
