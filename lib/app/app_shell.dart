@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'app_scope.dart';
+import 'chrome_visibility.dart';
 import 'app_strings.dart';
 import 'debug_hooks.dart';
 import 'navigation.dart';
@@ -504,22 +505,25 @@ class _AppShellState extends State<AppShell> {
                               context: context,
                               removeTop: !hideChrome,
                               removeBottom: compact && !hideBottomNav,
-                              child: ActiveTabScope(
-                                activeTabKey: AppTab.values[_index].name,
-                                child: IndexedStack(
-                                  index: _index,
-                                  children: <Widget>[
-                                    for (final tab in AppTab.values)
-                                      if (_built[tab.index])
-                                        _TabNavigator(
-                                          controller: _navHub.tabController(
-                                            tab.name,
-                                          )!,
-                                          active: _index == tab.index,
-                                        )
-                                      else
-                                        const SizedBox.shrink(),
-                                  ],
+                              child: ChromeVisibilityScope(
+                                hidden: hideChrome,
+                                child: ActiveTabScope(
+                                  activeTabKey: AppTab.values[_index].name,
+                                  child: IndexedStack(
+                                    index: _index,
+                                    children: <Widget>[
+                                      for (final tab in AppTab.values)
+                                        if (_built[tab.index])
+                                          _TabNavigator(
+                                            controller: _navHub.tabController(
+                                              tab.name,
+                                            )!,
+                                            active: _index == tab.index,
+                                          )
+                                        else
+                                          const SizedBox.shrink(),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),

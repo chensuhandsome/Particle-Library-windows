@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/chrome_visibility.dart';
 import '../../app/navigation.dart';
 import '../../app/app_theme.dart';
 import '../../notes/notes.dart';
@@ -119,7 +120,8 @@ class _PageScaffoldState extends State<PageScaffold> {
     final floatingActionButton = widget.floatingActionButton;
     final canPop = Navigator.of(context).canPop();
     final nested = NavigationScope.maybeOf(context) != null;
-    final showBack = canPop && !nested;
+    final chromeHidden = ChromeVisibilityScope.isHidden(context);
+    final showBack = canPop && (!nested || chromeHidden);
     return SelectionArea(
       onSelectionChanged: (content) => _selectedText = content?.plainText ?? '',
       contextMenuBuilder: (context, state) => _buildContextMenu(context, state),

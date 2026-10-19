@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../app/app_strings.dart';
+import '../../app/immersive_page.dart';
 import '../../app/app_theme.dart';
 import '../../notes/notes.dart';
 import '../common/description_text.dart';
@@ -1548,7 +1549,7 @@ class _StatusIndicator extends StatelessWidget {
 
 /// Standalone editor route used by the narrow Notes page and by entity
 /// backlinks/composers.
-class NoteEditorPage extends StatelessWidget {
+class NoteEditorPage extends StatelessWidget implements ImmersivePage {
   const NoteEditorPage({
     super.key,
     this.note,
