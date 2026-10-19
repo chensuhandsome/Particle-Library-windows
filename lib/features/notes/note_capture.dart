@@ -4,6 +4,7 @@ import '../../app/app_scope.dart';
 import '../../app/navigation.dart';
 import '../../notes/notes.dart';
 import 'note_editor.dart';
+import 'notes_anchor.dart';
 import 'notes_format.dart';
 
 String selectedQuoteBlock(String text, String label) {
@@ -231,7 +232,7 @@ Future<void> captureTextToNote(
       );
     } else {
       record = await store.create(
-        title: label,
+        title: defaultNoteTitle(label: label, anchors: anchors),
         bodyMarkdown: quote,
         anchors: anchors,
       );

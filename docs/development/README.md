@@ -5,6 +5,7 @@ frozen during implementation. They are useful when changing the data layer or
 reproducing a build; they are not required to use the app.
 
 - [Building](BUILDING.md)
+- [Android](ANDROID.md)
 - [Platform support](PLATFORMS.md)
 - [Roadmap](ROADMAP.md)
 - [Licensing notes](LICENSING.md)

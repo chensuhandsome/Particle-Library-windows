@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../../app/app_scope.dart';
 import '../../app/app_theme.dart';
 import '../../app/navigation.dart';
+import '../../domain/reference_title.dart';
 import '../../user/user_store.dart';
 import '../common/description_text.dart';
-import '../common/math_text.dart';
 import '../common/resize_handle.dart';
 import '../common/ui.dart';
 
@@ -256,13 +256,13 @@ class _FavoriteTile extends StatelessWidget {
         border: Border.all(color: palette.divider),
       ),
       child: ListTile(
-        title: favorite.kind == FavoriteKind.entry
-            ? ParticleSymbol(favorite.title, fontSize: 17)
-            : DescriptionText(
-                favorite.title,
-                maxLines: 2,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
+        title: DescriptionText(
+          favorite.kind == FavoriteKind.reference
+              ? cleanReferenceTitle(favorite.title)
+              : favorite.title,
+          maxLines: 2,
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

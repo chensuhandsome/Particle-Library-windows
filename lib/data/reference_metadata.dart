@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../domain/reference_title.dart';
+
 /// Optional DOI enrichment for references whose snapshot title is empty.
 ///
 /// The snapshot remains the source of truth. This service only fetches a
@@ -90,7 +92,8 @@ class ReferenceMetadataService {
     final doi = normalizeDoi(raw);
     if (!isValidDoi(doi)) return null;
     return Uri.parse(
-        'https://api.crossref.org/works/${Uri.encodeComponent(doi)}');
+      'https://api.crossref.org/works/${Uri.encodeComponent(doi)}',
+    );
   }
 
   Future<CrossrefTitleResult> fetchTitleByDoi(String rawDoi) async {
@@ -106,11 +109,17 @@ class ReferenceMetadataService {
       ..connectionTimeout = const Duration(seconds: 8)
       ..idleTimeout = const Duration(seconds: 4);
     try {
-      final request = await client.getUrl(uri).timeout(const Duration(seconds: 12));
+      final request = await client
+          .getUrl(uri)
+          .timeout(const Duration(seconds: 12));
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      request.headers.set(HttpHeaders.userAgentHeader,
-          'ParticleDesk/0.1 (offline PDG reader; DOI title lookup)');
-      final response = await request.close().timeout(const Duration(seconds: 12));
+      request.headers.set(
+        HttpHeaders.userAgentHeader,
+        'ParticleDesk/0.1 (offline PDG reader; DOI title lookup)',
+      );
+      final response = await request.close().timeout(
+        const Duration(seconds: 12),
+      );
       final body = await response
           .transform(utf8.decoder)
           .join()
@@ -120,7 +129,8 @@ class ReferenceMetadataService {
       }
       if (response.statusCode != 200) {
         throw ReferenceMetadataException(
-            'Crossref 返回 HTTP ${response.statusCode}');
+          'Crossref 返回 HTTP ${response.statusCode}',
+        );
       }
       final decoded = jsonDecode(body);
       if (decoded is! Map) {
@@ -157,25 +167,6 @@ class ReferenceMetadataService {
   }
 
   /// Crossref titles can contain JATS/MathML markup. Keep the text content,
-  /// strip tags, decode the common entities and collapse whitespace.
-  static String cleanTitle(String raw) {
-    var text = raw.replaceAll(RegExp(r'<[^>]*>'), ' ');
-    text = text
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&quot;', '"')
-        .replaceAll('&#39;', "'")
-        .replaceAll('&apos;', "'");
-    text = text.replaceAllMapped(RegExp(r'&#x([0-9a-fA-F]+);'), (match) {
-      final code = int.tryParse(match.group(1)!, radix: 16);
-      return code == null ? match.group(0)! : String.fromCharCode(code);
-    });
-    text = text.replaceAllMapped(RegExp(r'&#([0-9]+);'), (match) {
-      final code = int.tryParse(match.group(1)!);
-      return code == null ? match.group(0)! : String.fromCharCode(code);
-    });
-    text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-    return text;
-  }
+  /// decode the common entities and collapse whitespace.
+  static String cleanTitle(String raw) => cleanReferenceTitle(raw);
 }

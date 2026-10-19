@@ -143,6 +143,43 @@ void main() {
     expect(anchors.single.targetLabel, 'D0 (S032M)');
   });
 
+  testWidgets('removing a persisted anchor is saved after the debounce', (
+    tester,
+  ) async {
+    final note = await store.create(
+      title: 'D0 note',
+      bodyMarkdown: 'body',
+      anchors: [NoteAnchorInput.pdgid('S032M', targetLabel: 'D0 (S032M)')],
+    );
+    await pumpEditor(tester, note: note);
+    await tester.tap(
+      find.byTooltip(const AppStrings(TextLang.en).notesRemoveAnchor),
+    );
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pump();
+    final saved = await store.noteById(note.id);
+    expect(saved!.anchors, isEmpty);
+  });
+
+  testWidgets('removing an anchor then closing immediately flushes it', (
+    tester,
+  ) async {
+    final note = await store.create(
+      title: 'D0 note',
+      bodyMarkdown: 'body',
+      anchors: [NoteAnchorInput.pdgid('S032M', targetLabel: 'D0 (S032M)')],
+    );
+    await pumpEditor(tester, note: note);
+    await tester.tap(
+      find.byTooltip(const AppStrings(TextLang.en).notesRemoveAnchor),
+    );
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 50));
+    final saved = await store.noteById(note.id);
+    expect(saved!.anchors, isEmpty);
+  });
+
   testWidgets('updates an existing note and deletes it after confirmation', (
     tester,
   ) async {

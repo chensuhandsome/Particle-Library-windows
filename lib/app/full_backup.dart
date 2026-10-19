@@ -105,6 +105,9 @@ class FullBackup {
     }
 
     final isFull = payload['format'] == format;
+    if (isFull && payload['formatVersion'] != 1) {
+      throw const FormatException('不支持的完整备份版本');
+    }
     final rawUser = payload['user'];
     if (isFull && rawUser is Map) {
       await user.importData(Map<String, Object?>.from(rawUser));

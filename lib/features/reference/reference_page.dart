@@ -15,6 +15,7 @@ import '../../data/zotero_cache.dart';
 import '../../data/reference_metadata.dart';
 import '../../domain/labels.dart';
 import '../../domain/models.dart';
+import '../../domain/reference_title.dart';
 import '../common/async_view.dart';
 import '../common/context_sidebar.dart';
 import '../common/description_text.dart';
@@ -950,36 +951,4 @@ class _ReferenceGroupCardState extends State<_ReferenceGroupCard> {
 ///
 /// Keep the original string in raw fields, but show a readable title in the
 /// header and documents panel. PDG `$...$` math is left for [DescriptionText].
-String plainReferenceTitle(String source) {
-  if (source.isEmpty) return source;
-  var text = source;
-  if (text.contains('<')) {
-    text = text.replaceAll(
-      RegExp(r'<(script|style)[^>]*>.*?</\1>', caseSensitive: false),
-      ' ',
-    );
-    text = text.replaceAll(RegExp(r'<[^>]+>'), ' ');
-    const entities = {
-      '&amp;': '&',
-      '&lt;': '<',
-      '&gt;': '>',
-      '&quot;': '"',
-      '&#39;': "'",
-      '&apos;': "'",
-      '&nbsp;': ' ',
-    };
-    for (final entry in entities.entries) {
-      text = text.replaceAll(entry.key, entry.value);
-    }
-    text = text.replaceAllMapped(RegExp(r'&#(x?[0-9a-fA-F]+);'), (match) {
-      final raw = match.group(1)!;
-      final code = raw.startsWith('x') || raw.startsWith('X')
-          ? int.tryParse(raw.substring(1), radix: 16)
-          : int.tryParse(raw);
-      return code == null ? match.group(0)! : String.fromCharCode(code);
-    });
-    text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-  }
-  // In plain display, a PDG charge pair reads better as the actual sign.
-  return text.replaceAll('+-', '±');
-}
+String plainReferenceTitle(String source) => cleanReferenceTitle(source);

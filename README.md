@@ -20,9 +20,9 @@ across desktop and mobile.
 
 ## Screenshots
 
-| X(3872) | π electric polarizability |
+| χc1(3872) | π electric polarizability |
 | --- | --- |
-| <img src="docs/assets/screenshots/desktop-x3872.jpg" alt="X(3872) particle page" width="640"> | <img src="docs/assets/screenshots/desktop-polarizability.jpg" alt="Pion electric polarizability measurement page" width="640"> |
+| <img src="docs/assets/screenshots/desktop-x3872.jpg" alt="χc1(3872) particle page" width="640"> | <img src="docs/assets/screenshots/desktop-polarizability.jpg" alt="Pion electric polarizability measurement page" width="640"> |
 | Particle page with left section outline, identity, quantum numbers and right context sidebar. | Measurement page with left outline, definition, PDG average and right context sidebar. |
 
 | iPhone |
@@ -50,14 +50,15 @@ English UI, PDG 2026 snapshot, dark desktop theme and light iPhone theme.
 - **History and trends** — edition-by-edition summary values and a trend chart
   with asymmetric errors.
 - **Notes** — local Markdown notes with anchors, backlinks, collections, tags,
-  search, export/import, conflict protection, and a picker shared by every
-  "add to note" action.
+  search, JSON import, desktop JSON/Markdown export, conflict protection, and a
+  picker shared by every "add to note" action.
 - **Tags** — filter, browse, rename and delete tags across all notes.
 - **Full backup** — one ZIP with settings, favorites, notes, highlight anchors
   and cached review PDFs; import auto-detects the format and merges safely.
+  Export is available on desktop; mobile builds can import a backup.
 - **Literature** — local reference metadata plus optional Crossref title
   lookup, INSPIRE search, BibTeX/cite-key lookup and a Zotero local bridge.
-- **Zotero index (macOS desktop only)** — an explicit, manually refreshed local cache of the Zotero
+- **Zotero index (desktop only)** — an explicit, manually refreshed local cache of the Zotero
   library makes INSPIRE result matching fast and avoids one lookup per row.
 - **PDG reviews** — on-demand PDF cache, selective cache cleanup, PDF text
   highlights stored as local notes with review anchors, and an annotation
@@ -88,20 +89,20 @@ Source builders can download the exact snapshot used here:
 
 ## Install
 
-The first public preview is **[Release 0.1.0](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.0)**.
+The first public preview is **[Release 0.1.1](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.1)**.
 
 - **macOS 12+ (universal)**: download
-  `Particle-Library-0.1.0-macOS-universal.dmg` (or the `.zip`). It is ad-hoc
+  `Particle-Library-0.1.1-macOS-universal.dmg` (or the `.zip`). It is ad-hoc
   signed, not notarized. On first launch use **right-click → Open**, or approve
   it in **System Settings → Privacy & Security**. Verify `SHA256SUMS.txt` first.
 - **iPhone/iPad**: there is no public IPA or TestFlight build yet. Building and
   development-signed installation from source are verified; public distribution
   needs a paid Apple Developer team.
 - **Android 7.0+ (API 24)**: signed preview APKs are provided in the release:
-  use `Particle-Library-0.1.0-Android-arm64-v8a.apk` on modern phones or
-  `Particle-Library-0.1.0-Android-armeabi-v7a.apk` on older 32-bit devices.
+  use `Particle-Library-0.1.1-Android-arm64-v8a.apk` on modern phones or
+  `Particle-Library-0.1.1-Android-armeabi-v7a.apk` on older 32-bit devices.
   See [Android build notes](docs/development/ANDROID.md).
-- **Windows/Linux/web**: not built for 0.1.0.
+- **Windows/Linux/web**: not built for 0.1.1.
 
 The macOS app bundles the PDG snapshot, so end users do not need Flutter, Xcode,
 or the repository. Source builders download
@@ -144,7 +145,8 @@ opts into a live service.
 ## Local data and privacy
 
 - The PDG snapshot is read-only and checksum-verified.
-- Notes and user settings live in a separate SQLite database.
+- Notes live in a separate SQLite database (`ParticleDesk/user.db`); settings,
+  favorites and recent searches live in `ParticleDesk/user_store.json`.
 - Favorites, recent searches and the Zotero index live in the app support
   directory.
 - Review PDFs are downloaded from the PDG website on demand and are not part of
@@ -152,7 +154,9 @@ opts into a live service.
 - Zotero is accessed read-only through its local API at
   `http://127.0.0.1:23119`; the Zotero index is updated only when you press the
   button in Settings.
-- No telemetry is sent by the app.
+- No telemetry is sent by the app. Update checks contact jsDelivr,
+  raw.githubusercontent.com and api.github.com; they do not auto-install
+  anything.
 
 ## Repository layout
 
@@ -162,6 +166,8 @@ test/           unit and widget tests
 assets/         icons/theme assets; the PDG snapshot is supplied separately
 macos/          macOS runner
 ios/            iOS runner
+android/        Android runner and release signing
+tool/           release/packaging helper scripts
 docs/           design and data documentation
 ```
 

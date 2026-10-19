@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../domain/models.dart';
+import '../../domain/reference_title.dart';
 import '../../user/user_store.dart';
 
 class FavoriteButton extends StatelessWidget {
@@ -33,8 +34,11 @@ class FavoriteButton extends StatelessWidget {
         }
         return IconButton(
           tooltip: label,
-          icon: Icon(active ? Icons.star : Icons.star_border,
-              size: 20, color: active ? Theme.of(context).colorScheme.primary : null),
+          icon: Icon(
+            active ? Icons.star : Icons.star_border,
+            size: 20,
+            color: active ? Theme.of(context).colorScheme.primary : null,
+          ),
           onPressed: () => _toggle(context, active),
         );
       },
@@ -51,7 +55,9 @@ class FavoriteButton extends StatelessWidget {
     messenger.showSnackBar(
       SnackBar(
         duration: const Duration(seconds: 3),
-        content: Text(added ? strings.favoritesAdded : strings.favoritesRemoved),
+        content: Text(
+          added ? strings.favoritesAdded : strings.favoritesRemoved,
+        ),
         action: SnackBarAction(
           label: strings.favoritesUndo,
           onPressed: () => scope.store.toggleFavorite(favorite),
@@ -83,7 +89,7 @@ Favorite referenceFavorite({
 }) {
   return Favorite(
     kind: FavoriteKind.reference,
-    title: reference.displayTitle,
+    title: cleanReferenceTitle(reference.displayTitle),
     subtitle: [
       reference.documentId,
       if (reference.publicationYear != null) '${reference.publicationYear}',

@@ -1,4 +1,5 @@
 import '../../domain/models.dart';
+import '../../domain/reference_title.dart';
 import '../../notes/notes.dart';
 
 /// Everything a page needs to add and list notes for one entity.
@@ -19,6 +20,59 @@ class NotesEntityContext {
   final List<NoteTarget> targets;
 
   bool get hasAnchor => anchors.isNotEmpty;
+}
+
+/// Default title for a newly captured note.
+///
+/// Keeps the identifier first and caps the title at 60 runes so a long
+/// reference/particle description cannot push the identifier out of the
+/// Notes list (the full provenance stays in the anchor).
+String defaultNoteTitle({
+  required String label,
+  Iterable<NoteAnchorInput> anchors = const <NoteAnchorInput>[],
+}) {
+  final clean = label.replaceAll(RegExp(r'\s+'), ' ').trim();
+  final identifier = _firstIdentifier(anchors);
+  if (identifier == null || identifier.isEmpty || clean.isEmpty) {
+    return _truncateRunes(clean, 60);
+  }
+  if (clean.runes.length <= 60) return clean;
+  if (clean == identifier || clean == '($identifier)') return identifier;
+  final suffix = RegExp(r'[\s(]+' + RegExp.escape(identifier) + r'\)?\s*$');
+  final description = clean.replaceFirst(suffix, '').trim();
+  if (description.isEmpty) return identifier;
+  final prefix = '$identifier — ';
+  final room = 60 - prefix.runes.length;
+  return '$prefix${_truncateRunes(description, room)}';
+}
+
+String? _firstIdentifier(Iterable<NoteAnchorInput> anchors) {
+  for (final anchor in anchors) {
+    switch (anchor.targetKind) {
+      case NoteTargetKinds.pdgid:
+      case NoteTargetKinds.measurement:
+        final value = anchor.targetKey.trim();
+        if (value.isNotEmpty) return value;
+      case NoteTargetKinds.reference:
+        final key = anchor.targetKey.trim();
+        final colon = key.indexOf(':');
+        final value = colon < 0 ? key : key.substring(colon + 1);
+        if (value.isNotEmpty) return value;
+      case NoteTargetKinds.review:
+        final file = anchor.targetKey.split('/').last;
+        if (file.isNotEmpty) {
+          return file.replaceAll(RegExp(r'\.pdf$', caseSensitive: false), '');
+        }
+    }
+  }
+  return null;
+}
+
+String _truncateRunes(String value, int maxRunes) {
+  if (maxRunes <= 0) return '';
+  final runes = value.runes.toList(growable: false);
+  if (runes.length <= maxRunes) return value;
+  return '${String.fromCharCodes(runes.take(maxRunes - 1))}…';
 }
 
 /// `D0 (S032M)`, or just the identifier when the description is empty.
@@ -42,7 +96,8 @@ String seriesAnchorLabel(Entry entry, {Entry? parent}) {
 /// `Review of Particle Physics (RPP2026)`, falling back to whichever part is
 /// available.
 String referenceAnchorLabel(Reference reference, {String? displayTitle}) {
-  final title = (displayTitle ?? reference.displayTitle).trim();
+  final title = cleanReferenceTitle(displayTitle ?? reference.displayTitle)
+      .trim();
   final documentId = reference.documentId.trim();
   if (title.isEmpty) return documentId;
   if (documentId.isEmpty) return title;

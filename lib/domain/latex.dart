@@ -200,7 +200,7 @@ String? particleNameToLatex(String source) {
       buffer.write('}');
     }
     buffer.write('(');
-    buffer.write(mass.replaceAll(r'\', ''));
+    buffer.write(mass.replaceAll(r'\', '').replaceAll('~', r'\sim '));
     buffer.write(')');
     if (chargePart.isNotEmpty) {
       buffer.write('^{');
@@ -379,10 +379,11 @@ String decayTokensToLatex(List<DecayToken> tokens) {
     final token = tokens[i];
     final name = token.name.trim();
     final isArrow =
-        name == '-->' ||
-        name == r'\rightarrow' ||
-        name == '→' ||
-        name.contains('-->');
+        token.itemType != 'T' &&
+        (name == '-->' ||
+            name == r'\rightarrow' ||
+            name == '→' ||
+            name.contains('-->'));
     if (isArrow) {
       buffer.write(r'\;\longrightarrow\;');
       arrowEmitted = true;
@@ -398,7 +399,7 @@ String decayTokensToLatex(List<DecayToken> tokens) {
       buffer.write(r'\;');
     }
     if (token.multiplier > 1) {
-      buffer.write('${token.multiplier},');
+      buffer.write('${token.multiplier}');
     }
     final latex = particleNameToLatex(name);
     if (latex != null && token.itemType != 'T') {
@@ -526,13 +527,32 @@ class PdgTextSegment {
 /// literal text. This is what prevents a half-converted formula such as
 /// `sin**2(2 theta(12))` from turning into a valid prefix plus a broken tail.
 List<PdgTextSegment> segmentPdgText(String original) {
+  // Quantity labels such as `MASS`, `WIDTH` or `MEAN LIFE` are prose, not
+  // part of the particle name. Split them before whole-name conversion;
+  // otherwise `B_s0 MASS` becomes a single fake subscript.
+  final suffix = RegExp(
+    r'^(.*?)(\s+(?:BREIT-WIGNER\s+)?(?:MASS|WIDTH|MEAN\s+LIFE|LIFETIME|'
+    r'MODE|MODES|FORM\s+FACTORS?|PARAMETERS?|CONSTANTS?|RATIO|RATIOS|'
+    r'ADMIXTURE|MIXING|FACTORS?))\s*$',
+    caseSensitive: false,
+  ).firstMatch(original);
+  if (suffix != null) {
+    final body = segmentPdgText(suffix.group(1)!);
+    return [...body, PdgTextSegment.plain(suffix.group(2)!)];
+  }
   final quantum = quantumLineToLatex(original);
   if (quantum != null) return [PdgTextSegment.math(quantum)];
   // PDG descriptions sometimes preserve spaces inside a particle name
   // (`T_c c cbar cbar(6600)`). Treat a complete name as one math unit before
   // the generic token scanner can split it into `T_c` + prose.
   if (original.contains(RegExp(r'\s')) &&
-      original.contains(RegExp(r'[0-9_^()]'))) {
+      original.contains(RegExp(r'[0-9_^()]')) &&
+      RegExp(r'\([^()]+\)[+-]?\d*$').hasMatch(original) &&
+      !RegExp(
+        r'\b(MASS|MEAN|LIFE|MODE|WIDTH|RATIO|ADMIXTURE|MIXING|PARAMETER|'
+        r'PARAMETERS|CONSTANT|CONSTANTS|FACTOR|FACTORS)\b',
+        caseSensitive: false,
+      ).hasMatch(original)) {
     final wholeName = particleNameToLatex(original);
     if (wholeName != null) return [PdgTextSegment.math(wholeName)];
   }

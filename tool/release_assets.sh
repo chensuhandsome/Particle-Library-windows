@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# Build a local macOS release bundle and the snapshot release assets.
-#
-# This script does not publish anything and does not sign/notarize the app.
-# Review docs/development/RELEASING.md before uploading.
+# Build local macOS + Android release assets. Does not publish or notarize.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 SNAPSHOT="assets/pdgall-2026.0.sqlite"
 EXPECTED="c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a"
+VERSION="$(awk '/^version:/ {print $2}' pubspec.yaml | cut -d+ -f1)"
+OUT="dist/release"
 
 if [[ ! -f "$SNAPSHOT" ]]; then
   echo "missing $SNAPSHOT" >&2
@@ -22,17 +21,31 @@ fi
 flutter analyze
 flutter test
 flutter build macos --release
-mkdir -p dist/release
-rm -rf "dist/release/Particle Library.app"
+flutter build apk --release --split-per-abi
+
+codesign --force --deep --sign - --timestamp=none \
+  "build/macos/Build/Products/Release/Particle Library.app"
+
+rm -rf "$OUT"
+mkdir -p "$OUT"
+STAGE="$(mktemp -d)"
+trap 'rm -rf "$STAGE"' EXIT
 ditto "build/macos/Build/Products/Release/Particle Library.app" \
-      "dist/release/Particle Library.app"
+  "$STAGE/Particle Library.app"
+ln -s /Applications "$STAGE/Applications"
+hdiutil create -volname "Particle Library" -srcfolder "$STAGE" -ov -format UDZO \
+  "$OUT/Particle-Library-${VERSION}-macOS-universal.dmg" >/dev/null
 ditto -c -k --sequesterRsrc --keepParent \
-  "dist/release/Particle Library.app" \
-  "dist/release/Particle-Library-macOS.zip"
+  "build/macos/Build/Products/Release/Particle Library.app" \
+  "$OUT/Particle-Library-${VERSION}-macOS-universal.zip"
+cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+  "$OUT/Particle-Library-${VERSION}-Android-arm64-v8a.apk"
+cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
+  "$OUT/Particle-Library-${VERSION}-Android-armeabi-v7a.apk"
+
 (
-  cd dist/release
-  # The snapshot is intentionally not redistributed; it lives on the PDG API.
-  shasum -a 256 "Particle-Library-macOS.zip" > SHA256SUMS.txt
+  cd "$OUT"
+  shasum -a 256 Particle-Library-"${VERSION}"-* > SHA256SUMS.txt
 )
-echo "Release assets prepared in dist/release/."
-echo "The macOS app is not Developer ID signed/notarized yet; do not publish it as a public download."
+echo "Release assets prepared in $OUT/."
+echo "The macOS app is ad-hoc signed and not notarized; label previews accordingly."

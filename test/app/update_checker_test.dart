@@ -10,7 +10,10 @@ void main() {
     expect(UpdateChecker.compareVersions('0.1', '0.1.0'), 0);
     expect(UpdateChecker.compareVersions('0.0.9', '0.1.0'), lessThan(0));
     expect(UpdateChecker.compareVersions('0.1.0-rc1', '0.1.0'), lessThan(0));
-    expect(UpdateChecker.compareVersions('0.1.0-rc2', '0.1.0-rc1'), greaterThan(0));
+    expect(
+      UpdateChecker.compareVersions('0.1.0-rc2', '0.1.0-rc1'),
+      greaterThan(0),
+    );
     expect(UpdateChecker.compareVersions('0.1.0+1', '0.1.0'), 0);
   });
 
@@ -48,8 +51,8 @@ void main() {
         } else {
           request.response.write(
             jsonEncode({
-              'version': '0.1.0',
-              'url': 'https://example.com/releases/0.1.0',
+              'version': '0.1.1',
+              'url': 'https://example.com/releases/0.1.1',
             }),
           );
         }

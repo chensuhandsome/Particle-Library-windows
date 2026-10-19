@@ -804,25 +804,31 @@ class _NotesWorkspaceState extends State<NotesWorkspace> {
                               _exportAll();
                           }
                         },
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'json',
-                            child: Text(strings.notesExportJsonFile),
-                          ),
-                          PopupMenuItem(
-                            value: 'markdown',
-                            child: Text(strings.notesExportMarkdownFile),
-                          ),
-                          const PopupMenuDivider(),
-                          PopupMenuItem(
-                            value: 'import',
-                            child: Text(strings.notesImportJsonFile),
-                          ),
-                          PopupMenuItem(
-                            value: 'copy',
-                            child: Text(strings.notesExportAll),
-                          ),
-                        ],
+                        itemBuilder: (context) {
+                          final desktop =
+                              !Platform.isAndroid && !Platform.isIOS;
+                          return [
+                            if (desktop) ...[
+                              PopupMenuItem(
+                                value: 'json',
+                                child: Text(strings.notesExportJsonFile),
+                              ),
+                              PopupMenuItem(
+                                value: 'markdown',
+                                child: Text(strings.notesExportMarkdownFile),
+                              ),
+                              const PopupMenuDivider(),
+                            ],
+                            PopupMenuItem(
+                              value: 'import',
+                              child: Text(strings.notesImportJsonFile),
+                            ),
+                            PopupMenuItem(
+                              value: 'copy',
+                              child: Text(strings.notesExportAll),
+                            ),
+                          ];
+                        },
                       ),
                     ],
                   ),

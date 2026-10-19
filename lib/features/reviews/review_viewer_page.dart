@@ -395,6 +395,16 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
         });
         _notifyNotesChanged();
       }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${AppScope.of(context).strings.notesSaveFailed}: $error',
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -487,6 +497,23 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
   }
 
   Future<void> _deleteAnnotation(ReviewAnnotation annotation) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: Text(AppScope.of(context).strings.reviewDeleteConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(AppScope.of(context).strings.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(AppScope.of(context).strings.commonDelete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     await _ready;
     if (!mounted) return;
     final notes = _notes;
@@ -868,6 +895,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
                         enabled: true,
                         buildSelectionHandle: _buildSelectionHandle,
                         onTextSelectionChange: _onTextSelectionChanged,
+                        enableSelectionHandles: true,
                         onSelectionHandlePanStart: (_) =>
                             _autoHighlightTimer?.cancel(),
                       ),

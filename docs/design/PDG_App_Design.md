@@ -1,3 +1,7 @@
+> **Status: historical design document.** Current distribution: GitHub Releases
+> (ad-hoc macOS DMG/ZIP, Android APKs) and GitHub-based update checks. The
+> Mac App Store and arm64-only statements below are not current.
+
 # 粒子数据查询应用设计方案
 
 版本：1.1　日期：2026-10-13

@@ -130,6 +130,39 @@ void main() {
     expect(RegExp(r'\longrightarrow').allMatches(latex).length, 1);
   });
 
+  test('approximate masses and decay multipliers typeset correctly', () {
+    expect(particleNameToLatex('N(~3000)+'), r'N(\sim 3000)^{+}');
+    final tokens = [
+      DecayToken({
+        'id': 1,
+        'pdgid_id': 1,
+        'pdgid': 'S014.1',
+        'pdgitem_id': 1,
+        'name': 'eta',
+        'is_outgoing': 0,
+        'multiplier': 1,
+        'subdecay_id': null,
+        'sort': 1,
+        'item_type': 'P',
+      }),
+      DecayToken({
+        'id': 2,
+        'pdgid_id': 1,
+        'pdgid': 'S014.1',
+        'pdgitem_id': 2,
+        'name': 'pi0',
+        'is_outgoing': 1,
+        'multiplier': 3,
+        'subdecay_id': null,
+        'sort': 2,
+        'item_type': 'P',
+      }),
+    ];
+    final latex = decayTokensToLatex(tokens);
+    expect(latex, contains(r'3\pi^{0}'));
+    expect(latex, isNot(contains(r'3,\pi')));
+  });
+
   test('does not invent a typeset form for non-name text', () {
     expect(particleNameToLatex('-->'), isNull);
     expect(particleNameToLatex('K- pi+'), isNull);

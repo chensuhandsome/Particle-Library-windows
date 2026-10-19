@@ -9,7 +9,7 @@ a GitHub **Release** when one is available; they do not need Flutter or Xcode.
 |---|---|---|
 | macOS 12+, universal | **Verified** | Release `.app` built and used for UI testing on macOS 15.6 arm64. |
 | iPhone/iPad | **Simulator and development-signed Release install verified** | A free Personal Team signed and launched both Debug and Release builds on an iPhone; TestFlight/App Store still needs a paid team. |
-| Android | **Not generated** | Scaffold and permissions still need to be added and tested. |
+| Android | **Scaffolded; signed preview APK** | arm64 smoke-tested on Android 15/API 35; API 24 and 32-bit APKs are built but not device-tested. |
 | Windows | **Not generated** | Needs a Windows host/MSVC and a `windows/` scaffold. |
 | Linux | **Not generated** | Needs a Linux host/GTK and a `linux/` scaffold. |
 
@@ -90,7 +90,7 @@ it cannot be installed on a physical phone.
 
 ## Android, Windows and Linux
 
-These targets are **not yet supported by this checkout**, even though most of
+Android is a preview target; Windows/Linux are **not yet supported by this checkout**, even though most of
 the Dart code is platform-neutral. To add one, do it on a branch and validate
 the full stack (SQLite asset, PDFium, file picker, network, local Zotero API):
 

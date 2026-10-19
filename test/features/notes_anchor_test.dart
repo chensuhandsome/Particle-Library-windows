@@ -76,6 +76,28 @@ void main() {
     });
   });
 
+  test('default titles keep the identifier first and stay within budget', () {
+    final particle = defaultNoteTitle(
+      label: 'a_0/Lambda**2, a_c/Lambda**2, a_n/Lambda**2, f(M,i)/Lambda**4 (S043AQC)',
+      anchors: [NoteAnchorInput.pdgid('S043AQC', targetLabel: 'long particle')],
+    );
+    expect(particle, startsWith('S043AQC — '));
+    expect(particle.runes.length, lessThanOrEqualTo(60));
+    final reference = defaultNoteTitle(
+      label: 'Determination of |Vcb| using B0 -> D*+ lepton neutrino decays with Belle II (ADACHI 2023J)',
+      anchors: [NoteAnchorInput.referenceDoc('ADACHI 2023J')],
+    );
+    expect(reference, startsWith('ADACHI 2023J — '));
+    expect(reference.runes.length, lessThanOrEqualTo(60));
+    expect(
+      defaultNoteTitle(
+        label: 'D0 (S032M)',
+        anchors: [NoteAnchorInput.pdgid('S032M')],
+      ),
+      'D0 (S032M)',
+    );
+  });
+
   test('particle context supplies one exact pdgid anchor and target', () {
     final entry = _entry(id: 1, pdgid: 'S032M', description: 'D0');
     final context = particleNotesContext(entry, snapshotHash: 'hash-1');

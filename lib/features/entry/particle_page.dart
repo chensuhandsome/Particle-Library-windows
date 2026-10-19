@@ -8,6 +8,7 @@ import '../../data/pdg_database.dart';
 import '../../domain/aliases.dart';
 import '../../domain/display.dart';
 import '../../domain/labels.dart';
+import '../../domain/reference_title.dart';
 import '../../domain/models.dart';
 import '../../domain/views.dart';
 import '../common/async_view.dart';
@@ -1075,7 +1076,7 @@ class _ReferencesTabState extends State<_ReferencesTab> {
             margin: const EdgeInsets.fromLTRB(Insets.l, 0, Insets.l, Insets.s),
             child: ListTile(
               title: DescriptionText(
-                item.reference.displayTitle,
+                cleanReferenceTitle(item.reference.displayTitle),
                 maxLines: 2,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),

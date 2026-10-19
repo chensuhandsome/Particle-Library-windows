@@ -14,9 +14,9 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
 
 ## 截图
 
-| X(3872) | π 电极化率 |
+| χc1(3872) | π 电极化率 |
 | --- | --- |
-| <img src="docs/assets/screenshots/desktop-x3872.jpg" alt="X(3872) 粒子页" width="640"> | <img src="docs/assets/screenshots/desktop-polarizability.jpg" alt="π 电极化率测量页" width="640"> |
+| <img src="docs/assets/screenshots/desktop-x3872.jpg" alt="χc1(3872) 粒子页" width="640"> | <img src="docs/assets/screenshots/desktop-polarizability.jpg" alt="π 电极化率测量页" width="640"> |
 | 粒子页：左侧页面目录、身份、量子数与右侧上下文栏。 | 测量页：左侧目录、定义与来源、PDG 平均和右侧上下文栏。 |
 
 | iPhone |
@@ -36,7 +36,7 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
 - **历史与趋势**：按版次查看汇总值和带非对称误差的趋势图。
 - **笔记**：本机 Markdown 笔记，支持锚点、反向链接、Collection、标签、搜索、导入/导出和冲突保护；所有“加入笔记”入口共用同一个选择器。
 - **标签**：跨笔记筛选、浏览、重命名和删除。
-- **完整备份**：一个 ZIP 包含设置、收藏、笔记、高亮 anchor 和已缓存综述 PDF；导入自动识别格式并安全合并。
+- **完整备份**：一个 ZIP 包含设置、收藏、笔记、高亮 anchor 和已缓存综述 PDF；导入自动识别格式并安全合并；导出在桌面端提供，移动端可导入备份。
 - **文献**：本地文献信息、可选 Crossref 题名补全、INSPIRE 搜索、BibTeX/cite key 和 Zotero 本地桥接。
 - **Zotero 索引（仅 macOS 桌面）**：手动构建/更新的本地 Zotero 条目缓存，避免 INSPIRE 结果逐条请求。
 - **PDG 综述**：按需缓存 PDF、选择性清理、PDF 文字高亮；高亮直接存为带 review anchor 的本地笔记，可搜索、打标签、导出，并显示在右侧批注栏。
@@ -59,19 +59,19 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
 
 ## 安装
 
-首个公开预览版是 **[Release 0.1.0](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.0)**。
+首个公开预览版是 **[Release 0.1.1](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.1)**。
 
 - **macOS 12+（通用二进制）**：下载 Release 中的
-  `Particle-Library-0.1.0-macOS-universal.dmg`（或 `.zip`）。当前为 ad-hoc
+  `Particle-Library-0.1.1-macOS-universal.dmg`（或 `.zip`）。当前为 ad-hoc
   签名、未公证；首次打开请 **右键 → 打开**，或在 **系统设置 → 隐私与安全性**
   中允许。运行前请核对 `SHA256SUMS.txt`。
 - **iPhone/iPad**：暂时没有公开 IPA 或 TestFlight 安装包。源码构建和开发签名安装
   已验证；公开分发需要付费 Apple Developer Team。
 - **Android 7.0+（API 24）**：Release 中提供已签名预览 APK；现代手机用
-  `Particle-Library-0.1.0-Android-arm64-v8a.apk`，旧 32 位设备用
-  `Particle-Library-0.1.0-Android-armeabi-v7a.apk`。详见
+  `Particle-Library-0.1.1-Android-arm64-v8a.apk`，旧 32 位设备用
+  `Particle-Library-0.1.1-Android-armeabi-v7a.apk`。详见
   [Android 构建说明](docs/development/ANDROID.md)。
-- **Windows/Linux/web**：0.1.0 未构建。
+- **Windows/Linux/web**：0.1.1 未构建。
 
 macOS 版已内置 PDG 快照，普通用户不需要 Flutter、Xcode 或源码。源码构建者可直接下载
 [`pdgall-2026.0.sqlite`](https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite)（

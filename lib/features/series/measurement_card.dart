@@ -8,6 +8,7 @@ import '../../app/navigation.dart';
 import '../../domain/display.dart';
 import '../../domain/filters.dart';
 import '../../domain/labels.dart';
+import '../../domain/reference_title.dart';
 import '../../domain/models.dart';
 import '../../notes/notes.dart';
 import '../notes/notes_entity.dart';
@@ -157,7 +158,7 @@ class MeasurementCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       DescriptionText(
-                        reference.displayTitle,
+                        cleanReferenceTitle(reference.displayTitle),
                         maxLines: 2,
                         style: Theme.of(context).textTheme.bodyMedium
                             ?.copyWith(color: palette.primary),
@@ -326,7 +327,8 @@ class MeasurementCard extends StatelessWidget {
     final measurement = bundle.measurement;
     final lines = <String>[
       'pdgmeasurement #${measurement.id} · sort ${measurement.sort}',
-      if (bundle.reference != null) bundle.reference!.displayTitle,
+      if (bundle.reference != null)
+        cleanReferenceTitle(bundle.reference!.displayTitle),
       if (bundle.reference != null) bundle.reference!.documentId,
       if (measurement.technique.isNotEmpty)
         'technique ${measurement.technique}',

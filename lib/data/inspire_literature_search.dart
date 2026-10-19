@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../domain/reference_title.dart';
+
 /// One INSPIRE literature record returned by an online author/title search.
 class InspireLiteratureHit {
   const InspireLiteratureHit({
@@ -217,20 +219,7 @@ class InspireLiteratureSearchService {
     return score;
   }
 
-  static String _stripMarkup(String title) {
-    var text = title
-        .replaceAll(RegExp(r'<math[^>]*>', caseSensitive: false), '')
-        .replaceAll(RegExp(r'</math>', caseSensitive: false), '')
-        .replaceAll(RegExp(r'<[^>]+>'), '');
-    text = text
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&quot;', '"')
-        .replaceAll('&#39;', "'")
-        .replaceAll('&nbsp;', ' ');
-    return text.trim();
-  }
+  static String _stripMarkup(String title) => cleanReferenceTitle(title);
 
   InspireLiteratureHit? _parse(Object? raw) {
     if (raw is! Map) return null;

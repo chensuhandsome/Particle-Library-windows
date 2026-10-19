@@ -5,6 +5,7 @@ import 'note_link_target.dart';
 import '../../app/app_scope.dart';
 import '../../app/app_theme.dart';
 import '../../domain/labels.dart';
+import '../../domain/reference_title.dart';
 import '../../domain/models.dart';
 import '../common/async_view.dart';
 import '../common/description_text.dart';
@@ -215,7 +216,7 @@ Future<NoteLinkPreview?> loadNoteLinkPreview(
     if (reference == null) return null;
     return NoteLinkPreview(
       kind: NoteLinkKind.reference,
-      title: reference.displayTitle,
+      title: cleanReferenceTitle(reference.displayTitle),
       subtitle: [
         reference.documentId,
         if (reference.publicationYear != null) '${reference.publicationYear}',

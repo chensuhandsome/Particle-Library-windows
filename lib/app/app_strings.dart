@@ -873,6 +873,10 @@ class AppStrings {
     'Highlight mode on: selecting text highlights it',
   );
   String get reviewPdfLoading => _t('PDF 正在加载…', 'PDF is loading…');
+  String get reviewDeleteConfirm => _t(
+    '删除这条高亮及其笔记？笔记会进入回收站。',
+    'Delete this highlight and its note? The note goes to the recycle bin.',
+  );
   String get reviewSelectText =>
       _t('请先在 PDF 中选择文字。', 'Select text in the PDF first.');
   String get reviewAnnotations => _t('批注', 'Annotations');
@@ -1082,6 +1086,10 @@ class AppStrings {
   String get settingsFullBackup => _t('完整备份', 'Full backup');
   String get settingsFullBackupExport => _t('导出完整备份…', 'Export full backup…');
   String get settingsFullBackupImport => _t('导入完整备份…', 'Import full backup…');
+  String get settingsFullBackupHintMobile => _t(
+    '移动端可直接导入备份；完整备份导出请使用桌面版。',
+    'Import works on mobile; export the full backup from the desktop app.',
+  );
   String get settingsFullBackupHint => _t(
     '包含设置、收藏、笔记、高亮 anchor 和已缓存的综述 PDF，导出为 ZIP；导入时自动识别并合并笔记，不删除现有数据。',
     'Includes settings, favorites, notes, highlight anchors and cached review PDFs as a ZIP. Import detects the format and merges notes without deleting current data.',

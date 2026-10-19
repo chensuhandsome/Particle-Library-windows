@@ -200,6 +200,24 @@ void main() {
     expect(second, containsAll([r'\xi', r'\mu', r'\delta', r'\rho']));
   });
 
+  test('trailing quantity labels stay prose, not subscripts', () {
+    for (final source in [
+      'B_s0 MASS',
+      'K(S)0 MEAN LIFE',
+      'B_s* MASS',
+      'Omega_b MEAN LIFE',
+    ]) {
+      final segments = segmentPdgText(source);
+      expect(segments.last.text, isNotNull, reason: source);
+      expect(segments.first.latex, isNotNull, reason: source);
+    }
+    expect(segmentPdgText('B_s0 MASS').first.latex, r'B_{s}^{0}');
+    expect(
+      segmentPdgText('T_c c cbar cbar(6600) MASS').first.latex,
+      r'T_{cc\,\bar{c}\,\bar{c}}(6600)',
+    );
+  });
+
   test('spaced multi-charm particle descriptions stay one math unit', () {
     final segments = segmentPdgText('T_c c cbar cbar(6600)');
     expect(segments, hasLength(1));

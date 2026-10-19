@@ -11,7 +11,7 @@ smoke test on that platform.
 |---|---|---|---|---|
 | macOS 12+ (universal) | yes | verified | `.app` | Developer ID signing/notarization for public distribution |
 | iPhone/iPad | yes | simulator + debug/release device install verified | Development-signed app | TestFlight/App Store needs paid team |
-| Android | no | no | none | `android/`, permissions, PDFium/SQLite, asset size |
+| Android | yes | release APK built | signed preview APK | API 24/32-bit device smoke test; Play Store signing |
 | Windows | no | no | none | `windows/`, MSVC build, installer |
 | Linux | no | no | none | `linux/`, GTK build, package |
 

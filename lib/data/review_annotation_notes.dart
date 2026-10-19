@@ -132,13 +132,15 @@ class ReviewAnnotationNotes {
     final note = await notes.noteById(noteId);
     if (note == null) return;
     final reviewKey = _reviewKey(annotation.fileName);
+    final reviewTitle = _reviewTitleFor(note, annotation);
+    final currentComment = _commentFor(note, annotation);
     final oldBody = _body(
       quote: annotation.text,
-      comment: annotation.note,
+      comment: currentComment,
       reviewKey: reviewKey,
       annotationId: annotation.id,
       pageNumber: annotation.pageNumber,
-      reviewTitle: _titleFromFile(annotation.fileName),
+      reviewTitle: reviewTitle,
     );
     final body = _body(
       quote: annotation.text,
@@ -146,7 +148,7 @@ class ReviewAnnotationNotes {
       reviewKey: reviewKey,
       annotationId: annotation.id,
       pageNumber: annotation.pageNumber,
-      reviewTitle: _titleFromFile(annotation.fileName),
+      reviewTitle: reviewTitle,
     );
     // Do not overwrite prose the user added in the full note editor. The
     // comment remains authoritative in the anchor context; only an untouched
@@ -191,21 +193,23 @@ class ReviewAnnotationNotes {
     final note = await notes.noteById(noteId);
     if (note == null) return null;
     final reviewKey = _reviewKey(annotation.fileName);
+    final reviewTitle = _reviewTitleFor(note, annotation);
+    final currentComment = _commentFor(note, annotation);
     final oldBody = _body(
       quote: annotation.text,
-      comment: annotation.note,
+      comment: currentComment,
       reviewKey: reviewKey,
       annotationId: annotation.id,
       pageNumber: annotation.pageNumber,
-      reviewTitle: _titleFromFile(annotation.fileName),
+      reviewTitle: reviewTitle,
     );
     final body = _body(
       quote: text,
-      comment: annotation.note,
+      comment: currentComment,
       reviewKey: reviewKey,
       annotationId: annotation.id,
       pageNumber: annotation.pageNumber,
-      reviewTitle: _titleFromFile(annotation.fileName),
+      reviewTitle: reviewTitle,
     );
     final anchors = <NoteAnchorInput>[];
     for (final anchor in note.anchors) {
@@ -235,9 +239,17 @@ class ReviewAnnotationNotes {
       );
     }
     final generatedBodyUntouched = note.bodyMarkdown.trim() == oldBody.trim();
+    final generatedTitle = _title(
+      annotation.pageNumber,
+      annotation.text,
+      reviewTitle: reviewTitle,
+    );
+    final title = note.title.trim().isEmpty || note.title == generatedTitle
+        ? _title(annotation.pageNumber, text, reviewTitle: reviewTitle)
+        : note.title;
     await notes.update(
       note.id,
-      title: _title(annotation.pageNumber, text),
+      title: title,
       bodyMarkdown: generatedBodyUntouched ? body : null,
       anchors: anchors,
       expectedRevision: note.revision,
@@ -285,11 +297,12 @@ class ReviewAnnotationNotes {
       pageNumber: pageNumber,
       reviewTitle: reviewTitle,
     );
-    final title = _title(pageNumber, text);
+    final title = _title(pageNumber, text, reviewTitle: reviewTitle);
     final context = <String, Object?>{
       'schema': 1,
       'kind': 'pdf_annotation',
       'annotationId': id,
+      'reviewTitle': reviewTitle,
       'pageNumber': pageNumber,
       'rects': [
         for (final rect in rects)
@@ -366,6 +379,32 @@ class ReviewAnnotationNotes {
     );
   }
 
+  static String _commentFor(NoteRecord note, ReviewAnnotation annotation) {
+    for (final anchor in note.anchors) {
+      if (anchor.targetKind != NoteTargetKinds.review) continue;
+      final comment = anchor.context?['comment'];
+      if (comment != null) return comment.toString();
+    }
+    return annotation.note;
+  }
+
+  static String _reviewTitleFor(NoteRecord note, ReviewAnnotation annotation) {
+    final suffix = ' · p.${annotation.pageNumber}';
+    for (final anchor in note.anchors) {
+      if (anchor.targetKind != NoteTargetKinds.review) continue;
+      final label = anchor.targetLabel.trim();
+      if (label.endsWith(suffix)) {
+        final title = label.substring(0, label.length - suffix.length).trim();
+        if (title.isNotEmpty) return title;
+      }
+      final contextTitle = anchor.context?['reviewTitle']?.toString().trim();
+      if (contextTitle != null && contextTitle.isNotEmpty) {
+        return contextTitle;
+      }
+    }
+    return _titleFromFile(annotation.fileName);
+  }
+
   static String _body({
     required String quote,
     required String comment,
@@ -404,13 +443,16 @@ class ReviewAnnotationNotes {
 
   static String _reviewKey(String fileName) => '$reviewEdition/$fileName';
 
-  static String _title(int page, String text) {
+  static String _title(int page, String text, {String reviewTitle = ''}) {
     final snippet = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (snippet.isEmpty) return 'PDF highlight · p.$page';
-    final short = snippet.length > 48
-        ? '${snippet.substring(0, 48)}…'
+    final review = reviewTitle.trim();
+    final head = review.isEmpty ? 'p.$page' : '$review · p.$page';
+    if (snippet.isEmpty) return head;
+    final runes = snippet.runes.toList(growable: false);
+    final short = runes.length > 40
+        ? '${String.fromCharCodes(runes.take(39))}…'
         : snippet;
-    return 'p.$page · $short';
+    return '$head · “$short”';
   }
 
   static String _titleFromFile(String fileName) {

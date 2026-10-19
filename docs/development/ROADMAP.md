@@ -9,8 +9,8 @@ storage and packaging must either be handled now or recorded here.
 | Target | Status | Next action |
 |---|---|---|
 | macOS | supported, release build verified | signing/notarization for public distribution |
-| iPhone/iPad | simulator + development-signed Release install verified | TestFlight/App Store signing and device smoke test |
-| Android | not scaffolded | add `android/`, permissions, PDFium/SQLite/file-picker smoke test |
+| iPhone/iPad | simulator + development-signed Release install verified | TestFlight/App Store signing |
+| Android | signed preview APK; arm64/API 35 smoke-tested | API 24 and 32-bit device smoke test; Play Store signing |
 | Windows | not scaffolded | build on Windows/MSVC, installer |
 | Linux | not scaffolded | build on Linux/GTK, package |
 

@@ -98,7 +98,7 @@ class SummaryCard extends StatelessWidget {
                       onPressed: () {
                         final label = [
                           'PDG ${summary.pdgid}',
-                          if (summary.edition != null) 'PDG ${summary.edition}',
+                          if (summary.edition != null) '${summary.edition}',
                           valueTypeLabel(summary.valueType, strings.lang),
                         ].join(' · ');
                         captureTextToNote(

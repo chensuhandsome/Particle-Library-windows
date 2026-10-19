@@ -10,10 +10,10 @@ Update it consistently in:
 - `macos/Runner/Configs/AppInfo.xcconfig`
 - `ios/Runner.xcodeproj/project.pbxproj` (Runner and RunnerTests)
 
-Changing the bundle identifier creates a new app data container; local notes,
-favorites and settings from the old ID are not automatically visible to the new
-app. Do this before distributing the first public build, or provide an explicit
-data migration.
+This identifier is now stable. Keep it unchanged across updates: changing it
+creates a new app data container, so local notes, favorites and settings from
+the old ID are not automatically visible. Cross-ID migration requires an
+explicit export/import.
 
 ## PDG snapshot
 
@@ -40,15 +40,16 @@ Prepare local release assets with:
 tool/release_assets.sh
 ```
 
-The script verifies the snapshot hash, runs analyze/tests, builds the macOS app,
-zips it, and writes checksums. It deliberately does not publish, include the
-snapshot, or notarize.
+The script builds/checks all four assets (DMG, ZIP, arm64 APK, armeabi-v7a
+APK) and writes `SHA256SUMS.txt`. It does not publish or notarize. Android
+builds need `JAVA_HOME` and the Android SDK configured as in
+[ANDROID.md](ANDROID.md).
 
 ## Signing and notarization
 
-For a public macOS download, use a Developer ID Application certificate,
-Hardened Runtime, `notarytool` and `stapler`; verify with `spctl`. The current
-local build is ad-hoc/development-signed and is not a public artifact.
+0.1.x previews are published ad-hoc signed with an explicit Gatekeeper warning
+in the README. Production builds require a Developer ID Application certificate,
+Hardened Runtime, `notarytool` and `stapler`, verified with `spctl`.
 
 ## Update channel
 
@@ -63,18 +64,19 @@ Update `update.json` in the repository before publishing a release; it must
 contain the new `version`, release `url` and short notes.
 
 
-Publish a tag `vX.Y.Z` (build number in `pubspec.yaml`'s `+N` suffix) in the
-public repository. The updater reads
-`https://api.github.com/repos/fkguo/Particle-Library/releases/latest`.
-Validate the manual check on a release build before announcing.
+Publish a tag `vX.Y.Z` (build number in `pubspec.yaml`'s `+N` suffix) and bump
+`update.json` in the same commit. The updater tries jsDelivr, raw GitHub and
+then the GitHub Releases API; a tag alone is not enough because the static
+manifest is checked first. Validate the manual check on a release build before
+announcing.
 
 ## Checklist
 
-- [ ] bundle identifier changed and documented
-- [ ] version and build number bumped
-- [ ] snapshot asset uploaded, SHA-256 verified, CC BY attribution included
+- [ ] bundle identifier unchanged and documented
+- [ ] version, build number, `appVersion` and `update.json` bumped together
+- [ ] snapshot bundled and SHA-256 verified; **not** uploaded as an asset
 - [ ] `flutter analyze`, `flutter test` green with the snapshot
-- [ ] macOS Developer ID + notarization + `spctl` check, or no public macOS binary
+- [ ] preview clearly labelled ad-hoc/un-notarized (production requires notarization)
 - [ ] iOS physical install and trust checked; TestFlight only with a paid team
 - [ ] README/requirements and update channel consistent
-- [ ] release notes and checksums attached
+- [ ] release notes and four-entry checksums attached

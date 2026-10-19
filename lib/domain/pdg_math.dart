@@ -203,6 +203,11 @@ String? _normalize(String source) {
     (match) => '${match.group(0)} ',
   );
   text = text.replaceAll(RegExp(r'mathit\s*'), '');
+  // Redundant brace layers around a simple command (K_{{{{\ell}}4}}).
+  text = text.replaceAllMapped(
+    RegExp(r'\{+(\\(?:ell|mu|tau|pi|gamma|nu))\}+'),
+    (match) => match.group(1)!,
+  );
   text = text.replaceAll('chi_c1-odd', 'chiOdd');
   // `non-phi` is a physics label: upright "non-" followed by an italic φ.
   text = text.replaceAll('non-phi', 'nonphi');
@@ -241,6 +246,8 @@ class _Base {
 }
 
 enum _BaseKind { particle, function, coupling, command, number, text }
+
+const _neutralZeroBases = {'B', 'K', 'Xi', 'Lambda', 'Omega'};
 
 class _ExpressionParser {
   _ExpressionParser(this.text);
@@ -308,7 +315,9 @@ class _ExpressionParser {
         if (operator == '^' && hasSuperscript) return null;
         if (operator == '_' && hasSubscript) return null;
         index++;
-        final script = _parseScriptAtom();
+        final script = _parseScriptAtom(
+          allowNeutralZero: _neutralZeroBases.contains(base.name),
+        );
         if (script == null) return null;
         if (operator == '^') {
           hasSuperscript = true;
@@ -378,7 +387,11 @@ class _ExpressionParser {
         group = text.substring(index + 1, end);
         index = end + 1;
       }
-      final latex = group == null ? command : '$command{${_safeGroup(group)}}';
+      final digits = RegExp(r'^[0-9]+').firstMatch(text.substring(index));
+      final suffix = digits?.group(0) ?? '';
+      if (digits != null) index += suffix.length;
+      final latex =
+          '${group == null ? command : '$command{${_safeGroup(group)}}'}$suffix';
       final function = _functionWords.contains(command.replaceFirst(r'\', ''));
       return _Base(
         latex: latex,
@@ -589,13 +602,34 @@ class _ExpressionParser {
     return null;
   }
 
-  String? _parseScriptAtom({bool includeNested = false}) {
+  String? _parseScriptAtom({
+    bool includeNested = false,
+    bool allowNeutralZero = false,
+  }) {
     if (atEnd) return null;
     if (current == '{') {
       final end = _matching(index, '{', '}');
       if (end < 0) return null;
-      final content = text.substring(index + 1, end);
+      var content = text.substring(index + 1, end);
       index = end + 1;
+      // PDG decay names sometimes retain redundant brace layers
+      // (K_{{{{\mathit \ell}}4}}). Unwrap them before parsing.
+      while (content.length >= 2 &&
+          content.startsWith('{') &&
+          content.endsWith('}')) {
+        var depth = 0;
+        var wraps = true;
+        for (var i = 0; i < content.length; i++) {
+          if (content[i] == '{') depth++;
+          if (content[i] == '}') depth--;
+          if (depth == 0 && i != content.length - 1) {
+            wraps = false;
+            break;
+          }
+        }
+        if (!wraps) break;
+        content = content.substring(1, content.length - 1);
+      }
       final parsed = _SequenceParser(content).parse();
       if (parsed != null) return parsed;
       // Simple subscripts such as D_{s3} are literal labels, not expressions.
@@ -648,8 +682,13 @@ class _ExpressionParser {
       if (!includeNested) {
         final digits = RegExp(r'^[0-9]+').firstMatch(text.substring(index));
         if (digits != null) {
-          buffer.write(digits.group(0));
-          index += digits.group(0)!.length;
+          // B_s0, Xi_c0, K_S0 and friends use a trailing 0 as the neutral
+          // charge, not as part of the subscript. D_s0 is intentionally
+          // excluded: there it is the scalar-meson state label.
+          if (!allowNeutralZero || digits.group(0) != '0' || word.length != 1) {
+            buffer.write(digits.group(0));
+            index += digits.group(0)!.length;
+          }
         }
       }
       // A subscript directly after the superscript's atom belongs to it:

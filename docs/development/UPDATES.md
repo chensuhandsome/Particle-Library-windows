@@ -4,22 +4,25 @@ Particle Library has a lightweight update check:
 
 - **Automatic:** once per app start, in the background. A newer version opens a
   dialog with release notes and an “Open download page” action.
-- **Manual:** Settings → About → **Check for updates**.
+- **Manual:** Settings → About and coverage → **Check for updates**.
 
 The check never installs anything and never blocks PDF/notes work. A failed
 check is silent on startup and reported as “unavailable” for a manual check.
 
 ## Endpoint
 
-The default endpoint is the GitHub Releases API:
+The default check tries three endpoints in order:
 
-```text
-https://api.github.com/repos/fkguo/Particle-Library/releases/latest
-```
+1. `https://cdn.jsdelivr.net/gh/fkguo/Particle-Library@main/update.json`
+2. `https://raw.githubusercontent.com/fkguo/Particle-Library/main/update.json`
+3. `https://api.github.com/repos/fkguo/Particle-Library/releases/latest`
 
-While the repository is private, an unauthenticated request returns 404, so no
-update is shown. Once the release repository is public, publishing a GitHub
-Release with a larger tag is enough.
+The static manifest is checked first so the check works where the GitHub API is
+blocked or rate-limited. jsDelivr may cache `@main` for a while; always bump
+`update.json` in the release commit. A tag alone is **not** enough.
+
+Update checks contact jsDelivr, raw.githubusercontent.com and api.github.com;
+they send no telemetry and never auto-install.
 
 For a self-hosted or private channel, pass a manifest URL at build time:
 

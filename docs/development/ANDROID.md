@@ -34,7 +34,7 @@ devices. x86_64 is a local emulator build and is not published.
 gitignored. **Back up both files.** Losing the signing key means future APKs
 cannot update an installed copy.
 
-The generated release key fingerprint is recorded in the release notes. Do not
+Keep the release keystore and passwords backed up. Do not
 commit the keystore or passwords.
 
 ## Snapshot

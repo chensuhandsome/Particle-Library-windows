@@ -775,9 +775,21 @@ class _SidebarNotesSectionState extends State<SidebarNotesSection> {
   }
 }
 
+/// Target string with the PDF annotation id appended when available.
+String noteAnchorTarget(NoteAnchor anchor) {
+  if (anchor.targetKind == NoteTargetKinds.review &&
+      !anchor.targetId.contains('#')) {
+    final annotationId = anchor.context?['annotationId']?.toString().trim();
+    if (annotationId != null && annotationId.isNotEmpty) {
+      return '${anchor.targetId}#$annotationId';
+    }
+  }
+  return anchor.targetId;
+}
+
 /// Opens the PDG target behind a saved note anchor.
 Future<void> openNoteAnchor(BuildContext context, NoteAnchor anchor) async {
-  final opened = await openNoteLinkTarget(context, anchor.targetId);
+  final opened = await openNoteLinkTarget(context, noteAnchorTarget(anchor));
   if (!opened && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(AppScope.of(context).strings.notesLinkMissing)),

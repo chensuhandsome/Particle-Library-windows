@@ -318,6 +318,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final settings = scope.settings;
     final info = scope.database.info;
     final palette = context.palette;
+    final desktopExport = !Platform.isAndroid && !Platform.isIOS;
     return AnimatedBuilder(
       animation: settings,
       builder: (context, _) {
@@ -615,7 +616,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      strings.settingsFullBackupHint,
+                      desktopExport
+                          ? strings.settingsFullBackupHint
+                          : strings.settingsFullBackupHintMobile,
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(color: palette.textSecondary),
                     ),

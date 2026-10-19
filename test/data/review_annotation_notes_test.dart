@@ -102,6 +102,62 @@ void main() {
     expect(loaded.single.color, 'blue');
   });
 
+  test('comment and range edits keep the human review title in body', () async {
+    final annotation = await ReviewAnnotationNotes.create(
+      notes,
+      fileName: 'rpp2026-rev-qcd.pdf',
+      pageNumber: 12,
+      rects: const [Rect.fromLTRB(0.1, 0.1, 0.4, 0.2)],
+      text: 'gluon',
+      color: 'green',
+      reviewTitle: 'Quantum chromodynamics',
+    );
+    await ReviewAnnotationNotes.updateComment(
+      notes,
+      annotation,
+      'searchable comment',
+    );
+    var note = await notes.noteById(annotation.noteId!);
+    expect(note!.bodyMarkdown, contains('Quantum chromodynamics'));
+    expect(note.bodyMarkdown, contains('searchable comment'));
+    await ReviewAnnotationNotes.updateRange(
+      notes,
+      annotation,
+      rects: const [Rect.fromLTRB(0.1, 0.1, 0.5, 0.2)],
+      text: 'gluon exchange',
+    );
+    note = await notes.noteById(annotation.noteId!);
+    expect(note!.title, contains('Quantum chromodynamics'));
+    expect(note.bodyMarkdown, contains('gluon exchange'));
+  });
+
+  test('range adjustment preserves a user-renamed highlight title', () async {
+    final annotation = await ReviewAnnotationNotes.create(
+      notes,
+      fileName: 'review.pdf',
+      pageNumber: 3,
+      rects: const [Rect.fromLTRB(0.1, 0.1, 0.4, 0.2)],
+      text: 'old quote',
+      color: 'yellow',
+      reviewTitle: 'Review',
+    );
+    await notes.update(annotation.noteId!, title: 'My custom title');
+    await ReviewAnnotationNotes.updateRange(
+      notes,
+      annotation,
+      rects: const [Rect.fromLTRB(0.1, 0.1, 0.5, 0.2)],
+      text: 'new quote',
+    );
+    final loaded = await ReviewAnnotationNotes.load(
+      notes,
+      'review.pdf',
+      reviewTitle: 'Review',
+    );
+    expect(loaded.single.text, 'new quote');
+    final note = await notes.noteById(annotation.noteId!);
+    expect(note!.title, 'My custom title');
+  });
+
   test('legacy JSON migrates once and is archived', () async {
     final legacy = ReviewAnnotationStore(File('${dir.path}/annotations.json'));
     await legacy.save([

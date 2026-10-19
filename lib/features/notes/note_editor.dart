@@ -119,7 +119,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     _tagController = TextEditingController(text: _savedTags.join(', '));
     _titleFocus = FocusNode();
     _bodyFocus = FocusNode();
-    _lastSignature = _signature;
+    _lastSignature = _dirtySignature;
     _titleController.addListener(_onChanged);
     _bodyController.addListener(_onChanged);
     _tagController.addListener(_onChanged);
@@ -216,7 +216,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     if (result == null || !mounted) return;
     setState(() {
       _collectionIds = result;
-      _lastSignature = '$_signature\u0000${_collectionIds.toList()..sort()}';
+      _lastSignature = _dirtySignature;
       _stage = _SaveStage.pending;
     });
     await _saveNow();
@@ -308,6 +308,11 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
       '${_titleController.text}\u0000${_bodyController.text}\u0000'
       '${_tagController.text}';
 
+  String get _dirtySignature {
+    final collections = _collectionIds.toList()..sort();
+    return '$_signature\u0000${_anchorSignature()}\u0000${collections.join(',')}';
+  }
+
   bool get _isComposing =>
       _titleController.value.composing.isValid ||
       _bodyController.value.composing.isValid ||
@@ -332,7 +337,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
 
   void _onChanged() {
     if (_disposed || _suppressChange) return;
-    final signature = _signature;
+    final signature = _dirtySignature;
     if (signature == _lastSignature) return;
     _lastSignature = signature;
     _autosaveTimer?.cancel();
@@ -511,7 +516,8 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
             _sameStringSets(
               collectionIds.toSet(),
               existing.collections.map((collection) => collection.id).toSet(),
-            )) {
+            ) &&
+            _anchorSignature() == _savedAnchorSignature) {
           return;
         }
         if (existing == null) {

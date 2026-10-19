@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../data/pdg_database.dart';
 import '../domain/labels.dart';
 import '../domain/models.dart';
+import '../domain/reference_title.dart';
 import '../notes/notes.dart';
 import 'name_syntax.dart';
 
@@ -635,7 +636,7 @@ class SearchService {
         for (final ref in refs)
           SearchHit(
             kind: SearchGroupKind.reference,
-            title: ref.displayTitle,
+            title: cleanReferenceTitle(ref.displayTitle),
             subtitle: [
               ref.documentId,
               if (ref.publicationYear != null) '${ref.publicationYear}',
