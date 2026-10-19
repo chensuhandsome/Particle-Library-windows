@@ -6,6 +6,12 @@ Particle Library has a lightweight update check:
   dialog with release notes and an “Open download page” action.
 - **Manual:** Settings → About and coverage → **Check for updates**.
 
+On **iOS App Store builds**, no GitHub endpoint is contacted. Settings reports
+that updates are delivered by the App Store, and an “Open the App Store” action
+is shown when the build was compiled with
+`--dart-define=APP_STORE_APP_ID=<numeric Apple ID>`. This keeps the iOS binary
+within App Store update rules.
+
 The check never installs anything and never blocks PDF/notes work. A failed
 check is silent on startup and reported as “unavailable” for a manual check.
 

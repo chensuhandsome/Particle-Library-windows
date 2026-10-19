@@ -1022,6 +1022,11 @@ class AppStrings {
     'INSPIRE is an external literature service; this app is not affiliated with INSPIRE or CERN.',
   );
   String get settingsCheckUpdates => _t('检查更新', 'Check for updates');
+  String get settingsUpdateAppStore => _t(
+    'iOS 版本通过 App Store 更新。',
+    'Updates for iOS are delivered by the App Store.',
+  );
+  String get settingsOpenAppStore => _t('打开 App Store', 'Open the App Store');
   String get settingsCheckingUpdates => _t('正在检查更新…', 'Checking for updates…');
   String get settingsUpdateCurrent => _t('已是最新版本。', 'You are up to date.');
   String get settingsUpdateUnavailable => _t(

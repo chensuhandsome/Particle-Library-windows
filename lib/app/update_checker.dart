@@ -18,6 +18,11 @@ const String appVersion = '0.1.2';
 /// rather than crashing. Pass
 /// `--dart-define=UPDATE_MANIFEST_URL=https://.../latest.json` to test another
 /// endpoint.
+/// App Store product ID. Set at build time for the iOS App Store build, e.g.
+/// `--dart-define=APP_STORE_APP_ID=1234567890`. No GitHub update endpoint is
+/// contacted on iOS.
+const String appStoreAppId = String.fromEnvironment('APP_STORE_APP_ID');
+
 const String updateManifestUrl = String.fromEnvironment(
   'UPDATE_MANIFEST_URL',
   defaultValue:
@@ -44,8 +49,17 @@ class UpdateCheckException implements Exception {
 class UpdateChecker {
   UpdateChecker._();
 
+  /// iOS updates are delivered by the App Store; the app must not direct users
+  /// to download an IPA from GitHub.
+  static bool get isAppStoreManaged => Platform.isIOS;
+
+  static String? get appStoreUrl => appStoreAppId.trim().isEmpty
+      ? null
+      : 'https://apps.apple.com/app/id${appStoreAppId.trim()}';
+
   static bool get isConfigured =>
-      Uri.tryParse(updateManifestUrl)?.hasScheme ?? false;
+      !isAppStoreManaged &&
+      (Uri.tryParse(updateManifestUrl)?.hasScheme ?? false);
 
   /// Returns a newer release, or null when the app is current.
   ///
@@ -58,6 +72,11 @@ class UpdateChecker {
     Uri? endpoint,
     Duration timeout = const Duration(seconds: 8),
   }) async {
+    if (isAppStoreManaged) {
+      throw const UpdateCheckException(
+        'Updates for iOS are delivered by the App Store.',
+      );
+    }
     if (endpoint != null) return _checkOne(endpoint, timeout);
     final override = const String.fromEnvironment('UPDATE_MANIFEST_URL');
     final endpoints = override.isNotEmpty

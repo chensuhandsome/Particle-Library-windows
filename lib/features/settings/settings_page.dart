@@ -140,9 +140,19 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _openAppStore() async {
+    final url = UpdateChecker.appStoreUrl;
+    if (url == null) return;
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
   Future<void> _checkUpdates() async {
     if (_checkingUpdate) return;
     final strings = AppScope.of(context).strings;
+    if (UpdateChecker.isAppStoreManaged) {
+      setState(() => _updateStatus = strings.settingsUpdateAppStore);
+      return;
+    }
     setState(() {
       _checkingUpdate = true;
       _updateStatus = strings.settingsCheckingUpdates;
@@ -968,6 +978,15 @@ class _SettingsPageState extends State<SettingsPage> {
                         _updateStatus!,
                         style: Theme.of(context).textTheme.bodySmall
                             ?.copyWith(color: palette.textSecondary),
+                      ),
+                    ],
+                    if (UpdateChecker.isAppStoreManaged &&
+                        UpdateChecker.appStoreUrl != null) ...[
+                      const SizedBox(height: 4),
+                      TextButton.icon(
+                        onPressed: _openAppStore,
+                        icon: const Icon(Icons.open_in_new, size: 16),
+                        label: Text(strings.settingsOpenAppStore),
                       ),
                     ],
                     const SizedBox(height: Insets.s),
