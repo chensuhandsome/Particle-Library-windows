@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 
 /// Quiet academic palette from the design (§7). Colour is never the sole
@@ -82,22 +83,21 @@ class AppPalette extends ThemeExtension<AppPalette> {
     Color? divider,
     Color? controlBorder,
     Color? measurementSurface,
-  }) =>
-      AppPalette(
-        background: background ?? this.background,
-        surface: surface ?? this.surface,
-        surfaceAlt: surfaceAlt ?? this.surfaceAlt,
-        textPrimary: textPrimary ?? this.textPrimary,
-        textSecondary: textSecondary ?? this.textSecondary,
-        primary: primary ?? this.primary,
-        onPrimary: onPrimary ?? this.onPrimary,
-        accent: accent ?? this.accent,
-        warning: warning ?? this.warning,
-        error: error ?? this.error,
-        divider: divider ?? this.divider,
-        controlBorder: controlBorder ?? this.controlBorder,
-        measurementSurface: measurementSurface ?? this.measurementSurface,
-      );
+  }) => AppPalette(
+    background: background ?? this.background,
+    surface: surface ?? this.surface,
+    surfaceAlt: surfaceAlt ?? this.surfaceAlt,
+    textPrimary: textPrimary ?? this.textPrimary,
+    textSecondary: textSecondary ?? this.textSecondary,
+    primary: primary ?? this.primary,
+    onPrimary: onPrimary ?? this.onPrimary,
+    accent: accent ?? this.accent,
+    warning: warning ?? this.warning,
+    error: error ?? this.error,
+    divider: divider ?? this.divider,
+    controlBorder: controlBorder ?? this.controlBorder,
+    measurementSurface: measurementSurface ?? this.measurementSurface,
+  );
 
   @override
   AppPalette lerp(ThemeExtension<AppPalette>? other, double t) {
@@ -133,9 +133,13 @@ class AppTheme {
       onPrimary: palette.onPrimary,
       secondary: palette.accent,
       onSecondary: palette.onPrimary,
-      secondaryContainer: isDark ? const Color(0xFF243C58) : const Color(0xFFE3EDFF),
+      secondaryContainer: isDark
+          ? const Color(0xFF243C58)
+          : const Color(0xFFE3EDFF),
       onSecondaryContainer: palette.textPrimary,
-      primaryContainer: isDark ? const Color(0xFF1F3A5C) : const Color(0xFFDCE9FF),
+      primaryContainer: isDark
+          ? const Color(0xFF1F3A5C)
+          : const Color(0xFFDCE9FF),
       onPrimaryContainer: palette.textPrimary,
       tertiary: palette.accent,
       onTertiary: palette.onPrimary,
@@ -154,7 +158,7 @@ class AppTheme {
       inversePrimary: palette.primary,
     );
 
-    final baseText = Typography.material2021(platform: TargetPlatform.macOS)
+    final baseText = Typography.material2021(platform: defaultTargetPlatform)
         .black
         .apply(
           bodyColor: palette.textPrimary,
@@ -162,9 +166,18 @@ class AppTheme {
         );
     final textTheme = baseText.copyWith(
       displaySmall: baseText.displaySmall?.copyWith(fontSize: 32, height: 1.15),
-      headlineLarge: baseText.headlineLarge?.copyWith(fontSize: 28, height: 1.18),
-      headlineMedium: baseText.headlineMedium?.copyWith(fontSize: 24, height: 1.2),
-      headlineSmall: baseText.headlineSmall?.copyWith(fontSize: 20, height: 1.25),
+      headlineLarge: baseText.headlineLarge?.copyWith(
+        fontSize: 28,
+        height: 1.18,
+      ),
+      headlineMedium: baseText.headlineMedium?.copyWith(
+        fontSize: 24,
+        height: 1.2,
+      ),
+      headlineSmall: baseText.headlineSmall?.copyWith(
+        fontSize: 20,
+        height: 1.25,
+      ),
       titleLarge: baseText.titleLarge?.copyWith(fontSize: 19, height: 1.3),
       titleMedium: baseText.titleMedium?.copyWith(fontSize: 16, height: 1.35),
       titleSmall: baseText.titleSmall?.copyWith(fontSize: 14, height: 1.35),
@@ -219,9 +232,14 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: palette.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         hintStyle: textTheme.bodyMedium?.copyWith(color: palette.textSecondary),
-        labelStyle: textTheme.bodyMedium?.copyWith(color: palette.textSecondary),
+        labelStyle: textTheme.bodyMedium?.copyWith(
+          color: palette.textSecondary,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: palette.controlBorder),
@@ -252,8 +270,9 @@ class AppTheme {
         side: BorderSide(color: palette.divider),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         labelStyle: textTheme.labelMedium?.copyWith(color: palette.textPrimary),
-        secondaryLabelStyle:
-            textTheme.labelMedium?.copyWith(color: palette.textPrimary),
+        secondaryLabelStyle: textTheme.labelMedium?.copyWith(
+          color: palette.textPrimary,
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         showCheckmark: false,
       ),
@@ -262,8 +281,12 @@ class AppTheme {
           backgroundColor: palette.primary,
           foregroundColor: palette.onPrimary,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          textStyle: textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -271,7 +294,9 @@ class AppTheme {
           foregroundColor: palette.primary,
           side: BorderSide(color: palette.controlBorder),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           textStyle: textTheme.labelLarge,
         ),
       ),
@@ -325,7 +350,9 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: palette.textPrimary,
-        contentTextStyle: textTheme.bodyMedium?.copyWith(color: palette.surface),
+        contentTextStyle: textTheme.bodyMedium?.copyWith(
+          color: palette.surface,
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -333,18 +360,22 @@ class AppTheme {
         thickness: const WidgetStatePropertyAll(6),
         radius: const Radius.circular(3),
         thumbColor: WidgetStatePropertyAll(
-            palette.textSecondary.withValues(alpha: 0.35)),
+          palette.textSecondary.withValues(alpha: 0.35),
+        ),
       ),
     );
   }
 
-  static TextStyle numeric(TextStyle? base, {double? size, FontWeight? weight}) =>
-      (base ?? const TextStyle()).copyWith(
-        fontSize: size ?? base?.fontSize,
-        fontWeight: weight ?? FontWeight.w600,
-        fontFeatures: const [FontFeature.tabularFigures()],
-        letterSpacing: 0.1,
-      );
+  static TextStyle numeric(
+    TextStyle? base, {
+    double? size,
+    FontWeight? weight,
+  }) => (base ?? const TextStyle()).copyWith(
+    fontSize: size ?? base?.fontSize,
+    fontWeight: weight ?? FontWeight.w600,
+    fontFeatures: const [FontFeature.tabularFigures()],
+    letterSpacing: 0.1,
+  );
 }
 
 extension PaletteContext on BuildContext {

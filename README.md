@@ -72,6 +72,7 @@ English UI, PDG 2026 snapshot, dark desktop theme and light iPhone theme.
 
 - macOS 12 or later (universal; verified on macOS 15.6 Apple Silicon).
 - iOS/iPadOS 15 or later.
+- Android 7.0+ (API 24) for the preview APK.
 
 A released build bundles the PDG snapshot. Building from source additionally
 requires Flutter/Xcode and the snapshot; those are **contributor** requirements,
@@ -93,8 +94,10 @@ The first public preview is **[Release 0.1.0](https://github.com/fkguo/Particle-
 - **iPhone/iPad**: there is no public IPA or TestFlight build yet. Building and
   development-signed installation from source are verified; public distribution
   needs a paid Apple Developer team.
-- **Android/Windows/Linux/web**: not built for 0.1.0. The repository does not
-  yet contain Android or desktop platform scaffolding beyond macOS.
+- **Android 7.0+ (API 24)**: signed preview APKs are provided in the release:
+  use `arm64-v8a` on modern phones, `armeabi-v7a` on older 32-bit devices, and
+  `x86_64` for emulators. See [Android build notes](docs/development/ANDROID.md).
+- **Windows/Linux/web**: not built for 0.1.0.
 
 The macOS app bundles the PDG snapshot, so end users do not need Flutter, Xcode,
 or the repository. Source builders download
@@ -102,9 +105,8 @@ or the repository. Source builders download
 directly from the [official PDG API page](https://pdg.lbl.gov/2026/api/index.html);
 it is not a release asset.
 
-Known packaging limitation: this build still uses the development bundle
-identifier `com.example.pdgapp`; a later release will switch to a controlled
-reverse-DNS identifier. See [RELEASING.md](docs/development/RELEASING.md).
+The app uses `io.github.fkguo.particlelibrary` as its bundle identifier.
+See [RELEASING.md](docs/development/RELEASING.md).
 
 ## Build from source
 

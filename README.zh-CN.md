@@ -46,7 +46,8 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 ## 环境要求
 
 - macOS 12 或更高版本（通用二进制；已在 macOS 15.6 Apple Silicon 验证）；
-- iOS/iPadOS 15 或更高版本。
+- iOS/iPadOS 15 或更高版本；
+- Android 7.0+（API 24）预览版 APK。
 
 正式发布包会内置 PDG 快照。只有从源码构建才额外需要 Flutter/Xcode 和快照文件；这些是**贡献者**要求，见 [BUILDING.md](docs/development/BUILDING.md)。
 
@@ -65,15 +66,17 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
   `SHA256SUMS.txt`。
 - **iPhone/iPad**：暂时没有公开 IPA 或 TestFlight 安装包。源码构建和开发签名安装
   已验证；公开分发需要付费 Apple Developer Team。
-- **Android/Windows/Linux/web**：0.1.0 未构建；仓库目前只有 iOS/macOS 平台脚手架，
-  还没有 Android 或桌面平台工程。
+- **Android 7.0+（API 24）**：Release 中提供已签名预览 APK；现代手机用
+  `arm64-v8a`，旧 32 位设备用 `armeabi-v7a`，模拟器用 `x86_64`。详见
+  [Android 构建说明](docs/development/ANDROID.md)。
+- **Windows/Linux/web**：0.1.0 未构建。
 
 macOS 版已内置 PDG 快照，普通用户不需要 Flutter、Xcode 或源码。源码构建者可直接下载
 [`pdgall-2026.0.sqlite`](https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite)（
 [PDG 官方 API 页面](https://pdg.lbl.gov/2026/api/index.html)），该文件不再作为 Release asset。
 
-打包限制：本版仍使用开发用 Bundle ID `com.example.pdgapp`，后续版本会换成可控的
-反向域名标识。详见 [RELEASING.md](docs/development/RELEASING.md)。
+应用 Bundle ID 为 `io.github.fkguo.particlelibrary`。详见
+[RELEASING.md](docs/development/RELEASING.md)。
 
 ## 从源码构建
 

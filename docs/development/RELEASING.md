@@ -2,12 +2,8 @@
 
 ## Bundle identifier
 
-The repository currently uses the placeholder `com.example.pdgapp`.
-Before a public binary, choose a reverse-DNS ID you control, for example:
-
-```text
-com.fkguo.particlelibrary
-```
+The app uses the reverse-DNS identifier
+`io.github.fkguo.particlelibrary`, based on the GitHub Pages namespace.
 
 Update it consistently in:
 

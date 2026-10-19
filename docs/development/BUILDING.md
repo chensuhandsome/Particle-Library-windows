@@ -55,7 +55,7 @@ ditto "build/macos/Build/Products/Release/Particle Library.app" \
       "dist/Particle Library.app"
 ```
 
-The internal bundle id is `com.example.pdgapp`. Keep it stable to preserve the
+The bundle id is `io.github.fkguo.particlelibrary`. Keep it stable to preserve the
 existing local data container, or change it before distribution.
 
 ## iPhone / iPad
