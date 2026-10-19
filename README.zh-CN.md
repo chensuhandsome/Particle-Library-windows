@@ -6,7 +6,7 @@
 
 [English](README.md) | **简体中文**
 
-Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览器，面向高能物理及相关领域的科研使用。PDG 数据快照保持只读且保存在本机，笔记、收藏、标签和 PDF 批注与数据分开存储。
+Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review of Particle Physics*，支持笔记、文献、PDF 综述和批注。PDG 数据快照保持只读且保存在本机，笔记、收藏、标签和 PDF 批注与数据分开存储。
 
 在周末使用 **DeepSeek Harness** 与 **DeepSeek-V4.1-Flash-1017** 构建。
 

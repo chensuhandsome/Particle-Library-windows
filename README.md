@@ -6,10 +6,10 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-Particle Library is a desktop and mobile browser for the **Particle Data Group
-(PDG)** review of particle physics. It is built for offline scientific use: the
-PDG snapshot stays read-only and local, while notes, collections, favorites and
-PDF annotations are stored separately from the data.
+Particle Library is an offline app for the Particle Data Group Review of
+Particle Physics, with notes, references, PDF reviews and annotations. The PDG
+snapshot stays read-only and local, while notes, collections, favorites and PDF
+annotations are stored separately from the data.
 
 Built over a weekend using **DeepSeek Harness** and
 **DeepSeek-V4.1-Flash-1017**.
