@@ -74,8 +74,21 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
 
 - **macOS 12+（通用二进制）**：下载 Release 中的
   `Particle-Library-0.1.2-macOS-universal.dmg`（或 `.zip`）。当前为 ad-hoc
-  签名、未公证；首次打开请 **右键 → 打开**，或在 **系统设置 → 隐私与安全性**
-  中允许。运行前请核对 `SHA256SUMS.txt`。
+  签名、未公证；运行前请核对 `SHA256SUMS.txt`。
+
+  **首次打开被 macOS 拦截时**，任选一种：
+
+  ```text
+  右键点击 App → 打开 → 仍要打开
+  ```
+
+  或：
+
+  ```text
+  系统设置 → 隐私与安全性 → 仍要打开
+  ```
+
+  这是因为应用未经过 Apple 公证，属于预期提示。不要全局关闭 Gatekeeper。
 - **iPhone/iPad**：暂时没有公开 IPA 或 TestFlight 安装包。源码构建和开发签名安装
   已验证；公开分发需要付费 Apple Developer Team。
 - **Android 7.0+（API 24）**：Release 中提供已签名预览 APK；现代手机用

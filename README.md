@@ -104,8 +104,22 @@ The first public preview is **[Release 0.1.2](https://github.com/fkguo/Particle-
 
 - **macOS 12+ (universal)**: download
   `Particle-Library-0.1.2-macOS-universal.dmg` (or the `.zip`). It is ad-hoc
-  signed, not notarized. On first launch use **right-click → Open**, or approve
-  it in **System Settings → Privacy & Security**. Verify `SHA256SUMS.txt` first.
+  signed, not notarized. Verify `SHA256SUMS.txt` first.
+
+  **If macOS blocks the first launch** (Gatekeeper), use one of these:
+
+  ```text
+  Right-click the app → Open → Open
+  ```
+
+  or:
+
+  ```text
+  System Settings → Privacy & Security → Open Anyway
+  ```
+
+  The app is not notarized, so this prompt is expected. Do not disable
+  Gatekeeper globally.
 - **iPhone/iPad**: there is no public IPA or TestFlight build yet. Building and
   development-signed installation from source are verified; public distribution
   needs a paid Apple Developer team.
