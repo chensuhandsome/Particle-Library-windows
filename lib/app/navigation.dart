@@ -3,6 +3,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../features/entry/entry_route_page.dart';
 import '../features/reference/reference_page.dart';
+import 'immersive_page.dart';
 
 /// Key of the Search tab's navigator. Kept as a string so HomePage can
 /// register its detail navigator without importing AppShell (and creating an
@@ -40,13 +41,16 @@ class NavigationController extends NavigatorObserver with ChangeNotifier {
   }
 
   bool get canGoBack => _entries.length > 1 || _rootBack != null;
+
+  /// Whether the route currently on top of this stack is an [ImmersivePage].
+  bool get topIsImmersive => _entries.length > 1 && _entries.last.immersive;
   bool get canGoForward => _forward.isNotEmpty;
   bool get hasHistory => canGoBack || canGoForward;
 
   Future<T?> push<T>(Widget page) {
     final navigator = navigatorKey.currentState;
     if (navigator == null) return Future<T?>.value();
-    final entry = _NavEntry((_) => page);
+    final entry = _NavEntry((_) => page, immersive: page is ImmersivePage);
     final route = MaterialPageRoute<T>(builder: entry.builder!);
     entry.route = route;
     _entries.add(entry);
@@ -156,10 +160,11 @@ class NavigationController extends NavigatorObserver with ChangeNotifier {
 }
 
 class _NavEntry {
-  _NavEntry(this.builder, {this.route});
+  _NavEntry(this.builder, {this.route, this.immersive = false});
 
   final WidgetBuilder? builder;
   Route<dynamic>? route;
+  final bool immersive;
 }
 
 /// Which navigator the persistent top bar controls.
@@ -226,6 +231,14 @@ class NavigationHub extends ChangeNotifier {
     }
     return null;
   }
+
+  /// The controller whose top route is visibly on top: a page above the tab
+  /// root wins, otherwise the Search split-view detail pane.
+  NavigationController? get topController =>
+      backController ?? activeTabController ?? activeDetailController;
+
+  /// Whether the active tab's visible top route is an immersive page.
+  bool get chromeHidden => topController?.topIsImmersive ?? false;
 
   bool get canGoBack => backController != null;
   bool get canGoForward => forwardController != null;

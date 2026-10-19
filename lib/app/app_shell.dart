@@ -264,240 +264,269 @@ class _AppShellState extends State<AppShell> {
             // the compact bar a little earlier than the old tab-only layout.
             final compact =
                 constraints.maxWidth < 1080 * textScale.clamp(1.0, 1.3);
-            return SelectionArea(
-              child: Scaffold(
-                backgroundColor: palette.background,
-                body: Column(
-                  children: [
-                    Material(
-                      color: palette.surface,
-                      child: SafeArea(
-                        bottom: false,
-                        child: Container(
-                          height: compact ? 58 : 64,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: compact ? 12 : 20,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(color: palette.divider),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              const BrandMark(size: 28),
-                              const SizedBox(width: 10),
-                              Flexible(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+            return AnimatedBuilder(
+              animation: _navHub,
+              builder: (context, _) {
+                final hideChrome = compact && _navHub.chromeHidden;
+                return SelectionArea(
+                  child: Scaffold(
+                    backgroundColor: palette.background,
+                    body: Column(
+                      children: [
+                        Offstage(
+                          offstage: hideChrome,
+                          child: Material(
+                            color: palette.surface,
+                            child: SafeArea(
+                              bottom: false,
+                              child: Container(
+                                height: compact ? 58 : 64,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: compact ? 12 : 20,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(color: palette.divider),
+                                  ),
+                                ),
+                                child: Row(
                                   children: [
-                                    Text(
-                                      strings.appName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textScaler: MediaQuery.textScalerOf(
-                                        context,
-                                      ).clamp(maxScaleFactor: 1.3),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: -0.2,
+                                    const BrandMark(size: 28),
+                                    const SizedBox(width: 10),
+                                    Flexible(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            strings.appName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            textScaler: MediaQuery.textScalerOf(
+                                              context,
+                                            ).clamp(maxScaleFactor: 1.3),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                  letterSpacing: -0.2,
+                                                ),
                                           ),
-                                    ),
-                                    if (!compact)
-                                      Text(
-                                        strings.appTagline,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textScaler: MediaQuery.textScalerOf(
-                                          context,
-                                        ).clamp(maxScaleFactor: 1.3),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: palette.textSecondary,
-                                              fontSize: 11.5,
+                                          if (!compact)
+                                            Text(
+                                              strings.appTagline,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              textScaler:
+                                                  MediaQuery.textScalerOf(
+                                                    context,
+                                                  ).clamp(maxScaleFactor: 1.3),
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color:
+                                                        palette.textSecondary,
+                                                    fontSize: 11.5,
+                                                  ),
                                             ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: Insets.m),
+                                    if (compact)
+                                      _NavigationHistoryButtons(
+                                        hub: _navHub,
+                                        strings: strings,
+                                      ),
+                                    if (!compact)
+                                      IconButton(
+                                        tooltip: strings.navHome,
+                                        icon: const Icon(
+                                          Icons.home_outlined,
+                                          size: 20,
+                                        ),
+                                        onPressed: _goHome,
+                                      ),
+                                    if (!compact)
+                                      _NavigationHistoryButtons(
+                                        hub: _navHub,
+                                        strings: strings,
+                                      ),
+                                    if (!compact) ...[
+                                      const SizedBox(width: Insets.xxl),
+                                      for (final spec in specs)
+                                        _TopTab(
+                                          label: spec.label,
+                                          icon: spec.selectedIcon,
+                                          selected: _index == spec.tab.index,
+                                          onTap: () => _select(spec.tab.index),
+                                        ),
+                                    ],
+                                    const Spacer(),
+                                    if (!compact) ...[
+                                      IconButton(
+                                        tooltip: strings.catalogTitle,
+                                        icon: const Icon(
+                                          Icons.account_tree_outlined,
+                                          size: 19,
+                                        ),
+                                        onPressed: () =>
+                                            _openPage(const CatalogPage()),
+                                      ),
+                                      IconButton(
+                                        tooltip: strings.inspireSearchAction,
+                                        onPressed: () => _openPage(
+                                          const InspireSearchPage(),
+                                        ),
+                                        icon: SvgPicture.asset(
+                                          'assets/brand/inspire.svg',
+                                          width: 19,
+                                          height: 19,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: strings.reviewsTitle,
+                                        icon: const Icon(
+                                          Icons.menu_book_outlined,
+                                          size: 19,
+                                        ),
+                                        onPressed: () =>
+                                            _openPage(const ReviewsPage()),
+                                      ),
+                                      IconButton(
+                                        tooltip: strings.settingsHelp,
+                                        icon: const Icon(
+                                          Icons.help_outline,
+                                          size: 19,
+                                        ),
+                                        onPressed: () =>
+                                            _openPage(const HelpPage()),
+                                      ),
+                                      IconButton(
+                                        tooltip: strings.navSettings,
+                                        icon: const Icon(Icons.tune, size: 19),
+                                        onPressed: () =>
+                                            _select(AppTab.settings.index),
+                                      ),
+                                      MetaChip(
+                                        'PDG ${scope.database.currentEdition}',
+                                        icon: Icons.data_object,
+                                        tone: BadgeTone.accent,
+                                        tooltip: strings.offlineLabel,
+                                      ),
+                                    ] else
+                                      PopupMenuButton<_CompactTopAction>(
+                                        tooltip: strings.moreActions,
+                                        onSelected: (action) {
+                                          switch (action) {
+                                            case _CompactTopAction.catalog:
+                                              _openPage(const CatalogPage());
+                                            case _CompactTopAction.inspire:
+                                              _openPage(
+                                                const InspireSearchPage(),
+                                              );
+                                            case _CompactTopAction.reviews:
+                                              _openPage(const ReviewsPage());
+                                            case _CompactTopAction.help:
+                                              _openPage(const HelpPage());
+                                            case _CompactTopAction.settings:
+                                              _showSettings();
+                                          }
+                                        },
+                                        itemBuilder: (context) => [
+                                          PopupMenuItem(
+                                            value: _CompactTopAction.catalog,
+                                            child: Text(strings.catalogTitle),
+                                          ),
+                                          PopupMenuItem(
+                                            value: _CompactTopAction.inspire,
+                                            child: Text(
+                                              strings.inspireSearchAction,
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: _CompactTopAction.reviews,
+                                            child: Text(strings.reviewsTitle),
+                                          ),
+                                          PopupMenuItem(
+                                            value: _CompactTopAction.help,
+                                            child: Text(strings.settingsHelp),
+                                          ),
+                                          PopupMenuItem(
+                                            value: _CompactTopAction.settings,
+                                            child: Text(strings.navSettings),
+                                          ),
+                                        ],
+                                        icon: const Icon(
+                                          Icons.more_vert,
+                                          size: 20,
+                                        ),
                                       ),
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: Insets.m),
-                              if (compact)
-                                _NavigationHistoryButtons(
-                                  hub: _navHub,
-                                  strings: strings,
-                                ),
-                              if (!compact)
-                                IconButton(
-                                  tooltip: strings.navHome,
-                                  icon: const Icon(
-                                    Icons.home_outlined,
-                                    size: 20,
-                                  ),
-                                  onPressed: _goHome,
-                                ),
-                              if (!compact)
-                                _NavigationHistoryButtons(
-                                  hub: _navHub,
-                                  strings: strings,
-                                ),
-                              if (!compact) ...[
-                                const SizedBox(width: Insets.xxl),
-                                for (final spec in specs)
-                                  _TopTab(
-                                    label: spec.label,
-                                    icon: spec.selectedIcon,
-                                    selected: _index == spec.tab.index,
-                                    onTap: () => _select(spec.tab.index),
-                                  ),
-                              ],
-                              const Spacer(),
-                              if (!compact) ...[
-                                IconButton(
-                                  tooltip: strings.catalogTitle,
-                                  icon: const Icon(
-                                    Icons.account_tree_outlined,
-                                    size: 19,
-                                  ),
-                                  onPressed: () =>
-                                      _openPage(const CatalogPage()),
-                                ),
-                                IconButton(
-                                  tooltip: strings.inspireSearchAction,
-                                  onPressed: () =>
-                                      _openPage(const InspireSearchPage()),
-                                  icon: SvgPicture.asset(
-                                    'assets/brand/inspire.svg',
-                                    width: 19,
-                                    height: 19,
-                                  ),
-                                ),
-                                IconButton(
-                                  tooltip: strings.reviewsTitle,
-                                  icon: const Icon(
-                                    Icons.menu_book_outlined,
-                                    size: 19,
-                                  ),
-                                  onPressed: () =>
-                                      _openPage(const ReviewsPage()),
-                                ),
-                                IconButton(
-                                  tooltip: strings.settingsHelp,
-                                  icon: const Icon(
-                                    Icons.help_outline,
-                                    size: 19,
-                                  ),
-                                  onPressed: () => _openPage(const HelpPage()),
-                                ),
-                                IconButton(
-                                  tooltip: strings.navSettings,
-                                  icon: const Icon(Icons.tune, size: 19),
-                                  onPressed: () =>
-                                      _select(AppTab.settings.index),
-                                ),
-                                MetaChip(
-                                  'PDG ${scope.database.currentEdition}',
-                                  icon: Icons.data_object,
-                                  tone: BadgeTone.accent,
-                                  tooltip: strings.offlineLabel,
-                                ),
-                              ] else
-                                PopupMenuButton<_CompactTopAction>(
-                                  tooltip: strings.moreActions,
-                                  onSelected: (action) {
-                                    switch (action) {
-                                      case _CompactTopAction.catalog:
-                                        _openPage(const CatalogPage());
-                                      case _CompactTopAction.inspire:
-                                        _openPage(const InspireSearchPage());
-                                      case _CompactTopAction.reviews:
-                                        _openPage(const ReviewsPage());
-                                      case _CompactTopAction.help:
-                                        _openPage(const HelpPage());
-                                      case _CompactTopAction.settings:
-                                        _showSettings();
-                                    }
-                                  },
-                                  itemBuilder: (context) => [
-                                    PopupMenuItem(
-                                      value: _CompactTopAction.catalog,
-                                      child: Text(strings.catalogTitle),
-                                    ),
-                                    PopupMenuItem(
-                                      value: _CompactTopAction.inspire,
-                                      child: Text(strings.inspireSearchAction),
-                                    ),
-                                    PopupMenuItem(
-                                      value: _CompactTopAction.reviews,
-                                      child: Text(strings.reviewsTitle),
-                                    ),
-                                    PopupMenuItem(
-                                      value: _CompactTopAction.help,
-                                      child: Text(strings.settingsHelp),
-                                    ),
-                                    PopupMenuItem(
-                                      value: _CompactTopAction.settings,
-                                      child: Text(strings.navSettings),
-                                    ),
-                                  ],
-                                  icon: const Icon(Icons.more_vert, size: 20),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: SafeArea(
-                        top: false,
-                        bottom: false,
-                        child: ActiveTabScope(
-                          activeTabKey: AppTab.values[_index].name,
-                          child: IndexedStack(
-                            index: _index,
-                            children: <Widget>[
-                              for (final tab in AppTab.values)
-                                if (_built[tab.index])
-                                  _TabNavigator(
-                                    controller: _navHub.tabController(
-                                      tab.name,
-                                    )!,
-                                    active: _index == tab.index,
-                                  )
-                                else
-                                  const SizedBox.shrink(),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (compact)
-                      NavigationBar(
-                        selectedIndex: _index,
-                        onDestinationSelected: _select,
-                        destinations: <NavigationDestination>[
-                          for (final spec in specs)
-                            NavigationDestination(
-                              icon: Icon(spec.icon),
-                              selectedIcon: Icon(spec.selectedIcon),
-                              label: spec.label,
                             ),
-                          NavigationDestination(
-                            icon: const Icon(Icons.tune),
-                            selectedIcon: const Icon(Icons.tune),
-                            label: strings.navSettings,
                           ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
+                        ),
+                        Expanded(
+                          child: SafeArea(
+                            top: false,
+                            bottom: false,
+                            child: MediaQuery.removePadding(
+                              context: context,
+                              removeTop: !hideChrome,
+                              child: ActiveTabScope(
+                                activeTabKey: AppTab.values[_index].name,
+                                child: IndexedStack(
+                                  index: _index,
+                                  children: <Widget>[
+                                    for (final tab in AppTab.values)
+                                      if (_built[tab.index])
+                                        _TabNavigator(
+                                          controller: _navHub.tabController(
+                                            tab.name,
+                                          )!,
+                                          active: _index == tab.index,
+                                        )
+                                      else
+                                        const SizedBox.shrink(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (compact)
+                          Offstage(
+                            offstage: hideChrome,
+                            child: NavigationBar(
+                              selectedIndex: _index,
+                              onDestinationSelected: _select,
+                              destinations: <NavigationDestination>[
+                                for (final spec in specs)
+                                  NavigationDestination(
+                                    icon: Icon(spec.icon),
+                                    selectedIcon: Icon(spec.selectedIcon),
+                                    label: spec.label,
+                                  ),
+                                NavigationDestination(
+                                  icon: const Icon(Icons.tune),
+                                  selectedIcon: const Icon(Icons.tune),
+                                  label: strings.navSettings,
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             );
           },
         ),

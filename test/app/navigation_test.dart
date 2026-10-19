@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pdgapp/app/immersive_page.dart';
 import 'package:pdgapp/app/navigation.dart';
 
 Widget _navigator(NavigationController controller) {
@@ -14,6 +15,13 @@ Widget _navigator(NavigationController controller) {
       ),
     ),
   );
+}
+
+class _ImmersivePage extends StatelessWidget implements ImmersivePage {
+  const _ImmersivePage();
+
+  @override
+  Widget build(BuildContext context) => const Text('immersive');
 }
 
 void main() {
@@ -202,5 +210,95 @@ void main() {
     controller.rootBack = null;
     await tester.pump();
     expect(controller.canGoBack, isFalse);
+  });
+
+  testWidgets('a tab page above a detail PDF restores chrome', (tester) async {
+    final hub = NavigationHub();
+    final tab = NavigationController(
+      hub: hub,
+      rootBuilder: (_) => const Text('tab-root'),
+    );
+    final detail = NavigationController(
+      hub: hub,
+      rootBuilder: (_) => const Text('detail-root'),
+    );
+    hub.registerTab('search', tab);
+    hub.registerDetail('search', detail);
+    addTearDown(() {
+      tab.dispose();
+      detail.dispose();
+      hub.dispose();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            Expanded(child: _navigator(tab)),
+            Expanded(child: _navigator(detail)),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    detail.push<void>(const _ImmersivePage());
+    await tester.pumpAndSettle();
+    expect(hub.chromeHidden, isTrue);
+
+    tab.push<void>(const Text('note editor'));
+    await tester.pumpAndSettle();
+    expect(hub.chromeHidden, isFalse);
+
+    tab.back();
+    await tester.pumpAndSettle();
+    expect(hub.chromeHidden, isTrue);
+  });
+
+  testWidgets('immersive chrome follows the top route, not page lifetime', (
+    tester,
+  ) async {
+    final hub = NavigationHub();
+    final controller = NavigationController(
+      hub: hub,
+      rootBuilder: (_) => const Text('root'),
+    );
+    hub.registerTab('search', controller);
+    addTearDown(() {
+      controller.dispose();
+      hub.dispose();
+    });
+
+    await tester.pumpWidget(MaterialApp(home: _navigator(controller)));
+    expect(controller.topIsImmersive, isFalse);
+    expect(hub.chromeHidden, isFalse);
+
+    controller.push<void>(const _ImmersivePage());
+    await tester.pumpAndSettle();
+    expect(controller.topIsImmersive, isTrue);
+    expect(hub.chromeHidden, isTrue);
+    expect(tester.takeException(), isNull);
+
+    // A normal page above the PDF restores the global bar (and its back
+    // button), even though the PDF remains mounted underneath.
+    controller.push<void>(const Text('note editor'));
+    await tester.pumpAndSettle();
+    expect(controller.topIsImmersive, isFalse);
+    expect(hub.chromeHidden, isFalse);
+
+    controller.back();
+    await tester.pumpAndSettle();
+    expect(controller.topIsImmersive, isTrue);
+    expect(hub.chromeHidden, isTrue);
+
+    controller.back();
+    await tester.pumpAndSettle();
+    expect(controller.topIsImmersive, isFalse);
+    expect(hub.chromeHidden, isFalse);
+
+    controller.forward();
+    await tester.pumpAndSettle();
+    expect(controller.topIsImmersive, isTrue);
+    expect(hub.chromeHidden, isTrue);
   });
 }
