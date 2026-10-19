@@ -14,8 +14,9 @@ PDF annotations are stored separately from the data.
 Built over a weekend using **DeepSeek Harness** and
 **DeepSeek-V4.1-Flash-1017**.
 
-The app is written in Flutter and currently targets **macOS (universal)** and
-**iPhone/iPad**. A shared responsive layout is used for both.
+**Supported platforms:** macOS 12+ (universal), iPhone/iPadOS 15+, and
+Android 7.0+ (API 24, preview APK). A shared responsive Flutter layout is used
+across desktop and mobile.
 
 ## Screenshots
 

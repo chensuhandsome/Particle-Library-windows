@@ -10,7 +10,7 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
 
 在周末使用 **DeepSeek Harness** 与 **DeepSeek-V4.1-Flash-1017** 构建。
 
-应用使用 Flutter，当前目标平台为 **macOS（通用二进制）** 与 **iPhone/iPad**，两端共享响应式布局。
+**支持平台：** macOS 12+（通用二进制）、iPhone/iPadOS 15+，以及 Android 7.0+（API 24，预览 APK）。各平台共享 Flutter 响应式布局。
 
 ## 截图
 
