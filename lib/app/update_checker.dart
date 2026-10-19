@@ -64,16 +64,28 @@ class UpdateChecker {
         ? [Uri.parse(override)]
         : _defaultEndpoints;
     Object? lastError;
+    UpdateInfo? best;
+    var responded = 0;
     for (final uri in endpoints) {
       try {
-        return await _checkOne(uri, timeout);
+        final candidate = await _checkOne(uri, timeout);
+        responded++;
+        if (candidate != null &&
+            (best == null ||
+                compareVersions(candidate.version, best.version) > 0)) {
+          best = candidate;
+        }
       } catch (error) {
         lastError = error;
       }
     }
-    throw UpdateCheckException(
-      'No update endpoint responded. Last error: $lastError',
-    );
+    if (best != null) return best;
+    if (responded == 0) {
+      throw UpdateCheckException(
+        'No update endpoint responded. Last error: $lastError',
+      );
+    }
+    return null;
   }
 
   static final List<Uri> _defaultEndpoints = [
