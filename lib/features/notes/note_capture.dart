@@ -103,12 +103,6 @@ Future<void> captureTextToNote(
                       controller: searchController,
                       autofocus: true,
                       onChanged: (_) => setDialogState(() {}),
-                      onSubmitted: (_) {
-                        if (visible.isNotEmpty) {
-                          Navigator.of(dialogContext)
-                              .pop(_CaptureChoice(existing: visible.first));
-                        }
-                      },
                       decoration: InputDecoration(
                         hintText: strings.notesCaptureSearchHint,
                         prefixIcon: const Icon(Icons.search, size: 17),

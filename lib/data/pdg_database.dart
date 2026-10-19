@@ -1169,6 +1169,16 @@ class PdgDatabase {
     return (items: [for (final row in rows) Reference(row)], total: total);
   }
 
+  /// Full reference list for client-side matching of cleaned MathML titles.
+  /// The PDG snapshot exposes raw MathML titles, so SQL LIKE cannot find terms
+  /// such as `WZ` that are split across `<mi>` elements.
+  Future<List<Reference>> allReferencesForTitleScan() async {
+    final rows = await executor.select(
+      'SELECT * FROM pdgreference ORDER BY id',
+    );
+    return [for (final row in rows) Reference(row)];
+  }
+
   Future<List<Reference>> searchReferences(
     String term, {
     int limit = 30,

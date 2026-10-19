@@ -302,6 +302,7 @@ class SearchService {
   final PdgDatabase db;
   final NameIndex names;
   final Map<String, SearchResults> _cache = {};
+  List<Reference>? _referenceTitleCache;
 
   /// Preloads the derived name index after the first frame. Safe to call more
   /// than once, and safe to race with a user search.
@@ -619,16 +620,32 @@ class SearchService {
 
   Future<SearchGroup?> _referenceHits(String query, int limit) async {
     final year = int.tryParse(query);
-    final refs = await db.searchReferences(
+    var refs = await db.searchReferences(
       query,
       limit: limit,
       year: year != null && year >= 1900 && year <= 2100 ? year : null,
     );
+    if (refs.isEmpty && query.trim().isNotEmpty) {
+      // Raw PDG titles contain MathML; a query such as `WZ` lives in separate
+      // <mi> nodes and cannot match SQL LIKE. Match cleaned titles in Dart as
+      // a fallback, then reuse the normal reference-hit rendering.
+      final all = _referenceTitleCache ??= await db.allReferencesForTitleScan();
+      final needle = query.toLowerCase();
+      refs = [
+        for (final ref in all)
+          if ((year == null || year == ref.publicationYear) &&
+              cleanReferenceTitle(ref.displayTitle)
+                  .toLowerCase()
+                  .contains(needle))
+            ref,
+      ].take(limit).toList(growable: false);
+    }
     if (refs.isEmpty) return null;
-    final total = await db.countSearchReferences(
+    final counted = await db.countSearchReferences(
       query,
       year: year != null && year >= 1900 && year <= 2100 ? year : null,
     );
+    final total = counted == 0 && refs.isNotEmpty ? refs.length : counted;
     return SearchGroup(
       kind: SearchGroupKind.reference,
       total: total,

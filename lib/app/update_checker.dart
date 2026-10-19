@@ -9,7 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'app_strings.dart';
 
 /// Current application version. Keep in sync with `pubspec.yaml`.
-const String appVersion = '0.1.1';
+const String appVersion = '0.1.2';
 
 /// Optional override for testing or for a self-hosted release manifest.
 ///

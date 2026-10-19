@@ -19,6 +19,7 @@ import '../common/resize_handle.dart';
 import '../common/ui.dart';
 import '../entry/entry_route_page.dart';
 import '../notes/note_editor.dart';
+import '../notes/notes_format.dart';
 import '../reference/inspire_search_page.dart';
 import '../reference/reference_page.dart';
 
@@ -790,6 +791,49 @@ class _ResultGroup extends StatelessWidget {
   }
 }
 
+Widget _searchHitTile(
+  BuildContext context, {
+  required VoidCallback onTap,
+  required Widget title,
+  required String subtitle,
+}) {
+  final palette = context.palette;
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  title,
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: palette.textSecondary),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 16),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 class _HitTile extends StatelessWidget {
   const _HitTile({
     required this.hit,
@@ -804,6 +848,26 @@ class _HitTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final note = hit.note;
+    if (hit.kind == SearchGroupKind.note && note != null) {
+      final anchor = note.anchors.isEmpty ? null : note.anchors.first;
+      final subtitle = [
+        noteUpdatedLabel(note.updatedAt, strings),
+        if (anchor != null) anchorDisplayLabel(anchor),
+      ].join(' · ');
+      return _searchHitTile(
+        context,
+        onTap: onTap,
+        title: Text(
+          noteDisplayTitle(note, strings),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        subtitle: subtitle,
+      );
+    }
     final title = switch (hit.kind) {
       SearchGroupKind.particle => ParticleSymbol(
         hit.title,

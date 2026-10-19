@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
@@ -10,6 +9,7 @@ import '../../app/app_strings.dart';
 import '../../app/app_theme.dart';
 import '../../notes/notes.dart';
 import '../common/async_view.dart';
+import '../common/export_file.dart';
 import '../common/resize_handle.dart';
 import '../common/ui.dart';
 import 'note_editor.dart';
@@ -592,19 +592,16 @@ class _NotesWorkspaceState extends State<NotesWorkspace> {
         }
         return;
       }
-      final location = await getSaveLocation(
+      final exported = await saveOrShareBytes(
         suggestedName:
             'ParticleLibrary-notes-${DateTime.now().toIso8601String().substring(0, 10)}.json',
-        acceptedTypeGroups: [await _jsonType()],
+        bytes: utf8.encode(notesExportJson(notes)),
+        type: await _jsonType(),
+        mimeType: 'application/json',
       );
-      if (location == null) return;
-      await File(location.path).writeAsString(notesExportJson(notes));
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${strings.notesExportFileDone}: ${location.path}'),
-        ),
-      );
+      if (!exported || !mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(strings.notesExportFileDone)));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -626,14 +623,6 @@ class _NotesWorkspaceState extends State<NotesWorkspace> {
         }
         return;
       }
-      final location = await getSaveLocation(
-        suggestedName:
-            'ParticleLibrary-notes-${DateTime.now().toIso8601String().substring(0, 10)}.md',
-        acceptedTypeGroups: const [
-          XTypeGroup(label: 'Markdown', extensions: <String>['md']),
-        ],
-      );
-      if (location == null) return;
       final buffer = StringBuffer()
         ..writeln('# Particle Library notes')
         ..writeln()
@@ -646,13 +635,16 @@ class _NotesWorkspaceState extends State<NotesWorkspace> {
           ..writeln(noteAsMarkdown(note, untitled: strings.notesUntitled))
           ..writeln();
       }
-      await File(location.path).writeAsString(buffer.toString());
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${strings.notesExportFileDone}: ${location.path}'),
-        ),
+      final exported = await saveOrShareBytes(
+        suggestedName:
+            'ParticleLibrary-notes-${DateTime.now().toIso8601String().substring(0, 10)}.md',
+        bytes: utf8.encode(buffer.toString()),
+        type: const XTypeGroup(label: 'Markdown', extensions: ['md']),
+        mimeType: 'text/markdown',
       );
+      if (!exported || !mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(strings.notesExportFileDone)));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -804,31 +796,25 @@ class _NotesWorkspaceState extends State<NotesWorkspace> {
                               _exportAll();
                           }
                         },
-                        itemBuilder: (context) {
-                          final desktop =
-                              !Platform.isAndroid && !Platform.isIOS;
-                          return [
-                            if (desktop) ...[
-                              PopupMenuItem(
-                                value: 'json',
-                                child: Text(strings.notesExportJsonFile),
-                              ),
-                              PopupMenuItem(
-                                value: 'markdown',
-                                child: Text(strings.notesExportMarkdownFile),
-                              ),
-                              const PopupMenuDivider(),
-                            ],
-                            PopupMenuItem(
-                              value: 'import',
-                              child: Text(strings.notesImportJsonFile),
-                            ),
-                            PopupMenuItem(
-                              value: 'copy',
-                              child: Text(strings.notesExportAll),
-                            ),
-                          ];
-                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'json',
+                            child: Text(strings.notesExportJsonFile),
+                          ),
+                          PopupMenuItem(
+                            value: 'markdown',
+                            child: Text(strings.notesExportMarkdownFile),
+                          ),
+                          const PopupMenuDivider(),
+                          PopupMenuItem(
+                            value: 'import',
+                            child: Text(strings.notesImportJsonFile),
+                          ),
+                          PopupMenuItem(
+                            value: 'copy',
+                            child: Text(strings.notesExportAll),
+                          ),
+                        ],
                       ),
                     ],
                   ),

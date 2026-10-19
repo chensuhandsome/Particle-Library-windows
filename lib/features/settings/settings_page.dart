@@ -17,6 +17,7 @@ import 'zotero_cache_section.dart';
 import '../../data/zotero_bridge.dart';
 import '../../data/pdg_database.dart';
 import '../../domain/labels.dart';
+import '../common/export_file.dart';
 import '../common/page.dart';
 import '../common/raw_fields.dart';
 import '../common/ui.dart';
@@ -174,19 +175,27 @@ class _SettingsPageState extends State<SettingsPage> {
     final strings = scope.strings;
     setState(() => _fullBackupBusy = true);
     try {
-      final location = await getSaveLocation(
-        suggestedName:
-            'ParticleLibrary-backup-${DateTime.now().toIso8601String().substring(0, 10)}.zip',
-        acceptedTypeGroups: const [
-          XTypeGroup(label: 'Particle Library backup', extensions: ['zip']),
-        ],
-      );
-      if (location == null) return;
+      final name =
+          'ParticleLibrary-backup-${DateTime.now().toIso8601String().substring(0, 10)}.zip';
+      final mobile = Platform.isAndroid || Platform.isIOS;
+      final path = mobile
+          ? await temporaryExportPath(name)
+          : (await getSaveLocation(
+              suggestedName: name,
+              acceptedTypeGroups: const [
+                XTypeGroup(
+                  label: 'Particle Library backup',
+                  extensions: ['zip'],
+                ),
+              ],
+            ))?.path;
+      if (path == null) return;
       final result = await FullBackup.export(
         user: scope.store,
         notes: scope.notes,
-        destinationPath: location.path,
+        destinationPath: path,
       );
+      if (mobile) await shareFile(File(path), mimeType: 'application/zip');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -318,7 +327,6 @@ class _SettingsPageState extends State<SettingsPage> {
     final settings = scope.settings;
     final info = scope.database.info;
     final palette = context.palette;
-    final desktopExport = !Platform.isAndroid && !Platform.isIOS;
     return AnimatedBuilder(
       animation: settings,
       builder: (context, _) {
@@ -616,9 +624,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      desktopExport
-                          ? strings.settingsFullBackupHint
-                          : strings.settingsFullBackupHintMobile,
+                      strings.settingsFullBackupHint,
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(color: palette.textSecondary),
                     ),
