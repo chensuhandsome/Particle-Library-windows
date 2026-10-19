@@ -4,6 +4,16 @@
 
 # Particle Library
 
+<p align="center">
+  <a href="https://github.com/fkguo/Particle-Library/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/fkguo/Particle-Library?style=flat-square"></a>
+  <a href="https://github.com/fkguo/Particle-Library/releases"><img alt="Release asset downloads" src="https://img.shields.io/github/downloads/fkguo/Particle-Library/total?style=flat-square&label=release%20downloads"></a>
+  <a href="https://github.com/fkguo/Particle-Library/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/fkguo/Particle-Library/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/fkguo/Particle-Library/blob/main/LICENSE"><img alt="License: MPL-2.0" src="https://img.shields.io/github/license/fkguo/Particle-Library?style=flat-square"></a>
+  <img alt="macOS 12+" src="https://img.shields.io/badge/macOS-12%2B-blue?style=flat-square&logo=apple&logoColor=white">
+  <img alt="Android 7.0+" src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white">
+  <img alt="PDG 2026" src="https://img.shields.io/badge/PDG-2026-8A2BE2?style=flat-square">
+</p>
+
 **English** | [简体中文](README.zh-CN.md)
 
 Particle Library is an offline app for the Particle Data Group Review of
@@ -50,12 +60,12 @@ English UI, PDG 2026 snapshot, dark desktop theme and light iPhone theme.
 - **History and trends** — edition-by-edition summary values and a trend chart
   with asymmetric errors.
 - **Notes** — local Markdown notes with anchors, backlinks, collections, tags,
-  search, JSON import, desktop JSON/Markdown export, conflict protection, and a
+  search, JSON/Markdown export/import, conflict protection, and a
   picker shared by every "add to note" action.
 - **Tags** — filter, browse, rename and delete tags across all notes.
 - **Full backup** — one ZIP with settings, favorites, notes, highlight anchors
-  and cached review PDFs; import auto-detects the format and merges safely.
-  Export is available on desktop; mobile builds can import a backup.
+  and cached review PDFs; import auto-detects the format and merges safely. On
+  mobile, export opens the system share sheet.
 - **Literature** — local reference metadata plus optional Crossref title
   lookup, INSPIRE search, BibTeX/cite-key lookup and a Zotero local bridge.
 - **Zotero index (desktop only)** — an explicit, manually refreshed local cache of the Zotero
@@ -89,20 +99,20 @@ Source builders can download the exact snapshot used here:
 
 ## Install
 
-The first public preview is **[Release 0.1.1](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.1)**.
+The first public preview is **[Release 0.1.2](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.2)**.
 
 - **macOS 12+ (universal)**: download
-  `Particle-Library-0.1.1-macOS-universal.dmg` (or the `.zip`). It is ad-hoc
+  `Particle-Library-0.1.2-macOS-universal.dmg` (or the `.zip`). It is ad-hoc
   signed, not notarized. On first launch use **right-click → Open**, or approve
   it in **System Settings → Privacy & Security**. Verify `SHA256SUMS.txt` first.
 - **iPhone/iPad**: there is no public IPA or TestFlight build yet. Building and
   development-signed installation from source are verified; public distribution
   needs a paid Apple Developer team.
 - **Android 7.0+ (API 24)**: signed preview APKs are provided in the release:
-  use `Particle-Library-0.1.1-Android-arm64-v8a.apk` on modern phones or
-  `Particle-Library-0.1.1-Android-armeabi-v7a.apk` on older 32-bit devices.
+  use `Particle-Library-0.1.2-Android-arm64-v8a.apk` on modern phones or
+  `Particle-Library-0.1.2-Android-armeabi-v7a.apk` on older 32-bit devices.
   See [Android build notes](docs/development/ANDROID.md).
-- **Windows/Linux/web**: not built for 0.1.1.
+- **Windows/Linux/web**: not built for 0.1.2.
 
 The macOS app bundles the PDG snapshot, so end users do not need Flutter, Xcode,
 or the repository. Source builders download
