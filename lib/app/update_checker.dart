@@ -51,12 +51,43 @@ class UpdateChecker {
   ///
   /// Accepts either a GitHub Releases API response or a small manifest:
   /// `{"version":"0.2.0","url":"https://...","notes":"..."}`.
+  ///
+  /// The default check tries a CDN-hosted manifest first (accessible where the
+  /// GitHub API is blocked/rate-limited), then raw GitHub, then the API.
   static Future<UpdateInfo?> check({
     Uri? endpoint,
     Duration timeout = const Duration(seconds: 8),
   }) async {
-    final uri = endpoint ?? Uri.tryParse(updateManifestUrl);
-    if (uri == null || !uri.hasScheme) {
+    if (endpoint != null) return _checkOne(endpoint, timeout);
+    final override = const String.fromEnvironment('UPDATE_MANIFEST_URL');
+    final endpoints = override.isNotEmpty
+        ? [Uri.parse(override)]
+        : _defaultEndpoints;
+    Object? lastError;
+    for (final uri in endpoints) {
+      try {
+        return await _checkOne(uri, timeout);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw UpdateCheckException(
+      'No update endpoint responded. Last error: $lastError',
+    );
+  }
+
+  static final List<Uri> _defaultEndpoints = [
+    Uri.parse(
+      'https://cdn.jsdelivr.net/gh/fkguo/Particle-Library@main/update.json',
+    ),
+    Uri.parse(
+      'https://raw.githubusercontent.com/fkguo/Particle-Library/main/update.json',
+    ),
+    Uri.parse(updateManifestUrl),
+  ];
+
+  static Future<UpdateInfo?> _checkOne(Uri uri, Duration timeout) async {
+    if (!uri.hasScheme) {
       throw const UpdateCheckException('No update endpoint is configured.');
     }
     final client = HttpClient()..connectionTimeout = timeout;
@@ -80,9 +111,6 @@ class UpdateChecker {
       final data = Map<String, Object?>.from(decoded);
       final version =
           (data['version'] ?? data['tag_name'])?.toString().trim() ?? '';
-      // GitHub releases contain both `url` (the API object) and `html_url`
-      // (the human release page). Prefer the latter; a manifest may only
-      // provide `url`.
       final url = (data['html_url'] ?? data['url'])?.toString().trim() ?? '';
       final notes = (data['notes'] ?? data['body'])?.toString().trim() ?? '';
       if (version.isEmpty || url.isEmpty) {

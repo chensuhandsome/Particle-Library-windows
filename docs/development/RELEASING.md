@@ -52,6 +52,17 @@ local build is ad-hoc/development-signed and is not a public artifact.
 
 ## Update channel
 
+The app checks a static manifest before the GitHub API so it still works where
+`api.github.com` is blocked or rate-limited:
+
+```text
+https://cdn.jsdelivr.net/gh/fkguo/Particle-Library@main/update.json
+```
+
+Update `update.json` in the repository before publishing a release; it must
+contain the new `version`, release `url` and short notes.
+
+
 Publish a tag `vX.Y.Z` (build number in `pubspec.yaml`'s `+N` suffix) in the
 public repository. The updater reads
 `https://api.github.com/repos/fkguo/Particle-Library/releases/latest`.
