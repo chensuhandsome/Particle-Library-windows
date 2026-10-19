@@ -1,6 +1,6 @@
 {
   "title": "Particle Library",
-  "description": "Offline app for the Particle Data Group Review of Particle Physics, with notes, references, PDF reviews and annotations.",
+  "description": "Particle Library is an independent, open-source offline reader for the Particle Data Group Review of Particle Physics. It bundles the PDG 2026 snapshot read-only and adds full-text search, particle and reference browsing, decay and measurement views, local Markdown notes with PDG/PDF anchors, collections, tags, backlinks, PDF review highlights, cached PDG review PDFs, JSON/ZIP backup and restore, and a bilingual Chinese/English interface. macOS and Android preview builds are distributed through GitHub Releases; the source is licensed MPL-2.0. PDG data remain under CC BY 4.0 and this project is not affiliated with the PDG.",
   "upload_type": "software",
   "access_right": "open",
   "license": "MPL-2.0",
