@@ -229,18 +229,22 @@ String _subPartsLatex(List<String> parts) {
   final buffer = StringBuffer();
   for (var i = 0; i < parts.length; i++) {
     final part = parts[i];
-    // PDG separates a trailing excitation index from the flavour subscript
-    // (T_c_cbar_1 -> T_{c\bar{c} 1}); use a thin space, not a hard space.
-    if (i > 0 && int.tryParse(part) != null) buffer.write(r'\,');
     if (part.length > 3 && part.endsWith('bar')) {
       // `c cbar` / `b bbar` are two flavour factors, not one fused token.
-      if (i > 0) buffer.write(r'\,');
       final base = part.substring(0, part.length - 3);
       buffer.write(base.substring(0, base.length - 1));
       buffer.write(r'\bar{');
       buffer.write(base.substring(base.length - 1));
       buffer.write('}');
     } else {
+      // PDG Live writes P_{c\bar c s} with a normal space before a separate
+      // one-letter flavour, but T_{c\bar c1} without one before an index.
+      if (i > 0 &&
+          part.length == 1 &&
+          RegExp(r'[A-Za-z]').hasMatch(part) &&
+          parts[i - 1].endsWith('bar')) {
+        buffer.write(' ');
+      }
       buffer.write(_subLatex(part));
     }
   }

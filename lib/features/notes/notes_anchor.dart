@@ -30,20 +30,31 @@ class NotesEntityContext {
 String defaultNoteTitle({
   required String label,
   Iterable<NoteAnchorInput> anchors = const <NoteAnchorInput>[],
+  String quote = '',
 }) {
   final clean = label.replaceAll(RegExp(r'\s+'), ' ').trim();
   final identifier = _firstIdentifier(anchors);
   if (identifier == null || identifier.isEmpty || clean.isEmpty) {
     return _truncateRunes(clean, 60);
   }
-  if (clean.runes.length <= 60) return clean;
+  if (clean.runes.length <= 60) {
+    final cleanQuote = quote.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final room = 60 - clean.runes.length - 4;
+    if (cleanQuote.isEmpty || room < 8) return clean;
+    return '$clean “${_truncateRunes(cleanQuote, room)}”';
+  }
   if (clean == identifier || clean == '($identifier)') return identifier;
   final suffix = RegExp(r'[\s(]+' + RegExp.escape(identifier) + r'\)?\s*$');
   final description = clean.replaceFirst(suffix, '').trim();
   if (description.isEmpty) return identifier;
   final prefix = '$identifier — ';
   final room = 60 - prefix.runes.length;
-  return '$prefix${_truncateRunes(description, room)}';
+  final base = '$prefix${_truncateRunes(description, room)}';
+  final cleanQuote = quote.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (cleanQuote.isEmpty || cleanQuote == description) return base;
+  final quoteRoom = 60 - base.runes.length - 4;
+  if (quoteRoom < 8) return base;
+  return '$base “${_truncateRunes(cleanQuote, quoteRoom)}”';
 }
 
 String? _firstIdentifier(Iterable<NoteAnchorInput> anchors) {

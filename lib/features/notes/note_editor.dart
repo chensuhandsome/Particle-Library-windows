@@ -662,7 +662,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
 
   Future<void> _showRelatedNotes() async {
     final record = _record;
-    if (record == null || record.anchors.isEmpty) return;
+    if (record == null) return;
     final strings = widget.strings;
     final found = <String, NoteRecord>{};
     for (final anchor in record.anchors) {
@@ -674,6 +674,13 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
       for (final note in notes) {
         if (note.id != record.id) found[note.id] = note;
       }
+    }
+    // Incoming note links are not anchors; search Markdown links to this UUID.
+    final mentions = await widget.store.notesMentioningTargets([
+      NoteTarget.note(record.uuid),
+    ], limit: 20);
+    for (final note in mentions) {
+      if (note.id != record.id) found[note.id] = note;
     }
     if (!mounted) return;
     final related = found.values.toList()
@@ -699,9 +706,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
                             size: 18,
                           ),
                           title: Text(
-                            note.title.trim().isEmpty
-                                ? strings.notesUntitled
-                                : note.title,
+                            noteDisplayTitle(note, strings),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),

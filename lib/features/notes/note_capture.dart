@@ -138,10 +138,16 @@ Future<void> captureTextToNote(
                                     ),
                                     subtitle: Text(
                                       noteBodyPreview(note).isEmpty
-                                          ? noteUpdatedLabel(
-                                              note.updatedAt,
-                                              strings,
-                                            )
+                                          ? [
+                                              noteUpdatedLabel(
+                                                note.updatedAt,
+                                                strings,
+                                              ),
+                                              if (note.anchors.isNotEmpty)
+                                                anchorDisplayLabel(
+                                                  note.anchors.first,
+                                                ),
+                                            ].join(' · ')
                                           : noteBodyPreview(note),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
@@ -226,7 +232,11 @@ Future<void> captureTextToNote(
       );
     } else {
       record = await store.create(
-        title: defaultNoteTitle(label: label, anchors: anchors),
+        title: defaultNoteTitle(
+          label: label,
+          anchors: anchors,
+          quote: anchorOnly ? '' : text,
+        ),
         bodyMarkdown: quote,
         anchors: anchors,
       );

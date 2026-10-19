@@ -214,14 +214,14 @@ void main() {
     expect(segmentPdgText('B_s0 MASS').first.latex, r'B_{s}^{0}');
     expect(
       segmentPdgText('T_c c cbar cbar(6600) MASS').first.latex,
-      r'T_{cc\,\bar{c}\,\bar{c}}(6600)',
+      r'T_{cc\bar{c}\bar{c}}(6600)',
     );
   });
 
   test('spaced multi-charm particle descriptions stay one math unit', () {
     final segments = segmentPdgText('T_c c cbar cbar(6600)');
     expect(segments, hasLength(1));
-    expect(segments.single.latex, r'T_{cc\,\bar{c}\,\bar{c}}(6600)');
+    expect(segments.single.latex, r'T_{cc\bar{c}\bar{c}}(6600)');
   });
 
   test('dollar TeX and bare names both work', () {

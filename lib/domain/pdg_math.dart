@@ -185,6 +185,13 @@ String? convertPdgExpression(String source) {
 String? _normalize(String source) {
   var text = source.trim();
   if (text.isEmpty) return null;
+  // A few PDG labels retain both MathML brace layers and \mathit:
+  // K_{{{{\mathit \ell}}4}}. Remove the redundant layers before the generic
+  // double-brace collapse would leave an unbalanced brace.
+  text = text.replaceAllMapped(
+    RegExp(r'\{+\\mathit\s*(\\[A-Za-z]+)\}+\s*([0-9]+)\}+'),
+    (match) => '${match.group(1)}${match.group(2)}',
+  );
   var changed = true;
   while (changed) {
     final before = text;
@@ -646,7 +653,10 @@ class _ExpressionParser {
         group = text.substring(index + 1, end);
         index = end + 1;
       }
-      return group == null ? command : '$command{${_safeGroup(group)}}';
+      final digits = RegExp(r'^[0-9]+').firstMatch(text.substring(index));
+      final suffix = digits?.group(0) ?? '';
+      if (digits != null) index += suffix.length;
+      return '${group == null ? command : '$command{${_safeGroup(group)}}'}$suffix';
     }
     if (current == "'" || current == '′') {
       index++;

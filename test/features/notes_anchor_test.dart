@@ -96,6 +96,13 @@ void main() {
       ),
       'D0 (S032M)',
     );
+    final quoted = defaultNoteTitle(
+      label: 'D0 (S032M)',
+      anchors: [NoteAnchorInput.pdgid('S032M')],
+      quote: 'The D0 mean life is measured with high precision.',
+    );
+    expect(quoted, contains('“The D0 mean life'));
+    expect(quoted.runes.length, lessThanOrEqualTo(60));
   });
 
   test('particle context supplies one exact pdgid anchor and target', () {

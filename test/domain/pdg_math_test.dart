@@ -140,4 +140,11 @@ void main() {
     expect(convertPdgExpression('D^**'), isNull);
     expect(convertPdgExpression('A(raw)**top-left'), isNull);
   });
+
+  test('nested MathML script braces are normalized', () {
+    expect(
+      convertPdgExpression(r'K_{{{{\mathit \ell}}4}}()+-'),
+      r'K_{\ell4}^{\pm}',
+    );
+  });
 }
