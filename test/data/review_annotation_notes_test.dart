@@ -75,6 +75,33 @@ void main() {
     expect(loaded.single.text, 'quoted');
   });
 
+  test('adjusting a highlight range updates the stored anchor', () async {
+    final annotation = await ReviewAnnotationNotes.create(
+      notes,
+      fileName: 'review.pdf',
+      pageNumber: 3,
+      rects: const [Rect.fromLTRB(0.1, 0.1, 0.4, 0.2)],
+      text: 'old quote',
+      color: 'blue',
+      reviewTitle: 'Review',
+    );
+    final updated = await ReviewAnnotationNotes.updateRange(
+      notes,
+      annotation,
+      rects: const [Rect.fromLTRB(0.2, 0.25, 0.8, 0.35)],
+      text: 'new longer quote',
+    );
+    expect(updated, isNotNull);
+    final loaded = await ReviewAnnotationNotes.load(
+      notes,
+      'review.pdf',
+      reviewTitle: 'Review',
+    );
+    expect(loaded.single.text, 'new longer quote');
+    expect(loaded.single.rects.single.right, closeTo(0.8, 1e-9));
+    expect(loaded.single.color, 'blue');
+  });
+
   test('legacy JSON migrates once and is archived', () async {
     final legacy = ReviewAnnotationStore(File('${dir.path}/annotations.json'));
     await legacy.save([

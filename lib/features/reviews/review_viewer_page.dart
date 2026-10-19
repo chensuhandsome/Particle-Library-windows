@@ -43,6 +43,10 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
   Timer? _autoHighlightTimer;
   String _highlightColor = 'yellow';
   bool _started = false;
+  ReviewAnnotation? _editingRange;
+  bool _pdfReady = false;
+  int _pdfEpoch = 0;
+  Timer? _pdfRetryTimer;
   late final Future<void> _ready;
 
   String get _fileName {
@@ -56,6 +60,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
   @override
   void dispose() {
     _autoHighlightTimer?.cancel();
+    _pdfRetryTimer?.cancel();
     super.dispose();
   }
 
@@ -65,6 +70,12 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
     if (_started) return;
     _started = true;
     _ready = _loadAnnotations(AppScope.of(context).notes);
+    // Some Android devices paint the first PDF frame before the viewer has
+    // laid out its page. Recreate once if readiness is still false shortly
+    // after the first open; reopening used to be the only workaround.
+    _pdfRetryTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (mounted && !_pdfReady) setState(() => _pdfEpoch++);
+    });
   }
 
   Future<void> _loadAnnotations(NotesStore? notes) async {
@@ -129,7 +140,11 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
 
   void _onTextSelectionChanged(PdfTextSelection selection) {
     _autoHighlightTimer?.cancel();
-    if (!_highlightMode || !selection.hasSelectedText) return;
+    if (_editingRange != null ||
+        !_highlightMode ||
+        !selection.hasSelectedText) {
+      return;
+    }
     _autoHighlightTimer = Timer(const Duration(milliseconds: 320), () {
       if (!mounted || !_highlightMode) return;
       unawaited(_highlightSelection());
@@ -242,6 +257,121 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
       }
     } finally {
       if (mounted) setState(() => _addingHighlight = false);
+    }
+  }
+
+  Future<void> _beginAdjustRange(ReviewAnnotation annotation) async {
+    await _ready;
+    if (!mounted) return;
+    if (!_controller.isReady) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppScope.of(context).strings.reviewPdfLoading)),
+      );
+      return;
+    }
+    try {
+      final page = _controller.pages[annotation.pageNumber - 1];
+      final pageText = await page.loadStructuredText();
+      final quote = annotation.text.trim();
+      var start = quote.isEmpty ? -1 : pageText.fullText.indexOf(quote);
+      if (start < 0 && quote.isNotEmpty) {
+        start = pageText.fullText
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .indexOf(quote.replaceAll(RegExp(r'\s+'), ' '));
+      }
+      if (start < 0) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppScope.of(context).strings.reviewSelectText),
+          ),
+        );
+        return;
+      }
+      final end = (start + quote.length - 1).clamp(
+        0,
+        pageText.fullText.length - 1,
+      );
+      await _controller.textSelectionDelegate.setTextSelectionPointRange(
+        PdfTextSelectionRange.fromPoints(
+          PdfTextSelectionPoint(pageText, start),
+          PdfTextSelectionPoint(pageText, end),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _editingRange = annotation;
+        _highlightMode = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppScope.of(context).strings.reviewAdjustRangeHint),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppScope.of(context).strings.reviewSelectText)),
+      );
+    }
+  }
+
+  Future<void> _saveAdjustedRange() async {
+    final annotation = _editingRange;
+    final notes = _notes;
+    if (annotation == null || notes == null) return;
+    if (!_controller.isReady) return;
+    final delegate = _controller.textSelectionDelegate;
+    if (!delegate.hasSelectedText) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppScope.of(context).strings.reviewSelectText)),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final ranges = await delegate.getSelectedTextRanges();
+      final rects = <Rect>[];
+      final textParts = <String>[];
+      for (final range in ranges) {
+        if (range.pageNumber != annotation.pageNumber) continue;
+        final page = _controller.pages[range.pageNumber - 1];
+        for (final fragment in range.enumerateFragmentBoundingRects()) {
+          final rect = normalizePdfSelectionRect(fragment.bounds, page);
+          if (rect.width > 0 && rect.height > 0) rects.add(rect);
+        }
+        final text = range.text.trim();
+        if (text.isNotEmpty) textParts.add(text);
+      }
+      if (rects.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppScope.of(context).strings.reviewSelectText),
+          ),
+        );
+        return;
+      }
+      final updated = await ReviewAnnotationNotes.updateRange(
+        notes,
+        annotation,
+        rects: rects,
+        text: textParts.join(' '),
+      );
+      await delegate.clearTextSelection();
+      if (!mounted) return;
+      if (updated != null) {
+        setState(() {
+          _annotations = [
+            for (final item in _annotations)
+              if (item.id == updated.id) updated else item,
+          ];
+          _editingRange = null;
+        });
+        _notifyNotesChanged();
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -528,6 +658,14 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.open_with_outlined),
+              title: Text(strings.reviewAdjustRange),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(_beginAdjustRange(annotation));
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.delete_outline),
               title: Text(strings.commonDelete),
               textColor: Theme.of(context).colorScheme.error,
@@ -579,6 +717,24 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
       appBar: AppBar(
         title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
+          if (_editingRange != null) ...[
+            IconButton(
+              tooltip: strings.reviewSaveRange,
+              onPressed: _saving ? null : _saveAdjustedRange,
+              icon: const Icon(Icons.check),
+            ),
+            IconButton(
+              tooltip: strings.commonCancel,
+              onPressed: () {
+                _autoHighlightTimer?.cancel();
+                setState(() => _editingRange = null);
+                unawaited(
+                  _controller.textSelectionDelegate.clearTextSelection(),
+                );
+              },
+              icon: const Icon(Icons.close),
+            ),
+          ],
           IconButton(
             tooltip: _highlightMode
                 ? strings.reviewHighlightModeOn
@@ -663,15 +819,26 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
                 Expanded(
                   child: PdfViewer.file(
                     widget.path,
+                    key: ValueKey<String>('pdf-${widget.path}-$_pdfEpoch'),
                     controller: _controller,
-                    initialPageNumber: widget.initialPage,
                     params: PdfViewerParams(
+                      onViewerReady: (document, controller) {
+                        _pdfRetryTimer?.cancel();
+                        _pdfReady = true;
+                        if (widget.initialPage > 1) {
+                          unawaited(
+                            controller.goToPage(pageNumber: widget.initialPage),
+                          );
+                        }
+                      },
                       pagePaintCallbacks: [_paintAnnotations],
                       pageOverlaysBuilder: _annotationOverlays,
                       textSelectionParams: PdfTextSelectionParams(
                         enabled: true,
                         buildSelectionHandle: _buildSelectionHandle,
                         onTextSelectionChange: _onTextSelectionChanged,
+                        onSelectionHandlePanStart: (_) =>
+                            _autoHighlightTimer?.cancel(),
                       ),
                       customizeContextMenuItems: _customizePdfContextMenu,
                     ),

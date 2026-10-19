@@ -180,6 +180,81 @@ class ReviewAnnotationNotes {
     );
   }
 
+  static Future<ReviewAnnotation?> updateRange(
+    NotesStore notes,
+    ReviewAnnotation annotation, {
+    required List<Rect> rects,
+    required String text,
+  }) async {
+    final noteId = annotation.noteId;
+    if (noteId == null) return null;
+    final note = await notes.noteById(noteId);
+    if (note == null) return null;
+    final reviewKey = _reviewKey(annotation.fileName);
+    final oldBody = _body(
+      quote: annotation.text,
+      comment: annotation.note,
+      reviewKey: reviewKey,
+      annotationId: annotation.id,
+      pageNumber: annotation.pageNumber,
+      reviewTitle: _titleFromFile(annotation.fileName),
+    );
+    final body = _body(
+      quote: text,
+      comment: annotation.note,
+      reviewKey: reviewKey,
+      annotationId: annotation.id,
+      pageNumber: annotation.pageNumber,
+      reviewTitle: _titleFromFile(annotation.fileName),
+    );
+    final anchors = <NoteAnchorInput>[];
+    for (final anchor in note.anchors) {
+      final isReviewAnchor =
+          anchor.targetKind == NoteTargetKinds.review &&
+          anchor.targetKey == reviewKey;
+      anchors.add(
+        NoteAnchorInput(
+          targetKind: anchor.targetKind,
+          targetKey: anchor.targetKey,
+          snapshotHash: anchor.snapshotHash.isEmpty
+              ? null
+              : anchor.snapshotHash,
+          targetLabel: anchor.targetLabel,
+          status: anchor.status,
+          context: isReviewAnchor
+              ? {
+                  ...?anchor.context,
+                  'rects': [
+                    for (final rect in rects)
+                      [rect.left, rect.top, rect.right, rect.bottom],
+                  ],
+                  'quote': text,
+                }
+              : anchor.context,
+        ),
+      );
+    }
+    final generatedBodyUntouched = note.bodyMarkdown.trim() == oldBody.trim();
+    await notes.update(
+      note.id,
+      title: _title(annotation.pageNumber, text),
+      bodyMarkdown: generatedBodyUntouched ? body : null,
+      anchors: anchors,
+      expectedRevision: note.revision,
+    );
+    return ReviewAnnotation(
+      id: annotation.id,
+      fileName: annotation.fileName,
+      pageNumber: annotation.pageNumber,
+      rects: List.unmodifiable(rects),
+      text: text,
+      note: annotation.note,
+      color: annotation.color,
+      createdAt: annotation.createdAt,
+      noteId: annotation.noteId,
+    );
+  }
+
   static Future<void> delete(
     NotesStore notes,
     ReviewAnnotation annotation,
