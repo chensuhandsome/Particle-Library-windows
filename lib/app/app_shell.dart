@@ -11,6 +11,7 @@ import 'app_theme.dart';
 import 'update_checker.dart';
 import '../features/common/page.dart';
 import '../features/common/ui.dart';
+import '../features/catalog/catalog_page.dart';
 import '../features/favorites/favorites_page.dart';
 import '../features/home/home_page.dart';
 import '../features/notes/notes_page.dart';
@@ -264,6 +265,18 @@ class _AppShellState extends State<AppShell> {
                             const Spacer(),
                             if (!compact) ...[
                               IconButton(
+                                tooltip: strings.catalogTitle,
+                                icon: const Icon(
+                                  Icons.account_tree_outlined,
+                                  size: 19,
+                                ),
+                                onPressed: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const CatalogPage(),
+                                  ),
+                                ),
+                              ),
+                              IconButton(
                                 tooltip: strings.inspireSearchAction,
                                 onPressed: () => Navigator.of(context).push(
                                   MaterialPageRoute<void>(
@@ -313,6 +326,12 @@ class _AppShellState extends State<AppShell> {
                                 tooltip: strings.moreActions,
                                 onSelected: (action) {
                                   switch (action) {
+                                    case _CompactTopAction.catalog:
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => const CatalogPage(),
+                                        ),
+                                      );
                                     case _CompactTopAction.inspire:
                                       Navigator.of(context).push(
                                         MaterialPageRoute<void>(
@@ -337,6 +356,10 @@ class _AppShellState extends State<AppShell> {
                                   }
                                 },
                                 itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: _CompactTopAction.catalog,
+                                    child: Text(strings.catalogTitle),
+                                  ),
                                   PopupMenuItem(
                                     value: _CompactTopAction.inspire,
                                     child: Text(strings.inspireSearchAction),
@@ -480,4 +503,4 @@ class _TopTab extends StatelessWidget {
   }
 }
 
-enum _CompactTopAction { inspire, reviews, help, settings }
+enum _CompactTopAction { catalog, inspire, reviews, help, settings }
