@@ -1079,6 +1079,24 @@ class AppStrings {
   String get settingsCopyHash => _t('复制哈希', 'Copy hash');
   String get settingsCopyCitation => _t('复制引用', 'Copy citation');
   String get settingsNotesBackup => _t('备份笔记数据库', 'Back up notes database');
+  String get settingsFullBackup => _t('完整备份', 'Full backup');
+  String get settingsFullBackupExport => _t('导出完整备份…', 'Export full backup…');
+  String get settingsFullBackupImport => _t('导入完整备份…', 'Import full backup…');
+  String get settingsFullBackupHint => _t(
+    '包含设置、收藏、笔记、高亮 anchor 和已缓存的综述 PDF，导出为 ZIP；导入时自动识别并合并笔记，不删除现有数据。',
+    'Includes settings, favorites, notes, highlight anchors and cached review PDFs as a ZIP. Import detects the format and merges notes without deleting current data.',
+  );
+  String get settingsFullBackupConfirm => _t(
+    '导入会恢复备份中的设置和收藏，并合并笔记与 PDF 缓存；现有笔记不会被删除。继续？',
+    'Import restores settings and favorites from the backup, and merges notes and cached PDFs. Existing notes are not deleted. Continue?',
+  );
+  String get settingsFullBackupDone => _t('完整备份已导出', 'Full backup exported');
+  String get settingsFullBackupImported =>
+      _t('完整备份已导入', 'Full backup imported');
+  String get settingsFullBackupFailed =>
+      _t('完整备份操作失败', 'Full backup operation failed');
+  String settingsFullBackupSummary(int notes, int pdfs) =>
+      _t('$notes 条笔记，$pdfs 个 PDF', '$notes notes, $pdfs PDFs');
   String get settingsNotesBackupDone => _t('笔记备份已创建', 'Notes backup created');
   String get settingsNotesBackupFailed => _t('笔记备份失败', 'Notes backup failed');
   String get settingsNotesBackupHint => _t(

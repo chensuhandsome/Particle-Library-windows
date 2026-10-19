@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/app_scope.dart';
 import '../../app/app_strings.dart';
+import '../../app/full_backup.dart';
 import '../../app/settings_controller.dart';
 import '../../app/supporter_store.dart';
 import '../../app/update_checker.dart';
@@ -42,6 +44,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _supporterLoading = false;
   bool _supporterBusy = false;
   String? _supporterMessage;
+  bool _fullBackupBusy = false;
 
   @override
   void didChangeDependencies() {
@@ -162,6 +165,101 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _updateStatus = strings.settingsUpdateUnavailable);
     } finally {
       if (mounted) setState(() => _checkingUpdate = false);
+    }
+  }
+
+  Future<void> _exportFullBackup() async {
+    if (_fullBackupBusy) return;
+    final scope = AppScope.of(context);
+    final strings = scope.strings;
+    setState(() => _fullBackupBusy = true);
+    try {
+      final location = await getSaveLocation(
+        suggestedName:
+            'ParticleLibrary-backup-${DateTime.now().toIso8601String().substring(0, 10)}.zip',
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'Particle Library backup', extensions: ['zip']),
+        ],
+      );
+      if (location == null) return;
+      final result = await FullBackup.export(
+        user: scope.store,
+        notes: scope.notes,
+        destinationPath: location.path,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${strings.settingsFullBackupDone}: ${strings.settingsFullBackupSummary(result.notes, result.pdfs)}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${strings.settingsFullBackupFailed}: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _fullBackupBusy = false);
+    }
+  }
+
+  Future<void> _importFullBackup() async {
+    if (_fullBackupBusy) return;
+    final scope = AppScope.of(context);
+    final strings = scope.strings;
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(
+          label: 'Particle Library backup',
+          extensions: ['zip', 'json'],
+        ),
+      ],
+    );
+    if (file == null || !mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(strings.settingsFullBackupImport),
+        content: Text(strings.settingsFullBackupConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(strings.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(strings.commonConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _fullBackupBusy = true);
+    try {
+      final result = await FullBackup.import(
+        user: scope.store,
+        notes: scope.notes,
+        sourcePath: file.path,
+      );
+      scope.settings.reloadFromStore();
+      scope.notesChanges.value++;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${strings.settingsFullBackupImported}: ${strings.settingsFullBackupSummary(result.notes, result.pdfs)}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${strings.settingsFullBackupFailed}: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _fullBackupBusy = false);
     }
   }
 
@@ -495,6 +593,32 @@ class _SettingsPageState extends State<SettingsPage> {
                             ?.copyWith(color: palette.textSecondary),
                       ),
                     ],
+                    const SizedBox(height: Insets.s),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _fullBackupBusy ? null : _exportFullBackup,
+                          icon: const Icon(
+                            Icons.inventory_2_outlined,
+                            size: 17,
+                          ),
+                          label: Text(strings.settingsFullBackupExport),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _fullBackupBusy ? null : _importFullBackup,
+                          icon: const Icon(Icons.unarchive_outlined, size: 17),
+                          label: Text(strings.settingsFullBackupImport),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      strings.settingsFullBackupHint,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: palette.textSecondary),
+                    ),
                     DataField(
                       label: strings.settingsClearRecents,
                       value: '${scope.store.recents.length}',
@@ -744,7 +868,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(color: palette.textSecondary),
                     ),
-                    if (SupporterStore.isSupportedPlatform) ...[
+                    if (SupporterStore.isSupportedPlatform &&
+                        (settings.supporter || _supporterProduct != null)) ...[
                       const SizedBox(height: Insets.s),
                       const Divider(height: 1),
                       const SizedBox(height: Insets.s),

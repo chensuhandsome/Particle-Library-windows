@@ -48,6 +48,11 @@ class SettingsController extends ChangeNotifier {
   String get sidebarMode => _settings.sidebarMode;
   String get noteLinkMode => _settings.noteLinkMode;
 
+  void reloadFromStore() {
+    _settings = store.settings;
+    notifyListeners();
+  }
+
   Future<void> setSidebarMode(String value) async {
     final normalized = value == 'always' || value == 'off' ? value : 'auto';
     if (_settings.sidebarMode == normalized) return;

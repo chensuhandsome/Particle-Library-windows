@@ -337,6 +337,68 @@ class UserStore extends ChangeNotifier {
     await save();
   }
 
+  Map<String, Object?> exportData() {
+    final encoded = jsonDecode(jsonEncode(_data));
+    return encoded is Map
+        ? Map<String, Object?>.from(encoded)
+        : <String, Object?>{};
+  }
+
+  /// Restores a full backup. Settings/favorites are merged rather than
+  /// deleting anything local; the Apple Supporter entitlement is never taken
+  /// from a backup file.
+  Future<void> importData(Map<String, Object?> incoming) async {
+    final currentSupporter = settings.supporter;
+    final rawSettings = incoming['settings'];
+    if (rawSettings is Map) {
+      final restored = AppSettings.fromJson(
+        Map<String, Object?>.from(rawSettings),
+      ).copyWith(supporter: currentSupporter);
+      _data['settings'] = restored.toJson();
+    }
+    final rawFavorites = incoming['favorites'];
+    if (rawFavorites is List) {
+      final merged = <String, Map<String, Object?>>{
+        for (final item in favorites) item.key: item.toJson(),
+      };
+      for (final item in rawFavorites) {
+        if (item is! Map) continue;
+        final map = Map<String, Object?>.from(item);
+        final key = map['key']?.toString();
+        if (key != null && key.isNotEmpty) merged.putIfAbsent(key, () => map);
+      }
+      _data['favorites'] = merged.values.toList(growable: false);
+    }
+    final rawRecents = incoming['recents'];
+    if (rawRecents is List) {
+      final merged = <String, Map<String, Object?>>{};
+      for (final item in [
+        ...recents.map((item) => item.toJson()),
+        ...rawRecents,
+      ]) {
+        if (item is! Map) continue;
+        final map = Map<String, Object?>.from(item);
+        final key = '${map['query']}\u0000${map['scope']}';
+        merged.putIfAbsent(key, () => map);
+      }
+      _data['recents'] = merged.values.take(20).toList(growable: false);
+    }
+    final rawTitles = incoming['referenceTitles'];
+    if (rawTitles is Map) {
+      final merged = <String, Object?>{
+        for (final entry
+            in ((_data['referenceTitles'] as Map?) ?? const {}).entries)
+          entry.key.toString(): entry.value,
+      };
+      for (final entry in rawTitles.entries) {
+        merged.putIfAbsent(entry.key.toString(), () => entry.value);
+      }
+      _data['referenceTitles'] = merged;
+    }
+    notifyListeners();
+    await save();
+  }
+
   Future<void> _load() async {
     final file = _file;
     if (file == null) return;

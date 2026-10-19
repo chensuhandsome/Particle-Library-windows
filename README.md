@@ -53,6 +53,8 @@ English UI, PDG 2026 snapshot, dark desktop theme and light iPhone theme.
   search, export/import, conflict protection, and a picker shared by every
   "add to note" action.
 - **Tags** — filter, browse, rename and delete tags across all notes.
+- **Full backup** — one ZIP with settings, favorites, notes, highlight anchors
+  and cached review PDFs; import auto-detects the format and merges safely.
 - **Literature** — local reference metadata plus optional Crossref title
   lookup, INSPIRE search, BibTeX/cite-key lookup and a Zotero local bridge.
 - **Zotero index (macOS desktop only)** — an explicit, manually refreshed local cache of the Zotero
