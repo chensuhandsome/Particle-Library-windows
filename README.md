@@ -165,7 +165,7 @@ opts into a live service.
 - Zotero is accessed read-only through its local API at
   `http://127.0.0.1:23119`; the Zotero index is updated only when you press the
   button in Settings.
-- No telemetry is sent by the app. On macOS/Android, update checks contact
+- No telemetry, analytics or account service is used, and none is planned. On macOS/Android, update checks contact
   jsDelivr, raw.githubusercontent.com and api.github.com; they do not
   auto-install anything. iOS updates are handled by the App Store only.
 

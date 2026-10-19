@@ -19,5 +19,5 @@ Before submission:
 2. Host the privacy policy at a public URL.
 3. Capture the required screenshot sizes.
 4. Verify that Settings → About no longer links to GitHub updates on iOS.
-5. Complete App Privacy as “Data Not Collected” unless you add a service that
-   changes that answer.
+5. Complete App Privacy as “Data Not Collected”; the project does not plan to
+   add analytics or account services.

@@ -34,7 +34,8 @@ offline.
 
 The app has no account, analytics, advertising or developer-operated server.
 See the privacy policy URL supplied in App Store Connect. User notes and
-highlights are stored locally.
+highlights are stored locally. There are no plans to add analytics or account
+services.
 
 ## Attribution and naming
 

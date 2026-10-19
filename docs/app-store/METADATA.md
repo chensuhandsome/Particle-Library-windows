@@ -34,6 +34,12 @@ are used under CC BY 4.0 with attribution.
 PDG, particle physics, Review of Particle Physics, physics reference, notes, PDF
 annotations, offline
 
+## App Privacy answer
+
+The project does not plan to add analytics, advertising or account services.
+Select **Data Not Collected** unless a future release introduces a service that
+changes that answer; in that case update the privacy policy first.
+
 ## In-app purchase
 
 - Reference name: Supporter

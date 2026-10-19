@@ -9,7 +9,9 @@ of Particle Physics. It is not an official PDG application.
 
 The developer does not collect, sell, rent or share personal data through the
 app. The app has no account system, analytics, advertising SDK, crash-reporting
-SDK or telemetry.
+SDK or telemetry, and the project does not plan to add analytics or account
+services. If that ever changes, this policy and the App Store privacy answers
+will be updated before the change ships.
 
 ## Data stored on your device
 
