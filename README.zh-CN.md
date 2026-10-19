@@ -68,7 +68,7 @@ Particle Library 是一个离线 PDG（Particle Data Group）粒子数据浏览�
   已验证；公开分发需要付费 Apple Developer Team。
 - **Android 7.0+（API 24）**：Release 中提供已签名预览 APK；现代手机用
   `Particle-Library-0.1.0-Android-arm64-v8a.apk`，旧 32 位设备用
-  `...-armeabi-v7a.apk`，模拟器用 `...-x86_64.apk`。详见
+  `Particle-Library-0.1.0-Android-armeabi-v7a.apk`。详见
   [Android 构建说明](docs/development/ANDROID.md)。
 - **Windows/Linux/web**：0.1.0 未构建。
 

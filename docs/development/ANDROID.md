@@ -23,10 +23,10 @@ Outputs:
 ```text
 build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-build/app/outputs/flutter-apk/app-x86_64-release.apk
 ```
 
-Most modern phones need `arm64-v8a`; the x86_64 APK is for emulators.
+Most modern phones need `arm64-v8a`; the armeabi-v7a APK is for older 32-bit
+devices. x86_64 is a local emulator build and is not published.
 
 ## Signing
 

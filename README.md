@@ -96,9 +96,9 @@ The first public preview is **[Release 0.1.0](https://github.com/fkguo/Particle-
   development-signed installation from source are verified; public distribution
   needs a paid Apple Developer team.
 - **Android 7.0+ (API 24)**: signed preview APKs are provided in the release:
-  use `Particle-Library-0.1.0-Android-arm64-v8a.apk` on modern phones,
-  `...-armeabi-v7a.apk` on older 32-bit devices, and `...-x86_64.apk` for
-  emulators. See [Android build notes](docs/development/ANDROID.md).
+  use `Particle-Library-0.1.0-Android-arm64-v8a.apk` on modern phones or
+  `Particle-Library-0.1.0-Android-armeabi-v7a.apk` on older 32-bit devices.
+  See [Android build notes](docs/development/ANDROID.md).
 - **Windows/Linux/web**: not built for 0.1.0.
 
 The macOS app bundles the PDG snapshot, so end users do not need Flutter, Xcode,
