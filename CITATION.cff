@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+title: "Particle Library"
+message: "If you use this software, please cite it using the metadata below."
+type: software
+authors:
+  - family-names: Guo
+    given-names: Feng-Kun
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.23460981"
+    description: "Concept DOI (latest archived version)"
+repository-code: "https://github.com/fkguo/Particle-Library"
+license: MPL-2.0
+abstract: "Offline app for the Particle Data Group Review of Particle Physics, with notes, references, PDF reviews and annotations."
+keywords:
+  - particle physics
+  - PDG
+  - Review of Particle Physics
+  - Flutter

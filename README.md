@@ -9,6 +9,7 @@
   <a href="https://github.com/fkguo/Particle-Library/releases"><img alt="Release asset downloads" src="https://img.shields.io/github/downloads/fkguo/Particle-Library/total?style=flat-square&label=release%20downloads"></a>
   <a href="https://github.com/fkguo/Particle-Library/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/fkguo/Particle-Library/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/fkguo/Particle-Library/blob/main/LICENSE"><img alt="License: MPL-2.0" src="https://img.shields.io/github/license/fkguo/Particle-Library?style=flat-square"></a>
+  <a href="https://doi.org/10.5281/zenodo.23460981"><img alt="DOI" src="https://zenodo.org/badge/DOI/10.5281/zenodo.23460981.svg"></a>
   <img alt="macOS 12+" src="https://img.shields.io/badge/macOS-12%2B-blue?style=flat-square&logo=apple&logoColor=white">
   <img alt="Android 7.0+" src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white">
   <img alt="PDG 2026" src="https://img.shields.io/badge/PDG-2026-8A2BE2?style=flat-square">
@@ -180,6 +181,20 @@ android/        Android runner and release signing
 tool/           release/packaging helper scripts
 docs/           design and data documentation
 ```
+
+## Citation
+
+If you use Particle Library in academic work, cite the archived software release.
+The concept DOI always resolves to the latest archived version:
+
+```text
+Guo, Feng-Kun. Particle Library.
+Zenodo. https://doi.org/10.5281/zenodo.23460981
+```
+
+For reproducibility, cite the exact version, e.g.
+`10.5281/zenodo.23464237` for 0.1.2. GitHub also exposes this metadata through
+[`CITATION.cff`](CITATION.cff).
 
 ## Documentation
 
