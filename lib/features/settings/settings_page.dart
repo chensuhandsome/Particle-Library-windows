@@ -759,7 +759,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 }
 
-const List<double> _textScaleOptions = [0.9, 1.0, 1.15, 1.3, 1.45, 1.6];
+const List<double> _textScaleOptions = [0.8, 0.9, 1.0, 1.1, 1.2];
 
 class _TextSizeSetting extends StatelessWidget {
   const _TextSizeSetting({
@@ -772,14 +772,7 @@ class _TextSizeSetting extends StatelessWidget {
   final AppStrings strings;
   final AppPalette palette;
 
-  String _label(double value) => switch (value) {
-    0.9 => strings.settingsTextSizeSmall,
-    1.0 => strings.settingsTextSizeStandard,
-    1.15 => strings.settingsTextSizeLarge,
-    1.3 => strings.settingsTextSizeLarger,
-    1.45 => strings.settingsTextSizeExtraLarge,
-    _ => strings.settingsTextSizeLargest,
-  };
+  String _label(double value) => '${(value * 100).round()}%';
 
   @override
   Widget build(BuildContext context) {

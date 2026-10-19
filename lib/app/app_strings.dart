@@ -969,12 +969,6 @@ class AppStrings {
     '自动：≥620 px 显示；始终显示：≥480 px 保留侧栏；关闭：不显示侧栏。',
     'Auto: show at ≥620 px; Always: keep it at ≥480 px; Off: hide it.',
   );
-  String get settingsTextSizeSmall => _t('小', 'Small');
-  String get settingsTextSizeStandard => _t('标准', 'Standard');
-  String get settingsTextSizeLarge => _t('较大', 'Large');
-  String get settingsTextSizeLarger => _t('大', 'Larger');
-  String get settingsTextSizeExtraLarge => _t('特大', 'Extra large');
-  String get settingsTextSizeLargest => _t('最大', 'Largest');
   String get settingsTextSizeHint => _t(
     '系统字体缩放始终优先于本设置。',
     'System text scaling always applies on top of this setting.',

@@ -29,17 +29,17 @@ void main() {
     await dir.delete(recursive: true);
   });
 
-  test('text scale supports six levels and clamps oversized values', () async {
+  test('text scale supports five levels and clamps oversized values', () async {
     final dir = await Directory.systemTemp.createTemp('pdgapp-store-');
     final path = '${dir.path}/user_store.json';
     final store = await UserStore.open(overridePath: path);
-    await store.setSettings(store.settings.copyWith(textScale: 1.6));
+    await store.setSettings(store.settings.copyWith(textScale: 1.2));
     final reopened = await UserStore.open(overridePath: path);
-    expect(reopened.settings.textScale, 1.6);
+    expect(reopened.settings.textScale, 1.2);
 
     await store.setSettings(store.settings.copyWith(textScale: 2.0));
     final clamped = await UserStore.open(overridePath: path);
-    expect(clamped.settings.textScale, 1.6);
+    expect(clamped.settings.textScale, 1.2);
     await dir.delete(recursive: true);
   });
 

@@ -174,7 +174,7 @@ class AppSettings {
     return AppSettings(
       theme: theme == 'light' || theme == 'dark' ? theme! : 'system',
       locale: locale == 'zh' || locale == 'en' ? locale! : 'system',
-      textScale: (scale ?? 1.0).clamp(0.9, 1.6).toDouble(),
+      textScale: _normalizeTextScale(scale ?? 1.0),
       detailedMode: detailed is bool ? detailed : true,
       sidebarMode: sidebar == 'always' || sidebar == 'off' ? sidebar! : 'auto',
       noteLinkMode: noteLink == 'sidebar' ? 'sidebar' : 'page',
@@ -386,4 +386,15 @@ class UserStore extends ChangeNotifier {
     });
     return _writeChain;
   }
+}
+
+const List<double> _textScaleLevels = [0.8, 0.9, 1.0, 1.1, 1.2];
+
+double _normalizeTextScale(double value) {
+  final clamped = value.clamp(0.8, 1.2).toDouble();
+  var best = _textScaleLevels.first;
+  for (final level in _textScaleLevels) {
+    if ((level - clamped).abs() < (best - clamped).abs()) best = level;
+  }
+  return best;
 }

@@ -212,7 +212,10 @@ class _ParticleBodyState extends State<_ParticleBody> {
             ),
             ContentHeader(
               key: _overviewKey,
-              title: ParticleSymbol(view.entry.description, fontSize: 34),
+              title: ParticleSymbol(
+                view.entry.description,
+                fontSize: MediaQuery.sizeOf(context).width < 600 ? 26 : 34,
+              ),
               subtitle: Text(
                 [
                   'PDG ${view.currentEdition}',
