@@ -174,7 +174,7 @@ class AppSettings {
     return AppSettings(
       theme: theme == 'light' || theme == 'dark' ? theme! : 'system',
       locale: locale == 'zh' || locale == 'en' ? locale! : 'system',
-      textScale: (scale ?? 1.0).clamp(0.9, 1.3).toDouble(),
+      textScale: (scale ?? 1.0).clamp(0.9, 1.6).toDouble(),
       detailedMode: detailed is bool ? detailed : true,
       sidebarMode: sidebar == 'always' || sidebar == 'off' ? sidebar! : 'auto',
       noteLinkMode: noteLink == 'sidebar' ? 'sidebar' : 'page',

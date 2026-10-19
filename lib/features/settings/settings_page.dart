@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/app_strings.dart';
+import '../../app/settings_controller.dart';
 import '../../app/update_checker.dart';
 import '../../app/app_theme.dart';
 import 'zotero_cache_section.dart';
@@ -211,33 +213,10 @@ class _SettingsPageState extends State<SettingsPage> {
                             settings.setLocale(value.first),
                       ),
                     ),
-                    _SettingRow(
-                      label: strings.settingsTextSize,
-                      child: SegmentedButton<double>(
-                        showSelectedIcon: false,
-                        segments: [
-                          ButtonSegment(
-                            value: 1.0,
-                            label: Text(strings.settingsTextSizeStandard),
-                          ),
-                          ButtonSegment(
-                            value: 1.15,
-                            label: Text(strings.settingsTextSizeLarge),
-                          ),
-                          ButtonSegment(
-                            value: 1.3,
-                            label: Text(strings.settingsTextSizeLargest),
-                          ),
-                        ],
-                        selected: {settings.settings.textScale},
-                        onSelectionChanged: (value) =>
-                            settings.setTextScale(value.first),
-                      ),
-                    ),
-                    Text(
-                      strings.settingsTextSizeHint,
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(color: palette.textSecondary),
+                    _TextSizeSetting(
+                      settings: settings,
+                      strings: strings,
+                      palette: palette,
                     ),
                     const SizedBox(height: Insets.s),
                     _SettingRow(
@@ -777,6 +756,65 @@ class _SettingsPageState extends State<SettingsPage> {
             .showSnackBar(SnackBar(content: Text(strings.commonError)));
       }
     }
+  }
+}
+
+const List<double> _textScaleOptions = [0.9, 1.0, 1.15, 1.3, 1.45, 1.6];
+
+class _TextSizeSetting extends StatelessWidget {
+  const _TextSizeSetting({
+    required this.settings,
+    required this.strings,
+    required this.palette,
+  });
+
+  final SettingsController settings;
+  final AppStrings strings;
+  final AppPalette palette;
+
+  String _label(double value) => switch (value) {
+    0.9 => strings.settingsTextSizeSmall,
+    1.0 => strings.settingsTextSizeStandard,
+    1.15 => strings.settingsTextSizeLarge,
+    1.3 => strings.settingsTextSizeLarger,
+    1.45 => strings.settingsTextSizeExtraLarge,
+    _ => strings.settingsTextSizeLargest,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            strings.settingsTextSize,
+            style: Theme.of(context).textTheme.labelMedium
+                ?.copyWith(color: palette.textSecondary),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final scale in _textScaleOptions)
+                ChoiceChip(
+                  label: Text(_label(scale)),
+                  selected: (settings.settings.textScale - scale).abs() < 0.001,
+                  onSelected: (_) => settings.setTextScale(scale),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            strings.settingsTextSizeHint,
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: palette.textSecondary),
+          ),
+        ],
+      ),
+    );
   }
 }
 
