@@ -387,6 +387,25 @@ String valueTypeLabel(String code, TextLang lang) {
 
 String? valueTypeIndicator(String code) => valueTypes[code]?.indicator;
 
+/// Compact label for summary cards. PDG's `value_type` already names the
+/// average/fit; appending the redundant `OUR AVERAGE` / `OUR FIT` indicator
+/// made the chip overflow on phones.
+String valueTypeShortLabel(String code, TextLang lang) => switch (code) {
+      'AC' => pick(lang, 'PDG 平均', 'PDG Average'),
+      'FC' => pick(lang, 'PDG 拟合', 'PDG Fit'),
+      'D' => pick(lang, '其他模式平均', 'Other-mode Average'),
+      'V' => pick(lang, 'PDG 评估', 'PDG Evaluation'),
+      'L' => pick(lang, '最佳限值', 'Best Limit'),
+      'OL' => pick(lang, 'PDG 限值', 'PDG Limit'),
+      'E' => pick(lang, 'PDG 估计', 'PDG Estimate'),
+      'DR' => pick(lang, 'PDG 拟合衰变率', 'PDG Decay Fit'),
+      'OM' => pick(lang, '汇总下方附加记录', 'Extra Below Summary'),
+      'ON' => pick(lang, '汇总上方附加记录', 'Extra Above Summary'),
+      'O' => pick(lang, 'PDG 评估', 'PDG Evaluation'),
+      'DV' => pick(lang, '内部评估', 'Internal Evaluation'),
+      _ => valueTypeLabel(code, lang),
+    };
+
 String limitTypeLabel(String? code, TextLang lang) => switch (code) {
       null || '' => pick(lang, '测量值', 'Measured value'),
       'U' => pick(lang, '上限', 'Upper limit'),
