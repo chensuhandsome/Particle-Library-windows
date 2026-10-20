@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -11,6 +12,7 @@ import '../../app/full_backup.dart';
 import '../../app/settings_controller.dart';
 import '../../app/update_checker.dart';
 import '../../app/app_theme.dart';
+import 'shortcut_settings_section.dart';
 import 'zotero_cache_section.dart';
 import '../reference/zotero_setup_dialog.dart';
 import '../../data/zotero_bridge.dart';
@@ -424,6 +426,15 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
             ),
+            const SizedBox(height: Insets.m),
+            if (defaultTargetPlatform == TargetPlatform.macOS)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Insets.l),
+                child: ShortcutSettingsSection(
+                  settings: settings,
+                  strings: strings,
+                ),
+              ),
             const SizedBox(height: Insets.m),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Insets.l),

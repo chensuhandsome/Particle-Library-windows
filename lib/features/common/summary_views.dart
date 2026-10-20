@@ -399,9 +399,7 @@ class _HistoryRow extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               DisplayValueView(quantity, fontSize: 15),
-              MetaChip(
-                '${strings.summaryTypeLabel}：${valueTypeLabel(row.valueType, strings.lang)}',
-              ),
+              MetaChip(valueTypeShortLabel(row.valueType, strings.lang)),
               if (row.inSummaryTable) MetaChip(strings.seriesInSummaryTable),
               if (row.limitType != null)
                 MetaChip(

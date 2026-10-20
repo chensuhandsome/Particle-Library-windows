@@ -1,4 +1,5 @@
 import '../domain/labels.dart';
+import 'shortcuts.dart';
 
 /// The product name shown everywhere in the UI and in the macOS bundle.
 const String kAppName = 'Particle Library';
@@ -985,6 +986,40 @@ class AppStrings {
     '选择点击笔记正文里的 PDG/文献链接时，是直接跳转还是先在侧栏预览。',
     'Choose whether a PDG or reference link in note text opens the page directly or previews in the note sidebar.',
   );
+
+  String get settingsShortcuts => _t('键盘快捷键', 'Keyboard shortcuts');
+  String get settingsShortcutsHint => _t(
+    '点击组合键可重新录制；发生冲突时会提示。默认值保留原有键位。',
+    'Click a combination to record a new one. Conflicts are rejected. Defaults keep the original shortcuts.',
+  );
+  String get settingsShortcutChange => _t('修改', 'Change');
+  String get settingsShortcutReset => _t('恢复默认', 'Reset');
+  String get settingsShortcutResetAll => _t('全部恢复默认', 'Reset all');
+  String get settingsShortcutNotSet => _t('未设置', 'Not set');
+  String get settingsShortcutRecorderTitle => _t('录制快捷键', 'Record shortcut');
+  String get settingsShortcutRecorderHint => _t(
+    '按下新的组合键；需要至少一个修饰键。Esc 取消。',
+    'Press a new key combination. At least one modifier is required; Esc cancels.',
+  );
+  String get settingsShortcutNeedsModifier =>
+      _t('请使用至少一个修饰键。', 'Use at least one modifier key.');
+  String settingsShortcutConflict(String command) => _t(
+    '该组合键已被“$command”使用。',
+    'That combination is already used by “$command”.',
+  );
+  String get settingsShortcutClear => _t('清除', 'Clear');
+  String get settingsShortcutSaved => _t('快捷键已更新。', 'Shortcut updated.');
+
+  String shortcutCommandLabel(AppShortcutCommand command) => switch (command) {
+    AppShortcutCommand.search => _t('搜索', 'Search'),
+    AppShortcutCommand.favorites => _t('收藏', 'Favorites'),
+    AppShortcutCommand.notes => _t('笔记', 'Notes'),
+    AppShortcutCommand.settings => _t('设置', 'Settings'),
+    AppShortcutCommand.newNote => _t('新建笔记', 'New note'),
+    AppShortcutCommand.back => _t('后退', 'Back'),
+    AppShortcutCommand.forward => _t('前进', 'Forward'),
+  };
+
   String get notesLinkPreview => _t('链接预览', 'Link preview');
   String get notesOpenPage => _t('打开完整页面', 'Open full page');
   String get notesLinkMissing =>

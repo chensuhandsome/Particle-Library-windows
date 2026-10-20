@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../domain/labels.dart';
 import '../user/user_store.dart';
 import 'app_strings.dart';
+import 'shortcuts.dart';
 
 class SettingsController extends ChangeNotifier {
   SettingsController(this.store, {Locale? systemLocale})
@@ -73,6 +74,51 @@ class SettingsController extends ChangeNotifier {
   Future<void> setAutoUpdateZoteroIndex(bool value) async {
     if (_settings.autoUpdateZoteroIndex == value) return;
     _settings = _settings.copyWith(autoUpdateZoteroIndex: value);
+    notifyListeners();
+    await store.setSettings(_settings);
+  }
+
+  /// Effective bindings for [command]: the user override if present, the
+  /// platform defaults otherwise, or an empty list when the command is off.
+  List<AppShortcutBinding> shortcutBindings(AppShortcutCommand command) {
+    final raw = _settings.shortcuts[command.id];
+    if (raw == null) return AppShortcuts.defaultsFor(command);
+    if (raw == 'off') return const <AppShortcutBinding>[];
+    final decoded = AppShortcutBinding.decode(raw);
+    return decoded == null
+        ? AppShortcuts.defaultsFor(command)
+        : <AppShortcutBinding>[decoded];
+  }
+
+  bool shortcutIsCustom(AppShortcutCommand command) =>
+      _settings.shortcuts.containsKey(command.id);
+
+  bool shortcutIsDisabled(AppShortcutCommand command) =>
+      _settings.shortcuts[command.id] == 'off';
+
+  Future<void> setShortcut(
+    AppShortcutCommand command,
+    AppShortcutBinding? binding,
+  ) async {
+    final next = Map<String, String>.from(_settings.shortcuts);
+    next[command.id] = binding?.encode() ?? 'off';
+    _settings = _settings.copyWith(shortcuts: next);
+    notifyListeners();
+    await store.setSettings(_settings);
+  }
+
+  Future<void> resetShortcut(AppShortcutCommand command) async {
+    if (!_settings.shortcuts.containsKey(command.id)) return;
+    final next = Map<String, String>.from(_settings.shortcuts)
+      ..remove(command.id);
+    _settings = _settings.copyWith(shortcuts: next);
+    notifyListeners();
+    await store.setSettings(_settings);
+  }
+
+  Future<void> resetAllShortcuts() async {
+    if (_settings.shortcuts.isEmpty) return;
+    _settings = _settings.copyWith(shortcuts: const <String, String>{});
     notifyListeners();
     await store.setSettings(_settings);
   }

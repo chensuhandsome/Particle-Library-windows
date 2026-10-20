@@ -617,7 +617,7 @@ class _KeyPropertyCard extends StatelessWidget {
         [
           'PDG ${view.currentEdition}',
           if (selection.preferred != null)
-            '${strings.summaryTypeLabel} ${valueTypeLabel(selection.preferred!.valueType, strings.lang)}',
+            valueTypeShortLabel(selection.preferred!.valueType, strings.lang),
           if (selection.preferred != null &&
               selection.preferred!.limitType != null)
             limitTypeLabel(selection.preferred!.limitType, strings.lang),

@@ -118,6 +118,7 @@ class AppSettings {
     this.lastUpdateCheck = '',
     this.autoUpdateZoteroIndex = true,
     this.zoteroEnabled = true,
+    this.shortcuts = const <String, String>{},
   });
 
   final String theme;
@@ -139,6 +140,12 @@ class AppSettings {
   /// Whether the optional Zotero integration is enabled at all.
   final bool zoteroEnabled;
 
+  /// Per-command shortcut overrides keyed by [AppShortcutCommand.id].
+  ///
+  /// A missing key means the platform default; the sentinel `off` disables
+  /// the command. Values are [AppShortcutBinding.encode] strings.
+  final Map<String, String> shortcuts;
+
   AppSettings copyWith({
     String? theme,
     String? locale,
@@ -149,6 +156,7 @@ class AppSettings {
     String? lastUpdateCheck,
     bool? autoUpdateZoteroIndex,
     bool? zoteroEnabled,
+    Map<String, String>? shortcuts,
   }) => AppSettings(
     theme: theme ?? this.theme,
     locale: locale ?? this.locale,
@@ -159,6 +167,7 @@ class AppSettings {
     lastUpdateCheck: lastUpdateCheck ?? this.lastUpdateCheck,
     autoUpdateZoteroIndex: autoUpdateZoteroIndex ?? this.autoUpdateZoteroIndex,
     zoteroEnabled: zoteroEnabled ?? this.zoteroEnabled,
+    shortcuts: shortcuts ?? this.shortcuts,
   );
 
   Map<String, Object?> toJson() => {
@@ -171,6 +180,7 @@ class AppSettings {
     'lastUpdateCheck': lastUpdateCheck,
     'autoUpdateZoteroIndex': autoUpdateZoteroIndex,
     'zoteroEnabled': zoteroEnabled,
+    'shortcuts': shortcuts,
   };
 
   static AppSettings fromJson(Object? value) {
@@ -187,6 +197,15 @@ class AppSettings {
     final lastUpdate = map['lastUpdateCheck']?.toString() ?? '';
     final autoUpdateZotero = map['autoUpdateZoteroIndex'];
     final zoteroEnabled = map['zoteroEnabled'];
+    final shortcuts = <String, String>{};
+    final rawShortcuts = map['shortcuts'];
+    if (rawShortcuts is Map) {
+      for (final entry in rawShortcuts.entries) {
+        final key = entry.key?.toString() ?? '';
+        final value = entry.value?.toString() ?? '';
+        if (key.isNotEmpty && value.isNotEmpty) shortcuts[key] = value;
+      }
+    }
     return AppSettings(
       theme: theme == 'light' || theme == 'dark' ? theme! : 'system',
       locale: locale == 'zh' || locale == 'en' ? locale! : 'system',
@@ -197,6 +216,7 @@ class AppSettings {
       lastUpdateCheck: lastUpdate,
       autoUpdateZoteroIndex: autoUpdateZotero is bool ? autoUpdateZotero : true,
       zoteroEnabled: zoteroEnabled is bool ? zoteroEnabled : true,
+      shortcuts: shortcuts,
     );
   }
 }
