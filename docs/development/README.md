@@ -5,6 +5,8 @@ frozen during implementation. They are useful when changing the data layer or
 reproducing a build; they are not required to use the app.
 
 - [Building](BUILDING.md)
+- [Windows setup and build guide](../../README-windows.md)
+- [Windows porting checklist](../windows-adaptation/PORTING_CHECKLIST.md)
 - [Android](ANDROID.md)
 - [Platform support](PLATFORMS.md)
 - [Roadmap](ROADMAP.md)

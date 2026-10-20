@@ -127,7 +127,10 @@ The first public preview is **[Release 0.1.2](https://github.com/fkguo/Particle-
   use `Particle-Library-0.1.2-Android-arm64-v8a.apk` on modern phones or
   `Particle-Library-0.1.2-Android-armeabi-v7a.apk` on older 32-bit devices.
   See [Android build notes](docs/development/ANDROID.md).
-- **Windows/Linux/web**: not built for 0.1.2.
+- **Windows 10/11 x64**: a local packaging script creates an installer and a
+  complete portable ZIP; the full support smoke checklist is still pending.
+  See [Windows build notes](README-windows.md).
+- **Linux/web**: not built for 0.1.2.
 
 The macOS app bundles the PDG snapshot, so end users do not need Flutter, Xcode,
 or the repository. Source builders download
@@ -142,6 +145,7 @@ See [RELEASING.md](docs/development/RELEASING.md).
 
 - [Building Particle Library](docs/development/BUILDING.md)
 - [Platform support matrix](docs/development/PLATFORMS.md)
+- [Windows setup and build guide](README-windows.md)
 
 The short macOS path (verified):
 
@@ -192,6 +196,7 @@ assets/         icons/theme assets; the PDG snapshot is supplied separately
 macos/          macOS runner
 ios/            iOS runner
 android/        Android runner and release signing
+windows/        Windows Flutter runner (build verification pending)
 tool/           release/packaging helper scripts
 docs/           design and data documentation
 ```

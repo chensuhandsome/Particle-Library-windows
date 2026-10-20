@@ -1,6 +1,6 @@
 import '../domain/labels.dart';
 
-/// The product name shown everywhere in the UI and in the macOS bundle.
+/// The product name shown in the app UI and desktop bundles.
 const String kAppName = 'Particle Library';
 
 /// All user-facing UI copy. Data text (PDG descriptions, titles, citations) is

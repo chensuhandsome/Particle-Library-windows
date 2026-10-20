@@ -11,7 +11,7 @@ storage and packaging must either be handled now or recorded here.
 | macOS | supported, release build verified | signing/notarization for public distribution |
 | iPhone/iPad | simulator + development-signed Release install verified | TestFlight/App Store signing |
 | Android | signed preview APK; arm64/API 35 smoke-tested | API 24 and 32-bit device smoke test; Play Store signing |
-| Windows | not scaffolded | build on Windows/MSVC, installer |
+| Windows 10/11 x64 | packaged; smoke-test sign-off pending | complete the Windows QA checklist |
 | Linux | not scaffolded | build on Linux/GTK, package |
 
 ## Planned work
@@ -35,10 +35,9 @@ storage and packaging must either be handled now or recorded here.
 
 ### P3 — Windows/Linux
 
-- Generate `windows/` and `linux/` on their native hosts.
-- Verify SQLite, PDFium, file dialogs, window sizing and keyboard shortcuts.
-- Provide installers (MSIX/Inno Setup; `.deb`/AppImage).
-- Add CI jobs; a macOS build is not evidence for these targets.
+- Complete Windows smoke-test sign-off; generate and validate `linux/` on a
+  native Linux host.
+- Keep desktop plugin, persistence and keyboard validation platform-specific.
 
 ### P4 — iOS distribution
 

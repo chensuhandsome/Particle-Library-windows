@@ -15,7 +15,9 @@ the user manual (that lives in the app under **Help**).
 
 ## Development
 
+- [Windows setup and build guide](../README-windows.md)
 - [Build instructions](development/BUILDING.md)
+- [Windows porting checklist](windows-adaptation/PORTING_CHECKLIST.md)
 - [Platform support](development/PLATFORMS.md)
 - [Roadmap and cross-platform rules](development/ROADMAP.md)
 - [Licensing notes](development/LICENSING.md)

@@ -686,7 +686,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                                   .textTheme
                                                   .bodySmall
                                                   ?.copyWith(
-                                                    fontFamily: 'Menlo',
+                                                    fontFamily: AppFonts.monospaceFamily,
                                                   ),
                                             ),
                                           ),
@@ -741,7 +741,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                           .textTheme
                                           .bodySmall
                                           ?.copyWith(
-                                            fontFamily: 'Menlo',
+                                            fontFamily: AppFonts.monospaceFamily,
                                             fontSize: 11,
                                           ),
                                     ),
