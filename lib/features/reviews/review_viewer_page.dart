@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/app_scope.dart';
 import '../../app/app_strings.dart';
+import '../../app/immersive_page.dart';
 import '../../app/app_theme.dart';
 import '../../app/navigation.dart';
 import '../../data/review_annotation_notes.dart';
@@ -13,7 +14,7 @@ import '../../data/review_annotations.dart';
 import '../../notes/notes_store.dart';
 import '../notes/note_editor.dart';
 
-class ReviewViewerPage extends StatefulWidget {
+class ReviewViewerPage extends StatefulWidget implements ImmersivePage {
   const ReviewViewerPage({
     super.key,
     required this.title,
@@ -770,10 +771,19 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final strings = AppScope.of(context).strings;
+    final narrow = MediaQuery.sizeOf(context).width < 600;
     return Scaffold(
       backgroundColor: palette.background,
       appBar: AppBar(
-        title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        toolbarHeight: narrow ? 48 : null,
+        titleSpacing: narrow ? 0 : null,
+        title: Text(
+          widget.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textScaler: MediaQuery.textScalerOf(context)
+              .clamp(maxScaleFactor: 1.3),
+        ),
         actions: [
           if (_editingRange != null) ...[
             IconButton(
@@ -804,67 +814,120 @@ class _ReviewViewerPageState extends State<ReviewViewerPage> {
               _highlightMode ? Icons.border_color : Icons.highlight_alt,
             ),
           ),
-          PopupMenuButton<String>(
-            tooltip: strings.reviewHighlightColor,
-            icon: _highlightGlyph(Icons.palette_outlined),
-            onSelected: (color) => setState(() => _highlightColor = color),
-            itemBuilder: (context) => [
-              for (final color in const ['yellow', 'green', 'pink', 'blue'])
-                PopupMenuItem(
-                  value: color,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: _annotationColor(color),
-                          borderRadius: BorderRadius.circular(3),
+          if (!narrow) ...[
+            PopupMenuButton<String>(
+              tooltip: strings.reviewHighlightColor,
+              icon: _highlightGlyph(Icons.palette_outlined),
+              onSelected: (color) => setState(() => _highlightColor = color),
+              itemBuilder: (context) => [
+                for (final color in const ['yellow', 'green', 'pink', 'blue'])
+                  PopupMenuItem(
+                    value: color,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: _annotationColor(color),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(strings.reviewHighlightColorName(color)),
-                      if (color == _highlightColor) ...[
-                        const Spacer(),
-                        const Icon(Icons.check, size: 16),
+                        const SizedBox(width: 8),
+                        Text(strings.reviewHighlightColorName(color)),
+                        if (color == _highlightColor) ...[
+                          const Spacer(),
+                          const Icon(Icons.check, size: 16),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
+              ],
+            ),
+            IconButton(
+              tooltip: strings.reviewAnnotationSidebar,
+              onPressed: () {
+                final size = MediaQuery.sizeOf(context);
+                if (size.width < 700 || size.height < 500) {
+                  _openAnnotationsSheet();
+                } else {
+                  setState(() => _showAnnotations = !_showAnnotations);
+                }
+              },
+              icon: Badge.count(
+                count: _annotations.length,
+                isLabelVisible: _annotations.isNotEmpty,
+                child: Icon(
+                  _showAnnotations
+                      ? Icons.view_sidebar
+                      : Icons.view_sidebar_outlined,
+                  size: 19,
                 ),
-            ],
-          ),
-          IconButton(
-            tooltip: strings.reviewAnnotationSidebar,
-            onPressed: () {
-              if (MediaQuery.sizeOf(context).width < 700) {
-                _openAnnotationsSheet();
-              } else {
-                setState(() => _showAnnotations = !_showAnnotations);
-              }
-            },
-            icon: Badge.count(
-              count: _annotations.length,
-              isLabelVisible: _annotations.isNotEmpty,
-              child: Icon(
-                _showAnnotations
-                    ? Icons.view_sidebar
-                    : Icons.view_sidebar_outlined,
-                size: 19,
               ),
             ),
-          ),
-          IconButton(
-            tooltip: strings.reviewOpenOfficial,
-            icon: const Icon(Icons.open_in_new, size: 19),
-            onPressed: _openExternally,
-          ),
+            IconButton(
+              tooltip: strings.reviewOpenOfficial,
+              icon: const Icon(Icons.open_in_new, size: 19),
+              onPressed: _openExternally,
+            ),
+          ] else
+            PopupMenuButton<String>(
+              tooltip: strings.commonMoreOptions,
+              icon: const Icon(Icons.more_horiz, size: 20),
+              onSelected: (value) {
+                if (value.startsWith('color:')) {
+                  setState(() => _highlightColor = value.substring(6));
+                } else if (value == 'sidebar') {
+                  _openAnnotationsSheet();
+                } else if (value == 'official') {
+                  _openExternally();
+                }
+              },
+              itemBuilder: (context) => [
+                for (final color in const ['yellow', 'green', 'pink', 'blue'])
+                  PopupMenuItem(
+                    value: 'color:$color',
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: _annotationColor(color),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(strings.reviewHighlightColorName(color)),
+                        if (color == _highlightColor) ...[
+                          const Spacer(),
+                          const Icon(Icons.check, size: 16),
+                        ],
+                      ],
+                    ),
+                  ),
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'sidebar',
+                  child: Text(strings.reviewAnnotationSidebar),
+                ),
+                PopupMenuItem(
+                  value: 'official',
+                  child: Text(strings.reviewOpenOfficial),
+                ),
+              ],
+            ),
         ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           if (!_sidebarInitialized) {
             _sidebarInitialized = true;
-            _showAnnotations = constraints.maxWidth >= 700;
+            // A phone in landscape is wide but short; opening the 320 px
+            // sidebar there leaves too little room for the page. Tablets and
+            // desktops still get the inline sidebar.
+            _showAnnotations =
+                constraints.maxWidth >= 700 && constraints.maxHeight >= 500;
           }
           final sidebarWidth = constraints.maxWidth >= 720
               ? 320.0

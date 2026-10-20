@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pdgapp/domain/reference_title.dart';
 import 'package:pdgapp/features/reference/reference_page.dart';
 
 void main() {
@@ -46,5 +47,12 @@ void main() {
 
   test('charge pairs become a readable plus-minus', () {
     expect(plainReferenceTitle('D_s()+-'), 'D_s()±');
+  });
+
+  test('truncated title endings are detected conservatively', () {
+    expect(referenceTitleLooksTruncated('Dalitz Plot Analysis of'), isTrue);
+    expect(referenceTitleLooksTruncated('Measurement of the'), isTrue);
+    expect(referenceTitleLooksTruncated('Study of B- --> D+ pi-'), isFalse);
+    expect(referenceTitleLooksTruncated('Dalitz plot analysis'), isFalse);
   });
 }

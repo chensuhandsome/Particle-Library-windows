@@ -13,8 +13,10 @@ void main() {
     final theme = AppTheme.light();
 
     expect(theme.textTheme.bodyMedium?.fontFamily, 'Segoe UI');
-    expect(theme.textTheme.bodyMedium?.fontFamilyFallback,
-        AppFonts.windowsChineseFallback);
+    expect(
+      theme.textTheme.bodyMedium?.fontFamilyFallback,
+      AppFonts.windowsChineseFallback,
+    );
     expect(AppFonts.monospaceFamily, 'Consolas');
   });
 

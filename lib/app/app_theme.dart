@@ -370,6 +370,7 @@ class AppTheme {
           color: palette.surface,
         ),
         behavior: SnackBarBehavior.floating,
+        showCloseIcon: false,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       scrollbarTheme: ScrollbarThemeData(

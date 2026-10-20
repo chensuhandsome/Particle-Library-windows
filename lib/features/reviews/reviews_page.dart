@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../app/app_theme.dart';
+import '../../app/navigation.dart';
 import '../../data/review_cache.dart';
 import '../common/description_text.dart';
 import '../common/page.dart';
@@ -12,14 +13,7 @@ import 'review_index.dart';
 import 'review_viewer_page.dart';
 
 class ReviewsPage extends StatefulWidget {
-  const ReviewsPage({
-    super.key,
-    this.initialQuery = '',
-    this.initialFiles = const <String>{},
-  });
-
-  /// Optional title filter used when opening reviews from a catalog category.
-  final String initialQuery;
+  const ReviewsPage({super.key, this.initialFiles = const <String>{}});
 
   /// Exact review PDFs for a PDG Live category-level reviews button.
   final Set<String> initialFiles;
@@ -58,8 +52,6 @@ class _ReviewsPageState extends State<ReviewsPage> {
   @override
   void initState() {
     super.initState();
-    _query = widget.initialQuery;
-    _controller.text = widget.initialQuery;
     _loadCache();
   }
 
@@ -103,13 +95,12 @@ class _ReviewsPageState extends State<ReviewsPage> {
       return;
     }
     if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ReviewViewerPage(
-          title: entry.title,
-          path: local.path,
-          officialUrl: entry.url,
-        ),
+    await AppNav.push<void>(
+      context,
+      ReviewViewerPage(
+        title: entry.title,
+        path: local.path,
+        officialUrl: entry.url,
       ),
     );
   }

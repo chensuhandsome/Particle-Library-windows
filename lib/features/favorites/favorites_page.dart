@@ -7,6 +7,7 @@ import '../../domain/reference_title.dart';
 import '../../user/user_store.dart';
 import '../common/description_text.dart';
 import '../common/resize_handle.dart';
+import '../common/snack_bars.dart';
 import '../common/ui.dart';
 
 class FavoritesPage extends StatefulWidget {
@@ -291,15 +292,11 @@ class _FavoriteTile extends StatelessWidget {
               onPressed: () async {
                 await scope.store.removeFavorite(favorite.key);
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    duration: const Duration(seconds: 3),
-                    content: Text(strings.favoritesRemoved),
-                    action: SnackBarAction(
-                      label: strings.favoritesUndo,
-                      onPressed: () => scope.store.toggleFavorite(favorite),
-                    ),
-                  ),
+                showUndoSnackBar(
+                  ScaffoldMessenger.of(context),
+                  message: strings.favoritesRemoved,
+                  undoLabel: strings.favoritesUndo,
+                  onUndo: () => scope.store.toggleFavorite(favorite),
                 );
               },
             ),

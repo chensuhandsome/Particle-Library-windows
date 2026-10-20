@@ -229,4 +229,136 @@ void main() {
     expect(segments.first.latex, r'B_s^0');
     expect(segments.last.latex, r'D^{0}');
   });
+
+  test('descriptive titles keep prose and typeset only particle symbols', () {
+    final segments = segmentPdgText('pi ELECTRIC POLARIZABILITY alpha(pi)');
+    final latex = segments
+        .where((segment) => segment.latex != null)
+        .map((segment) => segment.latex!)
+        .toList();
+    expect(latex, contains(r'\pi'));
+    expect(latex, contains(r'\alpha_{\pi}'));
+    expect(latex.every((value) => !value.contains('ELECTRIC')), isTrue);
+    expect(latex.every((value) => !value.contains('POLARIZABILITY')), isTrue);
+    final plain = segments
+        .where((segment) => segment.text != null)
+        .map((segment) => segment.text!)
+        .join();
+    expect(plain, contains('ELECTRIC'));
+    expect(plain, contains('POLARIZABILITY'));
+  });
+
+  test('reverse-related measurement descriptions are fully typeset', () {
+    final absolute = segmentPdgText('ABS(mass(D_10)-mass(D_20)) = x Gamma');
+    final absoluteLatex = absolute
+        .where((segment) => segment.latex != null)
+        .map((segment) => segment.latex!)
+        .toList();
+    expect(
+      absoluteLatex,
+      contains(r'\left|m_{D_{1}^{0}}-m_{D_{2}^{0}}\right|'),
+    );
+    expect(absoluteLatex, contains('x'));
+    expect(absoluteLatex, contains(r'\Gamma'));
+    expect(
+      absolute
+          .where((segment) => segment.text != null)
+          .map((segment) => segment.text!)
+          .join(),
+      isNot(contains('D_10')),
+    );
+
+    final widths = segmentPdgText('(Gamma(D_10) - Gamma(D_20))/Gamma = 2y');
+    final widthsLatex = widths
+        .where((segment) => segment.latex != null)
+        .map((segment) => segment.latex!)
+        .toList();
+    expect(widthsLatex, contains(r'\Gamma'));
+    expect(widthsLatex, contains('2y'));
+    expect(
+      widths
+          .where((segment) => segment.text != null)
+          .map((segment) => segment.text!)
+          .join(),
+      isNot(contains('D_10')),
+    );
+
+    final coherence = segmentPdgText(
+      'D0 --> K- pi- 2pi+ COHERENCE FACTOR R(K 3pi)',
+    );
+    final coherenceLatex = coherence
+        .where((segment) => segment.latex != null)
+        .map((segment) => segment.latex!)
+        .toList();
+    expect(coherenceLatex, contains(r'2\pi^{+}'));
+    expect(coherenceLatex, contains(r'R(K3\pi)'));
+    expect(
+      coherence
+          .where((segment) => segment.text != null)
+          .map((segment) => segment.text!)
+          .join(),
+      contains('COHERENCE FACTOR'),
+    );
+
+    final phase = segmentPdgText(
+      'D0 --> K- pi- 2pi+ AVERAGE RELATIVE STRONG PHASE delta**K 3pi',
+    );
+    final phaseLatex = phase
+        .where((segment) => segment.latex != null)
+        .map((segment) => segment.latex!)
+        .toList();
+    expect(phaseLatex, contains(r'\delta^{K}'));
+    expect(phaseLatex, contains(r'3\pi'));
+    expect(
+      phase
+          .where((segment) => segment.text != null)
+          .map((segment) => segment.text!)
+          .join(),
+      contains('AVERAGE RELATIVE STRONG PHASE'),
+    );
+  });
+
+  test('reference titles with compact star and charge notation typeset', () {
+    final segments = segmentPdgText(
+      'Study of B- --> D^**0 pi- (D^**0 --> D^(*)+ pi-) Decays',
+    );
+    final latex = segments
+        .where((segment) => segment.latex != null)
+        .map((segment) => segment.latex!)
+        .toList();
+    expect(latex, contains(r'B^{-}'));
+    expect(latex, contains(r'D^{**0}'));
+    final joined = latex.join(' ');
+    expect(joined, contains(r'D^{(*)+}'));
+    expect(joined, contains(r'\pi^{-}'));
+    expect(joined, contains(r'\longrightarrow'));
+    final plain = segments
+        .where((segment) => segment.text != null)
+        .map((segment) => segment.text!)
+        .join();
+    expect(plain, contains('Study of'));
+    expect(plain, contains('Decays'));
+  });
+
+  test('comma-separated branching-ratio descriptions keep math tokens', () {
+    final segments = segmentPdgText(
+      'G(D0 --> K*(892)- 2pi+ pi- , K*(892)- --> K0S pi- , no rho0)/'
+      'G(D0 --> K0S 2pi+ 2pi-)',
+    );
+    final latex = segments
+        .where((segment) => segment.latex != null)
+        .map((segment) => segment.latex!)
+        .join(' ');
+    expect(latex, contains(r'K^{*}(892)^{-}'));
+    expect(latex, contains(r'K_{S}^{0}'));
+    expect(latex, contains(r'\rho^{0}'));
+    expect(latex, contains(r'\Gamma'));
+    final plain = segments
+        .where((segment) => segment.text != null)
+        .map((segment) => segment.text!)
+        .join();
+    expect(plain, contains('no'));
+    expect(plain, isNot(contains('K0S')));
+    expect(plain, isNot(contains('K*(892)-')));
+  });
 }

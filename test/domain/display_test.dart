@@ -102,6 +102,10 @@ void main() {
     expect(valueTypeLabel('FC', TextLang.zh), contains('拟合'));
     expect(valueTypeLabel('FC', TextLang.zh), isNot(contains('用于')));
     expect(valueTypeLabel('AC', TextLang.zh), contains('平均'));
+    expect(valueTypeShortLabel('AC', TextLang.en), 'PDG Average');
+    expect(valueTypeShortLabel('FC', TextLang.en), 'PDG Fit');
+    expect(valueTypeShortLabel('AC', TextLang.zh), contains('平均'));
+    expect(valueTypeShortLabel('FC', TextLang.zh), contains('拟合'));
     expect(inclusionLabel(true, 'fit', TextLang.zh), contains('fit 标志'));
     expect(inclusionLabel(true, 'fit', TextLang.zh), isNot(contains('OUR FIT')));
     expect(inclusionLabel(false, 'average', TextLang.zh), contains('average 标志'));

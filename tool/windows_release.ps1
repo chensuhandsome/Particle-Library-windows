@@ -43,6 +43,14 @@ Copy-Item -LiteralPath (Join-Path $repoRoot 'windows/runner/resources/app_icon.i
 $portableZip = Join-Path $distDir Particle-Library-$version-Windows-x64-Portable.zip
 $installer = Join-Path $distDir Particle-Library-$version-Windows-x64-Setup.exe
 $checksums = Join-Path $distDir 'SHA256SUMS.txt'
+if (Test-Path -LiteralPath $distDir -PathType Container) {
+    Get-ChildItem -LiteralPath $distDir -File |
+        Where-Object {
+            $_.Name -match '^Particle-Library-[0-9]+\.[0-9]+\.[0-9]+-Windows-x64-(Setup\.exe|Portable\.zip)$' -and
+            $_.Name -notin @((Split-Path -Leaf $portableZip), (Split-Path -Leaf $installer))
+        } |
+        Remove-Item -Force
+}
 foreach ($artifact in @($portableZip, $installer, $checksums)) {
     if (Test-Path -LiteralPath $artifact) { Remove-Item -LiteralPath $artifact -Force }
 }

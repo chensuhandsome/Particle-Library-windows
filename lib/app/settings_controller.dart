@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../domain/labels.dart';
 import '../user/user_store.dart';
 import 'app_strings.dart';
+import 'shortcuts.dart';
 
 class SettingsController extends ChangeNotifier {
   SettingsController(this.store, {Locale? systemLocale})
@@ -46,6 +47,8 @@ class SettingsController extends ChangeNotifier {
   bool get detailedMode => _settings.detailedMode;
   String get sidebarMode => _settings.sidebarMode;
   String get noteLinkMode => _settings.noteLinkMode;
+  bool get autoUpdateZoteroIndex => _settings.autoUpdateZoteroIndex;
+  bool get zoteroEnabled => _settings.zoteroEnabled;
 
   void reloadFromStore() {
     _settings = store.settings;
@@ -64,6 +67,65 @@ class SettingsController extends ChangeNotifier {
     final normalized = value == 'sidebar' ? 'sidebar' : 'page';
     if (_settings.noteLinkMode == normalized) return;
     _settings = _settings.copyWith(noteLinkMode: normalized);
+    notifyListeners();
+    await store.setSettings(_settings);
+  }
+
+  Future<void> setAutoUpdateZoteroIndex(bool value) async {
+    if (_settings.autoUpdateZoteroIndex == value) return;
+    _settings = _settings.copyWith(autoUpdateZoteroIndex: value);
+    notifyListeners();
+    await store.setSettings(_settings);
+  }
+
+  /// Effective bindings for [command]: the user override if present, the
+  /// platform defaults otherwise, or an empty list when the command is off.
+  List<AppShortcutBinding> shortcutBindings(AppShortcutCommand command) {
+    final raw = _settings.shortcuts[command.id];
+    if (raw == null) return AppShortcuts.defaultsFor(command);
+    if (raw == 'off') return const <AppShortcutBinding>[];
+    final decoded = AppShortcutBinding.decode(raw);
+    return decoded == null
+        ? AppShortcuts.defaultsFor(command)
+        : <AppShortcutBinding>[decoded];
+  }
+
+  bool shortcutIsCustom(AppShortcutCommand command) =>
+      _settings.shortcuts.containsKey(command.id);
+
+  bool shortcutIsDisabled(AppShortcutCommand command) =>
+      _settings.shortcuts[command.id] == 'off';
+
+  Future<void> setShortcut(
+    AppShortcutCommand command,
+    AppShortcutBinding? binding,
+  ) async {
+    final next = Map<String, String>.from(_settings.shortcuts);
+    next[command.id] = binding?.encode() ?? 'off';
+    _settings = _settings.copyWith(shortcuts: next);
+    notifyListeners();
+    await store.setSettings(_settings);
+  }
+
+  Future<void> resetShortcut(AppShortcutCommand command) async {
+    if (!_settings.shortcuts.containsKey(command.id)) return;
+    final next = Map<String, String>.from(_settings.shortcuts)
+      ..remove(command.id);
+    _settings = _settings.copyWith(shortcuts: next);
+    notifyListeners();
+    await store.setSettings(_settings);
+  }
+
+  Future<void> resetAllShortcuts() async {
+    if (_settings.shortcuts.isEmpty) return;
+    _settings = _settings.copyWith(shortcuts: const <String, String>{});
+    notifyListeners();
+    await store.setSettings(_settings);
+  }
+
+  Future<void> setZoteroEnabled(bool value) async {
+    if (_settings.zoteroEnabled == value) return;
+    _settings = _settings.copyWith(zoteroEnabled: value);
     notifyListeners();
     await store.setSettings(_settings);
   }
@@ -92,6 +154,14 @@ class SettingsController extends ChangeNotifier {
   Future<void> setTextScale(double scale) async {
     if ((_settings.textScale - scale).abs() < 0.001) return;
     _settings = _settings.copyWith(textScale: scale);
+    notifyListeners();
+    await store.setSettings(_settings);
+  }
+
+  /// Records the local day of the last successful automatic update check.
+  Future<void> markUpdateChecked(String date) async {
+    if (_settings.lastUpdateCheck == date) return;
+    _settings = _settings.copyWith(lastUpdateCheck: date);
     notifyListeners();
     await store.setSettings(_settings);
   }

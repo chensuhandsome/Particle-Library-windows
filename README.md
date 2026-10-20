@@ -22,7 +22,7 @@ Particle Physics, with notes, references, PDF reviews and annotations. The PDG
 snapshot stays read-only and local, while notes, collections, favorites and PDF
 annotations are stored separately from the data.
 
-Built over a weekend using **DeepSeek Harness** and
+The first version was built over a weekend using **DeepSeek Harness** and
 **DeepSeek-V4.1-Flash-1017**.
 
 **Supported platforms:** macOS 12+ (universal), iPhone/iPadOS 15+, and
@@ -100,10 +100,10 @@ Source builders can download the exact snapshot used here:
 
 ## Install
 
-The first public preview is **[Release 0.1.2](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.2)**.
+The latest release is **[Release 0.1.3](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.3)**.
 
 - **macOS 12+ (universal)**: download
-  `Particle-Library-0.1.2-macOS-universal.dmg` (or the `.zip`). It is ad-hoc
+  `Particle-Library-0.1.3-macOS-universal.dmg` (or the `.zip`). It is ad-hoc
   signed, not notarized. Verify `SHA256SUMS.txt` first.
 
   **If macOS blocks the first launch** (Gatekeeper), use one of these:
@@ -124,13 +124,13 @@ The first public preview is **[Release 0.1.2](https://github.com/fkguo/Particle-
   development-signed installation from source are verified; public distribution
   needs a paid Apple Developer team.
 - **Android 7.0+ (API 24)**: signed preview APKs are provided in the release:
-  use `Particle-Library-0.1.2-Android-arm64-v8a.apk` on modern phones or
-  `Particle-Library-0.1.2-Android-armeabi-v7a.apk` on older 32-bit devices.
+  use `Particle-Library-0.1.3-Android-arm64-v8a.apk` on modern phones or
+  `Particle-Library-0.1.3-Android-armeabi-v7a.apk` on older 32-bit devices.
   See [Android build notes](docs/development/ANDROID.md).
-- **Windows 10/11 x64**: a local packaging script creates an installer and a
-  complete portable ZIP; the full support smoke checklist is still pending.
-  See [Windows build notes](README-windows.md).
-- **Linux/web**: not built for 0.1.2.
+- **Windows 10/11 x64**: local source packaging creates an installer and a
+  complete portable ZIP; these are not part of the upstream 0.1.3 release, and
+  the support smoke checklist remains pending. See [Windows build notes](README-windows.md).
+- **Linux/web**: not built for 0.1.3.
 
 The macOS app bundles the PDG snapshot, so end users do not need Flutter, Xcode,
 or the repository. Source builders download
@@ -198,7 +198,7 @@ ios/            iOS runner
 android/        Android runner and release signing
 windows/        Windows Flutter runner (build verification pending)
 tool/           release/packaging helper scripts
-docs/           design and data documentation
+docs/           build, release and user documentation
 ```
 
 ## Citation
@@ -218,15 +218,12 @@ For reproducibility, cite the exact version, e.g.
 ## Documentation
 
 - [Documentation index](docs/README.md)
-- [Product design](docs/design/PDG_App_Design.md)
-- [Data atlas](docs/design/PDGall_Data_Atlas.md)
-- [Math conversion rules](docs/design/Math_Conversion.md)
-- [Decay structure design](docs/design/Decay_Structure_Design.md)
-- [Toolchain record](docs/development/Toolchain_Record.md)
-- [Roadmap and platform work](docs/development/ROADMAP.md)
+- [Build instructions](docs/development/BUILDING.md)
+- [Platform support](docs/development/PLATFORMS.md)
 - [Licensing notes](docs/development/LICENSING.md)
 - [Update checks](docs/development/UPDATES.md)
 - [Releasing](docs/development/RELEASING.md)
+- [Privacy policy](docs/app-store/PRIVACY.md)
 
 ## License
 

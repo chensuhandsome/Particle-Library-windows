@@ -200,7 +200,10 @@ String? particleNameToLatex(String source) {
       buffer.write('}');
     }
     buffer.write('(');
-    buffer.write(mass.replaceAll(r'\', '').replaceAll('~', r'\sim '));
+    final nestedMass = particleNameToLatex(mass);
+    buffer.write(
+      nestedMass ?? mass.replaceAll(r'\', '').replaceAll('~', r'\sim '),
+    );
     buffer.write(')');
     if (chargePart.isNotEmpty) {
       buffer.write('^{');
@@ -304,6 +307,7 @@ String? _baseLatex(String name) {
     'btilde': r'\tilde{b}',
   };
   if (name == 'J/psi') return r'J/\psi';
+  if (name == 'G') return r'\Gamma';
   if (name == 'lepton') return r'\ell';
   if (name == 'KS') return r'K_{S}';
   if (name == 'KL') return r'K_{L}';
@@ -339,6 +343,8 @@ String? _baseLatex(String name) {
     'A',
     'V',
     'T',
+    'x',
+    'y',
   };
   if (latin.contains(name)) return name;
   if (RegExp(r'^[A-Za-z]{2,}$').hasMatch(name)) {
@@ -503,6 +509,10 @@ String? textTokenToLatex(String token) {
   final simplified = normalized.replaceAll(RegExp(r'[{}]'), '');
   final particle = particleNameToLatex(simplified);
   if (particle != null) return particle;
+  if (RegExp(r'^[0-9]+[A-Za-z]').hasMatch(trimmed)) {
+    final expression = convertPdgExpression(trimmed);
+    if (expression != null) return expression;
+  }
   if (!hasScript) return null;
   return convertPdgExpression(trimmed);
 }
@@ -551,7 +561,7 @@ List<PdgTextSegment> segmentPdgText(String original) {
   // the generic token scanner can split it into `T_c` + prose.
   if (original.contains(RegExp(r'\s')) &&
       original.contains(RegExp(r'[0-9_^()]')) &&
-      RegExp(r'\([^()]+\)[+-]?\d*$').hasMatch(original) &&
+      RegExp(r'\([0-9][^()]*\)[+-]?\d*$').hasMatch(original) &&
       !RegExp(
         r'\b(MASS|MEAN|LIFE|MODE|WIDTH|RATIO|ADMIXTURE|MIXING|PARAMETER|'
         r'PARAMETERS|CONSTANT|CONSTANTS|FACTOR|FACTORS)\b',
@@ -791,7 +801,7 @@ bool _emitTopLevelSplit(List<PdgTextSegment> segments, String candidate) {
 }
 
 final RegExp _fallbackTokenPattern = RegExp(
-  r"[A-Za-z]+(?:bar)?(?:(?:_|\^|\*\*)(?:\{\{[^{}]*\}\}|\{[^{}]*\}|[A-Za-z0-9+\-*'′]+))*(?:\([^()\s]*\))?(?:\^?[+\-0]{1,2})?",
+  r"[A-Za-z]+(?:bar)?(?:[0-9][A-Za-z])?(?:\*(?=\())*(?:(?:_|\^|\*\*)(?:\{\{[^{}]*\}\}|\{[^{}]*\}|[A-Za-z0-9+\-*'′]+))*(?:\([^()\s]*\))?(?:\^?[+\-0]{1,2})?",
 );
 
 /// Emits complete name tokens from a failed composite expression. Returns
@@ -922,14 +932,22 @@ bool _hasMathMarker(String candidate) {
 
 bool _looksLikeSafeLatex(String latex) {
   if (latex.isEmpty) return false;
-  if (latex.contains('**')) return false;
   if (latex.contains(r'\mathit')) return false;
   var depth = 0;
-  for (final char in latex.split('')) {
+  for (var i = 0; i < latex.length; i++) {
+    final char = latex[i];
     if (char == '{') depth++;
     if (char == '}') {
       depth--;
       if (depth < 0) return false;
+    }
+    // A raw PDG `**` exponent marker must not survive outside a LaTeX group.
+    // Inside braces, `**` is a legitimate pair of star superscripts (D^{**0}).
+    if (depth == 0 &&
+        char == '*' &&
+        i + 1 < latex.length &&
+        latex[i + 1] == '*') {
+      return false;
     }
   }
   return depth == 0;
@@ -1026,6 +1044,7 @@ const Set<String> _bareNameWords = {
   'W',
   'Z',
   'H',
+  'G',
   'K',
   'D',
   'B',
@@ -1045,6 +1064,7 @@ const Set<String> _bareNameWords = {
   'mu',
   'nu',
   'gamma',
+  'Gamma',
   'Lambda',
   'Sigma',
   'Xi',
@@ -1061,6 +1081,8 @@ const Set<String> _bareNameWords = {
   'nutilde',
   'lambdatilde',
   'kappatilde',
+  'x',
+  'y',
 };
 
 const Set<String> _symbolWords = {
@@ -1080,6 +1102,7 @@ const Set<String> _symbolWords = {
   'W',
   'Z',
   'H',
+  'G',
   'N',
   'X',
   'Y',
@@ -1111,6 +1134,8 @@ const Set<String> _symbolWords = {
   'nutilde',
   'lambdatilde',
   'kappatilde',
+  'x',
+  'y',
 };
 
 bool _isSymbolWord(String token) => _symbolWords.contains(token);

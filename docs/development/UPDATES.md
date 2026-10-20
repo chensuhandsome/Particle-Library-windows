@@ -2,8 +2,8 @@
 
 Particle Library has a lightweight update check:
 
-- **Automatic:** once per app start, in the background. A newer version opens a
-  dialog with release notes and an “Open download page” action.
+- **Automatic:** at most once per local day, in the background. A newer version
+  opens a dialog with release notes and an “Open download page” action.
 - **Manual:** Settings → About and coverage → **Check for updates**.
 
 On **iOS App Store builds**, no GitHub endpoint is contacted. Settings reports

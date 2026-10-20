@@ -60,9 +60,11 @@ jobs:
       - name: Fetch and verify the PDG snapshot
         if: ${{ vars.PDG_SNAPSHOT_URL != '' }}
         shell: pwsh
+        env:
+          PDG_SNAPSHOT_URL: ${{ vars.PDG_SNAPSHOT_URL }}
         run: |
           New-Item -ItemType Directory -Force assets | Out-Null
-          Invoke-WebRequest -Uri '${{ vars.PDG_SNAPSHOT_URL }}' -OutFile assets/pdgall-2026.0.sqlite
+          Invoke-WebRequest -Uri $env:PDG_SNAPSHOT_URL -OutFile assets/pdgall-2026.0.sqlite
           $actual = (Get-FileHash assets/pdgall-2026.0.sqlite -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actual -ne 'c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a') { throw 'PDG snapshot SHA-256 mismatch.' }
       - name: Create compile-only placeholder asset
@@ -75,8 +77,7 @@ jobs:
       - name: Run tests with verified snapshot
         if: ${{ vars.PDG_SNAPSHOT_URL != '' }}
         run: flutter test
-      - name: Build Windows release
-        run: flutter build windows --release
+      - run: flutter build windows --release
 
   windows-package:
     if: ${{ vars.PDG_SNAPSHOT_URL != '' }}
@@ -94,6 +95,7 @@ jobs:
         env:
           PDG_SNAPSHOT_URL: ${{ vars.PDG_SNAPSHOT_URL }}
         run: |
+          New-Item -ItemType Directory -Force assets | Out-Null
           Invoke-WebRequest -Uri $env:PDG_SNAPSHOT_URL -OutFile assets/pdgall-2026.0.sqlite
           $actual = (Get-FileHash assets/pdgall-2026.0.sqlite -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actual -ne 'c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a') { throw 'PDG snapshot SHA-256 mismatch.' }

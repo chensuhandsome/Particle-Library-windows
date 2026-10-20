@@ -1,4 +1,5 @@
 import '../domain/labels.dart';
+import 'shortcuts.dart';
 
 /// The product name shown in the app UI and desktop bundles.
 const String kAppName = 'Particle Library';
@@ -85,6 +86,7 @@ class AppStrings {
   String get bootDetails => _t('错误详情', 'Error details');
 
   String get commonBack => _t('返回', 'Back');
+  String get commonForward => _t('前进', 'Forward');
   String get commonClose => _t('关闭', 'Close');
   String get commonCancel => _t('取消', 'Cancel');
   String get commonCreate => _t('创建', 'Create');
@@ -567,6 +569,22 @@ class AppStrings {
     '在 Zotero 中重新查找（未找到时复制 BibTeX）',
     'Look up in Zotero again (copy BibTeX if still missing)',
   );
+  String get inspireAddToZotero => _t('添加到 Zotero', 'Add to Zotero');
+  String get inspireAddingToZotero => _t('等待 Zotero…', 'Waiting for Zotero…');
+  String get inspireAddedToZotero => _t('已添加到 Zotero', 'Added to Zotero');
+  String get inspireAlreadyInZotero => _t('已在 Zotero 中', 'Already in Zotero');
+  String get inspireAddToZoteroFailed =>
+      _t('添加到 Zotero 失败', 'Could not add to Zotero');
+  String get inspireZoteroFind => _t(
+    '在 Zotero 中查找（未找到时复制 BibTeX）',
+    'Find in Zotero (copy BibTeX if missing)',
+  );
+  String get inspireZoteroFindOrAdd =>
+      _t('Zotero 中已有则打开，没有则添加', 'Open in Zotero if present, add it if missing');
+  String get inspireZoteroCacheHint => _t(
+    'Zotero 已连接；构建索引可加速大库匹配并启用 Zotero 过滤（设置 → Zotero 条目缓存）。',
+    'Zotero is connected. Build the index for faster matching and Zotero filters (Settings → Zotero item cache).',
+  );
   String get inspireZoteroNotFoundCopied => _t(
     'Zotero 中没有找到；BibTeX 已复制。',
     'Not found in Zotero; BibTeX copied instead.',
@@ -574,6 +592,10 @@ class AppStrings {
   String get inspireZoteroNotFound => _t(
     'Zotero 中未找到该 recid，已把 BibTeX 复制到剪贴板，可在 Zotero 中导入。',
     'No Zotero item for this recid; BibTeX copied for import in Zotero.',
+  );
+  String get inspireZoteroAddUnavailable => _t(
+    'zotero-inspire 的添加功能不可用；已复制 BibTeX。',
+    'zotero-inspire add is unavailable; BibTeX copied.',
   );
   String get inspireZoteroCopied => _t('BibTeX 已复制', 'BibTeX copied');
   String get inspireZoteroFailed => _t('Zotero 联动失败', 'Zotero link failed');
@@ -964,6 +986,40 @@ class AppStrings {
     '选择点击笔记正文里的 PDG/文献链接时，是直接跳转还是先在侧栏预览。',
     'Choose whether a PDG or reference link in note text opens the page directly or previews in the note sidebar.',
   );
+
+  String get settingsShortcuts => _t('键盘快捷键', 'Keyboard shortcuts');
+  String get settingsShortcutsHint => _t(
+    '点击组合键可重新录制；发生冲突时会提示。默认值保留原有键位。',
+    'Click a combination to record a new one. Conflicts are rejected. Defaults keep the original shortcuts.',
+  );
+  String get settingsShortcutChange => _t('修改', 'Change');
+  String get settingsShortcutReset => _t('恢复默认', 'Reset');
+  String get settingsShortcutResetAll => _t('全部恢复默认', 'Reset all');
+  String get settingsShortcutNotSet => _t('未设置', 'Not set');
+  String get settingsShortcutRecorderTitle => _t('录制快捷键', 'Record shortcut');
+  String get settingsShortcutRecorderHint => _t(
+    '按下新的组合键；需要至少一个修饰键。Esc 取消。',
+    'Press a new key combination. At least one modifier is required; Esc cancels.',
+  );
+  String get settingsShortcutNeedsModifier =>
+      _t('请使用至少一个修饰键。', 'Use at least one modifier key.');
+  String settingsShortcutConflict(String command) => _t(
+    '该组合键已被“$command”使用。',
+    'That combination is already used by “$command”.',
+  );
+  String get settingsShortcutClear => _t('清除', 'Clear');
+  String get settingsShortcutSaved => _t('快捷键已更新。', 'Shortcut updated.');
+
+  String shortcutCommandLabel(AppShortcutCommand command) => switch (command) {
+    AppShortcutCommand.search => _t('搜索', 'Search'),
+    AppShortcutCommand.favorites => _t('收藏', 'Favorites'),
+    AppShortcutCommand.notes => _t('笔记', 'Notes'),
+    AppShortcutCommand.settings => _t('设置', 'Settings'),
+    AppShortcutCommand.newNote => _t('新建笔记', 'New note'),
+    AppShortcutCommand.back => _t('后退', 'Back'),
+    AppShortcutCommand.forward => _t('前进', 'Forward'),
+  };
+
   String get notesLinkPreview => _t('链接预览', 'Link preview');
   String get notesOpenPage => _t('打开完整页面', 'Open full page');
   String get notesLinkMissing =>
@@ -978,20 +1034,76 @@ class AppStrings {
     'System text scaling always applies on top of this setting.',
   );
   String get settingsZoteroCache => _t('Zotero 条目缓存', 'Zotero item cache');
+  String get settingsZotero => _t('Zotero 集成', 'Zotero integration');
+  String get settingsZoteroEnabled =>
+      _t('启用 Zotero 集成', 'Enable Zotero integration');
+  String get settingsZoteroEnabledHint => _t(
+    '关闭后不探测 Zotero、不显示 Zotero 按钮，也不更新索引。复制 BibTeX 不受影响。',
+    'When off, Zotero is not probed, Zotero buttons are hidden, and the index is not updated. Copying BibTeX still works.',
+  );
+  String get settingsZoteroAddAvailable =>
+      _t('zotero-inspire：添加功能可用', 'zotero-inspire: add available');
+  String settingsZoteroAddAvailableVersion(String version) => _t(
+    'zotero-inspire $version：添加功能可用',
+    'zotero-inspire $version: add available',
+  );
+  String settingsZoteroAddTooOld(String version) => _t(
+    'zotero-inspire $version 版本过低，需要 4.1.0+',
+    'zotero-inspire $version is too old; 4.1.0+ is required',
+  );
+  String get settingsZoteroPluginMissing => _t(
+    '未检测到可用的 zotero-inspire（需要 4.1.0+）',
+    'No usable zotero-inspire detected (4.1.0+ required)',
+  );
+  String get settingsZoteroNotRunning => _t(
+    'Zotero 未运行；启动 Zotero 后可使用 zotero-inspire',
+    'Zotero is not running; start it to use zotero-inspire',
+  );
+  String get settingsZoteroInstallUpdate =>
+      _t('安装/更新插件', 'Install/update plugin');
+  String get zoteroInspireSetupTitle =>
+      _t('需要 zotero-inspire 4.1.0', 'zotero-inspire 4.1.0 required');
+  String get zoteroInspireSetupMissing => _t(
+    '已检测到 Zotero，但没有检测到可用的 zotero-inspire 插件。安装 4.1.0 或更高版本后，才能从 Particle Library 直接把条目添加到 Zotero。',
+    'Zotero was detected, but no usable zotero-inspire plugin was found. Install 4.1.0 or newer to add items from Particle Library directly.',
+  );
+  String zoteroInspireSetupTooOld(String version) => _t(
+    'zotero-inspire 版本过低（当前 $version）。请更新到 4.1.0 或更高版本后再试。',
+    'zotero-inspire is too old (current $version). Update to 4.1.0 or newer and try again.',
+  );
+  String get zoteroInspireSetupNotRunning =>
+      _t('Zotero 当前未运行；请先启动 Zotero。', 'Zotero is not running; start it first.');
+  String get zoteroInspireSetupHint => _t(
+    '安装或更新插件后不需要重启 Particle Library；重新点击 Zotero 按钮即可。',
+    'You do not need to restart Particle Library after installing or updating the plugin; click the Zotero button again.',
+  );
+  String get zoteroInspireOpenRelease =>
+      _t('打开安装/更新页面', 'Open install/update page');
+  String get zoteroInspireCopyBibtex => _t('复制 BibTeX', 'Copy BibTeX');
   String get settingsZoteroCacheEmpty => _t(
-    '尚未构建。构建后，INSPIRE 结果可以直接与本地 Zotero 条目快速比对。',
-    'Not built yet. Build it to compare INSPIRE results with local Zotero items quickly.',
+    '尚未构建。可在此手动构建；开启自动更新时，Zotero 运行时会在启动时构建。',
+    'Not built yet. Build it here, or let automatic update build it at startup when Zotero is running.',
   );
   String settingsZoteroCacheStatus(int count, String builtAt) => _t(
     '已索引 $count 条 · 构建于 $builtAt',
     '$count items indexed · built $builtAt',
   );
+  String get settingsZoteroCacheStale => _t(
+    '索引已超过 24 小时，建议更新。',
+    'The index is older than 24 hours; an update is recommended.',
+  );
   String get settingsZoteroCacheBuild => _t('构建缓存', 'Build cache');
   String get settingsZoteroCacheUpdate => _t('更新缓存', 'Update cache');
   String get settingsZoteroCacheClear => _t('清除缓存', 'Clear cache');
+  String get settingsZoteroCacheAutoUpdate =>
+      _t('自动更新 Zotero 索引', 'Update Zotero index automatically');
+  String get settingsZoteroCacheAutoUpdateHint => _t(
+    '启动时检查；索引缺失或超过 24 小时才构建/更新。缓存只影响匹配速度和筛选，不影响 Zotero 联动。',
+    'Checked at startup; builds or refreshes the index only when it is missing or older than 24 hours. The cache affects matching speed and filters, not Zotero actions.',
+  );
   String get settingsZoteroCacheHint => _t(
-    '缓存只读取 Zotero 本地 API，不修改 Zotero。新增 Zotero 条目后请手动更新一次。',
-    'The cache only reads the local Zotero API and never changes Zotero. Update it manually after adding items.',
+    '缓存只读取 Zotero 本地 API，不修改 Zotero。',
+    'The cache only reads the local Zotero API and never changes Zotero.',
   );
   String settingsZoteroCacheBuilding(int fetched, int total) => total > 0
       ? _t('正在读取 Zotero：$fetched / $total', 'Reading Zotero: $fetched / $total')
@@ -1041,8 +1153,10 @@ class AppStrings {
   );
   String updateAvailableTitle(String version) =>
       _t('发现新版本 $version', 'Version $version is available');
-  String get settingsBuiltBy =>
-      _t('使用 DeepSeek Harness 构建。', 'Built with DeepSeek Harness.');
+  String get settingsBuiltBy => _t(
+    '由郭奉坤 (ITP, CAS) 使用 DeepSeek Harness 构建。',
+    'Built by Feng-Kun Guo (ITP, CAS) with DeepSeek Harness.',
+  );
   String get settingsCoverageText => _t(
     '本版本完整读取条目、性质、衰变参与项、全部测量列、脚注、文献与历史汇总；结构语义只在能由原文确定时展示，无法唯一确定的片段保留原文。',
     'This build reads entries, properties, decay tokens, all measurement columns, footnotes, references and historical summaries. Structural semantics are shown only where the source supports them; unresolved fragments stay visible and are marked.',
@@ -1053,6 +1167,8 @@ class AppStrings {
   String get settingsLicenseLink =>
       _t('数据许可（CC BY 4.0）', 'Data license (CC BY 4.0)');
   String get settingsAppVersion => _t('应用版本', 'App version');
+  String settingsVersionValue(String version) =>
+      _t('版本 $version', 'Version $version');
   String get settingsSnapshotVersion => _t('快照版本', 'Snapshot version');
   String get settingsSnapshotFile => _t('快照文件', 'Snapshot file');
   String get settingsSchema => _t('schema', 'schema');

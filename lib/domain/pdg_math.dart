@@ -38,6 +38,7 @@ const Set<String> _functionWords = {
   'sum',
   'Abs',
   'abs',
+  'ABS',
   'max',
   'min',
 };
@@ -66,6 +67,7 @@ const Map<String, String> _greekBases = {
   'Theta': r'\Theta',
   'alpha': r'\alpha',
   'beta': r'\beta',
+  'delta': r'\delta',
   'lambda': r'\lambda',
   'sigma': r'\sigma',
   'kappa': r'\kappa',
@@ -131,6 +133,8 @@ const Set<String> _particleSymbols = {
   'Q',
   'I',
   'L',
+  'x',
+  'y',
 };
 
 const Set<String> _formulaTextWords = {
@@ -166,6 +170,7 @@ const Map<String, String> _functionLatex = {
   'sum': r'\mathrm{sum}',
   'Abs': r'\mathrm{Abs}',
   'abs': r'\mathrm{abs}',
+  'ABS': '',
   'max': r'\max',
   'min': r'\min',
 };
@@ -216,6 +221,21 @@ String? _normalize(String source) {
     (match) => match.group(1)!,
   );
   text = text.replaceAll('chi_c1-odd', 'chiOdd');
+  // PDG's compact labels use ^**0 for a two-star superscript and ^(*)+ for a
+  // starred charge. Expand them before the generic script parser sees them.
+  text = text.replaceAllMapped(
+    RegExp(r'\^\(\*\)([+-]?)'),
+    (match) => '^{(*)${match[1] ?? ''}}',
+  );
+  text = text.replaceAllMapped(
+    RegExp(r'\^\*\*([0-9+\-]+)'),
+    (match) => '^{**${match[1]}}',
+  );
+  // PDG writes D_1^0 as D_10 in compact measurement labels.
+  text = text.replaceAllMapped(
+    RegExp(r'\b([A-Za-z]+(?:bar)?)_([0-9]+)(0)\b'),
+    (match) => '${match[1]}_{${match[2]}}^{0}',
+  );
   // `non-phi` is a physics label: upright "non-" followed by an italic φ.
   text = text.replaceAll('non-phi', 'nonphi');
   text = text.replaceAll('c.c.', r'\text{c.c.}');
@@ -560,6 +580,11 @@ class _ExpressionParser {
         RegExp(r'^[A-Z]{1,3}$').hasMatch(trimmed)) {
       return '_{$trimmed}';
     }
+    if (base.name == 'ABS') {
+      final converted = _SequenceParser(trimmed).parse();
+      if (converted == null) return null;
+      return '\\left|$converted\\right|';
+    }
     if (base.isFunction) {
       final converted = _SequenceParser(trimmed).parse();
       if (converted == null) return null;
@@ -640,7 +665,7 @@ class _ExpressionParser {
       final parsed = _SequenceParser(content).parse();
       if (parsed != null) return parsed;
       // Simple subscripts such as D_{s3} are literal labels, not expressions.
-      if (RegExp(r'^[A-Za-z0-9+\-]+$').hasMatch(content)) return content;
+      if (RegExp(r'^[A-Za-z0-9+\-*()]+$').hasMatch(content)) return content;
       return null;
     }
     if (current == r'\') {

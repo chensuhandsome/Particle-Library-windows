@@ -35,7 +35,6 @@ class SummaryCard extends StatelessWidget {
     final detailed = scope.settings.detailedMode;
     final palette = context.palette;
     final quantity = DisplayQuantity.fromSummary(summary);
-    final indicator = valueTypeIndicator(summary.valueType);
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(compact ? Insets.m : Insets.l),
@@ -67,8 +66,10 @@ class SummaryCard extends StatelessWidget {
                         icon: Icons.check_circle_outline,
                       ),
                     MetaChip(
-                      '${strings.summaryTypeLabel}：${valueTypeLabel(summary.valueType, strings.lang)}${indicator == null || indicator.isEmpty ? '' : ' · $indicator'}',
+                      valueTypeShortLabel(summary.valueType, strings.lang),
                       tone: BadgeTone.neutral,
+                      tooltip:
+                          '${strings.summaryTypeLabel}: ${valueTypeLabel(summary.valueType, strings.lang)}',
                     ),
                     if (summary.inSummaryTable)
                       MetaChip(
@@ -398,9 +399,7 @@ class _HistoryRow extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               DisplayValueView(quantity, fontSize: 15),
-              MetaChip(
-                '${strings.summaryTypeLabel}：${valueTypeLabel(row.valueType, strings.lang)}',
-              ),
+              MetaChip(valueTypeShortLabel(row.valueType, strings.lang)),
               if (row.inSummaryTable) MetaChip(strings.seriesInSummaryTable),
               if (row.limitType != null)
                 MetaChip(

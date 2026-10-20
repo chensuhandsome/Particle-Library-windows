@@ -1,18 +1,13 @@
-# Development records
+# Development documentation
 
-These documents describe how the project was built and which boundaries were
-frozen during implementation. They are useful when changing the data layer or
-reproducing a build; they are not required to use the app.
+These documents cover building, platform support, licensing and releasing the
+public source tree.
 
 - [Building](BUILDING.md)
 - [Windows setup and build guide](../../README-windows.md)
 - [Windows porting checklist](../windows-adaptation/PORTING_CHECKLIST.md)
 - [Android](ANDROID.md)
 - [Platform support](PLATFORMS.md)
-- [Roadmap](ROADMAP.md)
 - [Licensing notes](LICENSING.md)
 - [Update checks](UPDATES.md)
 - [Releasing](RELEASING.md)
-- [Implementation start](Implementation_Start.md)
-- [Toolchain record](Toolchain_Record.md)
-- [Notes P0/P1 plan](NOTES_P0_P1_PLAN.md)

@@ -11,6 +11,7 @@ import '../../notes/notes.dart';
 import '../common/async_view.dart';
 import '../common/export_file.dart';
 import '../common/resize_handle.dart';
+import '../common/snack_bars.dart';
 import '../common/ui.dart';
 import 'note_editor.dart';
 import 'notes_entity.dart';
@@ -301,19 +302,15 @@ class _NotesWorkspaceState extends State<NotesWorkspace> {
       _onDeleted();
     }
     await _reload();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(strings.notesDeleted),
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: strings.notesUndo,
-          onPressed: () async {
-            await store.restore(note.id);
-            widget.changes.value++;
-            await _reload();
-          },
-        ),
-      ),
+    showUndoSnackBar(
+      messenger,
+      message: strings.notesDeleted,
+      undoLabel: strings.notesUndo,
+      onUndo: () async {
+        await store.restore(note.id);
+        widget.changes.value++;
+        await _reload();
+      },
     );
   }
 

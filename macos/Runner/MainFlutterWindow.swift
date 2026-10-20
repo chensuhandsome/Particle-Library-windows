@@ -3,6 +3,7 @@ import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
   private var menuChannel: FlutterMethodChannel?
+  private var zoteroChannel: FlutterMethodChannel?
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -73,6 +74,32 @@ class MainFlutterWindow: NSWindow {
       self.setContentSize(NSSize(width: width, height: height))
       self.center()
       result(nil)
+    }
+
+    // The zotero-inspire target picker is drawn inside Zotero's main window.
+    // Bring Zotero forward before asking it to open the picker, then come back
+    // to this window once the picker closes.
+    let zoteroChannel = FlutterMethodChannel(
+      name: "pdg.zotero",
+      binaryMessenger: flutterViewController.engine.binaryMessenger
+    )
+    self.zoteroChannel = zoteroChannel
+    zoteroChannel.setMethodCallHandler { [weak self] call, result in
+      switch call.method {
+      case "activateZotero":
+        let app = NSRunningApplication
+          .runningApplications(withBundleIdentifier: "org.zotero.zotero")
+          .first { !$0.isTerminated }
+        result(app?.activate(options: [.activateAllWindows]) ?? false)
+      case "activateSelf":
+        let activated = NSRunningApplication.current.activate(
+          options: [.activateAllWindows]
+        )
+        self?.makeKeyAndOrderFront(nil)
+        result(activated)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
     }
   }
   @IBAction func showAppHelp(_ sender: Any?) {

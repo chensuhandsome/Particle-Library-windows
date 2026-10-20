@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import '../../app/app_scope.dart';
 import '../../app/app_theme.dart';
+import '../../app/navigation.dart';
 import '../common/page.dart';
+import '../common/page_outline.dart';
 import '../common/ui.dart';
 import '../reviews/reviews_page.dart';
 
@@ -40,25 +41,8 @@ class _HelpPageState extends State<HelpPage> {
 
   void _jump(String id) {
     setState(() => _activeId = id);
-    final target = _keys[id]?.currentContext;
-    if (target == null) return;
-    final box = target.findRenderObject();
-    if (box is RenderBox && _controller.hasClients) {
-      final viewport = RenderAbstractViewport.of(box);
-      final offset = viewport.getOffsetToReveal(box, 0.03).offset;
-      _controller.animateTo(
-        offset.clamp(0.0, _controller.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 260),
-        curve: Curves.easeOutCubic,
-      );
-      return;
-    }
-    Scrollable.ensureVisible(
-      target,
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
-      alignment: 0.03,
-    );
+    final key = _keys[id];
+    if (key != null) scrollToOutlineTarget(key, alignment: 0.03);
   }
 
   @override
@@ -134,8 +118,8 @@ class _HelpPageState extends State<HelpPage> {
             context,
             t('快捷操作', 'Shortcuts'),
             t(
-              '在主界面用 ⌘1 / ⌘2 / ⌘3 / ⌘4 切换查询、收藏、笔记、设置；⌘F 聚焦查询框。打开的详情页用返回按钮或侧栏的父子链接导航。',
-              'On the main screen, ⌘1 / ⌘2 / ⌘3 / ⌘4 switch Search, Favorites, Notes, and Settings; ⌘F focuses the search field. Detail pages use Back or sidebar parent/child links.',
+              '在主界面用 ⌘1 / ⌘2 / ⌘3 / ⌘4 切换查询、收藏、笔记、设置；⌘F 聚焦查询框。顶栏 ←/→（⌘[ / ⌘]）在详情历史中后退/前进；详情页也可用侧栏的父子链接导航。',
+              'On the main screen, ⌘1 / ⌘2 / ⌘3 / ⌘4 switch Search, Favorites, Notes, and Settings; ⌘F focuses the search field. Use ←/→ in the top bar (⌘[ / ⌘]) to go back/forward through detail history; sidebar parent/child links also work.',
             ),
           ),
         ],
@@ -526,9 +510,7 @@ class _HelpPageState extends State<HelpPage> {
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const ReviewsPage()),
-            ),
+            onPressed: () => AppNav.push<void>(context, const ReviewsPage()),
             icon: const Icon(Icons.menu_book_outlined, size: 17),
             label: Text(strings.reviewsTitle),
           ),
@@ -549,10 +531,13 @@ class _HelpPageState extends State<HelpPage> {
         ),
     ];
 
-    Widget content({required bool withIntro}) => ListView(
+    Widget content({required bool withIntro}) => SingleChildScrollView(
       controller: _controller,
       padding: const EdgeInsets.only(bottom: Insets.xxl),
-      children: [if (withIntro) intro, ...sectionWidgets],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [if (withIntro) intro, ...sectionWidgets],
+      ),
     );
 
     return PageScaffold(
@@ -563,28 +548,31 @@ class _HelpPageState extends State<HelpPage> {
         builder: (context, constraints) {
           final wide = constraints.maxWidth >= 760;
           if (!wide) {
-            return ListView(
+            return SingleChildScrollView(
               controller: _controller,
               padding: const EdgeInsets.only(bottom: Insets.xxl),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    Insets.l,
-                    Insets.s,
-                    Insets.l,
-                    Insets.s,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      Insets.l,
+                      Insets.s,
+                      Insets.l,
+                      Insets.s,
+                    ),
+                    child: _HelpDirectory(
+                      entries: tocEntries,
+                      horizontal: true,
+                      activeId: _activeId,
+                      onTap: _jump,
+                    ),
                   ),
-                  child: _HelpDirectory(
-                    entries: tocEntries,
-                    horizontal: true,
-                    activeId: _activeId,
-                    onTap: _jump,
-                  ),
-                ),
-                const Divider(height: 1),
-                intro,
-                ...sectionWidgets,
-              ],
+                  const Divider(height: 1),
+                  intro,
+                  ...sectionWidgets,
+                ],
+              ),
             );
           }
           return Row(
