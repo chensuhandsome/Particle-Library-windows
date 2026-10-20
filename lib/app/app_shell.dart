@@ -534,23 +534,11 @@ class _AppShellState extends State<AppShell> {
                             excluding: hideBottomNav,
                             child: Offstage(
                               offstage: hideBottomNav,
-                              child: NavigationBar(
-                                height: 58,
+                              child: _CompactNavigationBar(
                                 selectedIndex: _index,
-                                onDestinationSelected: _select,
-                                destinations: <NavigationDestination>[
-                                  for (final spec in specs)
-                                    NavigationDestination(
-                                      icon: Icon(spec.icon),
-                                      selectedIcon: Icon(spec.selectedIcon),
-                                      label: spec.label,
-                                    ),
-                                  NavigationDestination(
-                                    icon: const Icon(Icons.tune),
-                                    selectedIcon: const Icon(Icons.tune),
-                                    label: strings.navSettings,
-                                  ),
-                                ],
+                                onSelected: _select,
+                                specs: specs,
+                                settingsLabel: strings.navSettings,
                               ),
                             ),
                           ),
@@ -561,6 +549,126 @@ class _AppShellState extends State<AppShell> {
               },
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactNavigationBar extends StatelessWidget {
+  const _CompactNavigationBar({
+    required this.selectedIndex,
+    required this.onSelected,
+    required this.specs,
+    required this.settingsLabel,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+  final List<_TabSpec> specs;
+  final String settingsLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final textScaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: 2.0);
+    final scale = textScaler.scale(1.0);
+    // Keep the bar tight at the default size, but give the icon + label room
+    // when the user increases the system font size.
+    final barHeight = 52 + (scale - 1.0) * 14;
+    final items = <_TabSpec>[
+      ...specs,
+      _TabSpec(
+        tab: AppTab.settings,
+        label: settingsLabel,
+        icon: Icons.tune,
+        selectedIcon: Icons.tune,
+      ),
+    ];
+    return Material(
+      color: palette.surface,
+      child: SafeArea(
+        top: false,
+        child: Container(
+          height: barHeight,
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: palette.divider)),
+          ),
+          child: Row(
+            children: [
+              for (var index = 0; index < items.length; index++)
+                Expanded(
+                  child: _CompactNavItem(
+                    item: items[index],
+                    selected: selectedIndex == index,
+                    onTap: () => onSelected(index),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactNavItem extends StatelessWidget {
+  const _CompactNavItem({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _TabSpec item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final color = selected ? palette.primary : palette.textSecondary;
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: item.label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 13,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? palette.primary.withValues(alpha: 0.16)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(item.selectedIcon, size: 20, color: color),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textScaler: MediaQuery.textScalerOf(context)
+                    .clamp(maxScaleFactor: 1.2),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  fontSize: 11,
+                  height: 1.1,
+                  color: color,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
