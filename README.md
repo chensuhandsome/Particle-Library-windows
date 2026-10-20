@@ -193,7 +193,7 @@ macos/          macOS runner
 ios/            iOS runner
 android/        Android runner and release signing
 tool/           release/packaging helper scripts
-docs/           design and data documentation
+docs/           build, release and user documentation
 ```
 
 ## Citation
@@ -213,15 +213,12 @@ For reproducibility, cite the exact version, e.g.
 ## Documentation
 
 - [Documentation index](docs/README.md)
-- [Product design](docs/design/PDG_App_Design.md)
-- [Data atlas](docs/design/PDGall_Data_Atlas.md)
-- [Math conversion rules](docs/design/Math_Conversion.md)
-- [Decay structure design](docs/design/Decay_Structure_Design.md)
-- [Toolchain record](docs/development/Toolchain_Record.md)
-- [Roadmap and platform work](docs/development/ROADMAP.md)
+- [Build instructions](docs/development/BUILDING.md)
+- [Platform support](docs/development/PLATFORMS.md)
 - [Licensing notes](docs/development/LICENSING.md)
 - [Update checks](docs/development/UPDATES.md)
 - [Releasing](docs/development/RELEASING.md)
+- [Privacy policy](docs/app-store/PRIVACY.md)
 
 ## License
 
