@@ -275,11 +275,7 @@ class _AppShellState extends State<AppShell> {
                     (_navHub.tabChromeHidden ||
                         (constraints.maxWidth < searchSplitBreakpoint &&
                             _navHub.detailChromeHidden));
-                final hideBottomNav =
-                    compact &&
-                    (hideChrome ||
-                        keyboardOpen ||
-                        _navHub.backController != null);
+                final hideBottomNav = compact && (hideChrome || keyboardOpen);
                 return SelectionArea(
                   child: Scaffold(
                     backgroundColor: palette.background,
