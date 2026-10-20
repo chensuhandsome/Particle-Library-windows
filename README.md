@@ -22,7 +22,7 @@ Particle Physics, with notes, references, PDF reviews and annotations. The PDG
 snapshot stays read-only and local, while notes, collections, favorites and PDF
 annotations are stored separately from the data.
 
-Built over a weekend using **DeepSeek Harness** and
+The first version was built over a weekend using **DeepSeek Harness** and
 **DeepSeek-V4.1-Flash-1017**.
 
 **Supported platforms:** macOS 12+ (universal), iPhone/iPadOS 15+, and
