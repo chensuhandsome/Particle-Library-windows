@@ -9,6 +9,7 @@
   <a href="https://github.com/fkguo/Particle-Library/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/fkguo/Particle-Library/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/fkguo/Particle-Library/blob/main/LICENSE"><img alt="License: MPL-2.0" src="https://img.shields.io/github/license/fkguo/Particle-Library?style=flat-square"></a>
   <a href="https://doi.org/10.5281/zenodo.23460981"><img alt="DOI" src="https://zenodo.org/badge/DOI/10.5281/zenodo.23460981.svg"></a>
+  <a href="https://testflight.apple.com/join/my27SMAt"><img alt="TestFlight beta" src="https://img.shields.io/badge/TestFlight-public%20beta-blue?style=flat-square&logo=apple"></a>
   <img alt="macOS 12+" src="https://img.shields.io/badge/macOS-12%2B-blue?style=flat-square&logo=apple&logoColor=white">
   <img alt="Android 7.0+" src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white">
   <img alt="PDG 2026" src="https://img.shields.io/badge/PDG-2026-8A2BE2?style=flat-square">
@@ -28,6 +29,10 @@ The first version was built over a weekend using **DeepSeek Harness** and
 **Supported platforms:** macOS 12+ (universal), iPhone/iPadOS 15+, and
 Android 7.0+ (API 24, preview APK; arm64 tested on a physical device). A shared responsive Flutter layout is used
 across desktop and mobile.
+
+**Public TestFlight beta (iPhone/iPad):**
+[Join the beta](https://testflight.apple.com/join/my27SMAt). TestFlight builds
+are pre-release software and may be newer than the release notes below.
 
 ## Screenshots
 
@@ -120,9 +125,16 @@ The latest release is **[Release 0.1.3](https://github.com/fkguo/Particle-Librar
 
   The app is not notarized, so this prompt is expected. Do not disable
   Gatekeeper globally.
-- **iPhone/iPad**: there is no public IPA or TestFlight build yet. Building and
-  development-signed installation from source are verified; public distribution
-  needs a paid Apple Developer team.
+- **iPhone/iPad (TestFlight beta)**: join the public beta at
+  [testflight.apple.com/join/my27SMAt](https://testflight.apple.com/join/my27SMAt).
+
+  1. Install **TestFlight** from the App Store.
+  2. Open the join link on the iPhone/iPad and tap **Accept**.
+  3. Install **Particle Library** from TestFlight and open it.
+
+  Requires iOS/iPadOS 15+ and an Apple ID. Updates arrive through TestFlight;
+  builds expire after 90 days. This is a pre-release beta, not the App Store
+  version. macOS and Android are not distributed through this TestFlight link.
 - **Android 7.0+ (API 24)**: signed preview APKs are provided in the release:
   use `Particle-Library-0.1.3-Android-arm64-v8a.apk` on modern phones or
   `Particle-Library-0.1.3-Android-armeabi-v7a.apk` on older 32-bit devices.

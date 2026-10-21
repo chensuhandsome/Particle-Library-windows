@@ -9,6 +9,7 @@
   <a href="https://github.com/fkguo/Particle-Library/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/fkguo/Particle-Library/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/fkguo/Particle-Library/blob/main/LICENSE"><img alt="License: MPL-2.0" src="https://img.shields.io/github/license/fkguo/Particle-Library?style=flat-square"></a>
   <a href="https://doi.org/10.5281/zenodo.23460981"><img alt="DOI" src="https://zenodo.org/badge/DOI/10.5281/zenodo.23460981.svg"></a>
+  <a href="https://testflight.apple.com/join/my27SMAt"><img alt="TestFlight beta" src="https://img.shields.io/badge/TestFlight-public%20beta-blue?style=flat-square&logo=apple"></a>
   <img alt="macOS 12+" src="https://img.shields.io/badge/macOS-12%2B-blue?style=flat-square&logo=apple&logoColor=white">
   <img alt="Android 7.0+" src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white">
   <img alt="PDG 2026" src="https://img.shields.io/badge/PDG-2026-8A2BE2?style=flat-square">
@@ -22,6 +23,9 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
 第一版是在周末使用 **DeepSeek Harness** 与 **DeepSeek-V4.1-Flash-1017** 构建的。
 
 **支持平台：** macOS 12+（通用二进制）、iPhone/iPadOS 15+，以及 Android 7.0+（API 24，预览 APK；arm64 已在真机测试）。各平台共享 Flutter 响应式布局。
+
+**iPhone/iPad 公开 TestFlight beta：**
+[加入测试](https://testflight.apple.com/join/my27SMAt)。TestFlight 是预发布版本，可能比下面的 release note 更新。
 
 ## 截图
 
@@ -89,8 +93,16 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
   ```
 
   这是因为应用未经过 Apple 公证，属于预期提示。不要全局关闭 Gatekeeper。
-- **iPhone/iPad**：暂时没有公开 IPA 或 TestFlight 安装包。源码构建和开发签名安装
-  已验证；公开分发需要付费 Apple Developer Team。
+- **iPhone/iPad（TestFlight beta）**：通过公开链接加入测试：
+  [testflight.apple.com/join/my27SMAt](https://testflight.apple.com/join/my27SMAt)。
+
+  1. 从 App Store 安装 **TestFlight**。
+  2. 在 iPhone/iPad 上打开链接，点 **Accept**。
+  3. 在 TestFlight 中安装 **Particle Library** 并打开。
+
+  需要 iOS/iPadOS 15+ 和 Apple ID。更新通过 TestFlight 推送；构建 90 天后过期。
+  这是预发布 beta，不是 App Store 正式版。macOS 和 Android 不通过这个
+  TestFlight 链接分发。
 - **Android 7.0+（API 24）**：Release 中提供已签名预览 APK；现代手机用
   `Particle-Library-0.1.3-Android-arm64-v8a.apk`，旧 32 位设备用
   `Particle-Library-0.1.3-Android-armeabi-v7a.apk`。详见
