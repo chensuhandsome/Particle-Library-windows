@@ -138,6 +138,13 @@ class _PageOutlineScaffoldState extends State<PageOutlineScaffold> {
   bool _open = true;
   int? _selected;
 
+  /// The page body sits in a different place of the tree depending on the
+  /// width and on whether there are outline entries (alone, in a stack, in a
+  /// row). Without a global key each of those moves would rebuild the body from
+  /// scratch: a search field would lose its focus when a query matched nothing,
+  /// and a scroll view would jump back to the top when the window was resized.
+  final GlobalKey _bodyKey = GlobalKey(debugLabel: 'outline body');
+
   void _select(PageOutlineItem item) {
     setState(() => _selected = widget.items.indexOf(item));
     if (item.onTap != null) {
@@ -289,12 +296,13 @@ class _PageOutlineScaffoldState extends State<PageOutlineScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.items.isEmpty) return widget.child;
+    final body = KeyedSubtree(key: _bodyKey, child: widget.child);
+    if (widget.items.isEmpty) return body;
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < widget.minWidth) {
-          if (!widget.showNarrowButton) return widget.child;
-          return Stack(children: [widget.child, _narrowOutlineButton(context)]);
+          if (!widget.showNarrowButton) return body;
+          return Stack(children: [body, _narrowOutlineButton(context)]);
         }
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -307,7 +315,7 @@ class _PageOutlineScaffoldState extends State<PageOutlineScaffold> {
               child: _open ? _rail(context) : _collapsedRail(context),
             ),
             VerticalDivider(width: 1, color: context.palette.divider),
-            Expanded(child: widget.child),
+            Expanded(child: body),
           ],
         );
       },
