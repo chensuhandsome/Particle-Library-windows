@@ -79,4 +79,44 @@ void main() {
     expect(hit!.byline, isEmpty);
     expect(hit.bylineShort, isEmpty);
   });
+  group('the year of a record', () {
+    Map<String, Object?> withMetadata(Map<String, Object?> extra) => {
+      'metadata': {
+        'control_number': 1,
+        'titles': [
+          {'title': 'A title'},
+        ],
+        ...extra,
+      },
+    };
+
+    test('a published record uses its publication year', () {
+      final hit = parseInspireLiteratureHit(
+        withMetadata({
+          'publication_info': [
+            {'year': 2019, 'journal_title': 'Phys.Rev.D'},
+          ],
+          'earliest_date': '2018-11-02',
+        }),
+      );
+      expect(hit!.year, 2019);
+    });
+
+    test('a preprint has the year of its earliest date', () {
+      for (final date in ['2026-05-14', '2026-05', '2026']) {
+        final hit = parseInspireLiteratureHit(
+          withMetadata({'earliest_date': date}),
+        );
+        expect(hit!.year, 2026, reason: date);
+      }
+    });
+
+    test('no date at all leaves the year empty', () {
+      expect(parseInspireLiteratureHit(withMetadata({}))!.year, isNull);
+      expect(
+        parseInspireLiteratureHit(withMetadata({'earliest_date': 'n/a'}))!.year,
+        isNull,
+      );
+    });
+  });
 }

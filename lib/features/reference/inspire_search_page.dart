@@ -50,12 +50,26 @@ Set<String> toggleInspireFilter(Set<String> active, String value) {
   return next;
 }
 
+/// INSPIRE returns at most this many results of one query; a later page is
+/// refused with HTTP 400 ("Maximum number of 10000 results have been reached").
+const int inspireMaxResults = 10000;
+
+/// How many pages of [pageSize] results INSPIRE will serve for [total] hits.
+int inspireReachablePages(int total, int pageSize) {
+  if (total <= 0 || pageSize <= 0) return 1;
+  final reachable = total > inspireMaxResults ? inspireMaxResults : total;
+  return (reachable - 1) ~/ pageSize + 1;
+}
+
 /// Online INSPIRE search for authors, titles and other bibliographic terms
 /// that are not present in the local PDG snapshot.
 class InspireSearchPage extends StatefulWidget {
-  const InspireSearchPage({super.key, this.initialQuery = ''});
+  const InspireSearchPage({super.key, this.initialQuery = '', this.service});
 
   final String initialQuery;
+
+  /// Replaces the INSPIRE client, for tests.
+  final InspireLiteratureSearchService? service;
 
   @override
   State<InspireSearchPage> createState() => _InspireSearchPageState();
@@ -63,7 +77,8 @@ class InspireSearchPage extends StatefulWidget {
 
 class _InspireSearchPageState extends State<InspireSearchPage> {
   late final TextEditingController _controller;
-  final _service = InspireLiteratureSearchService();
+  late final InspireLiteratureSearchService _service =
+      widget.service ?? InspireLiteratureSearchService();
   final _zotero = const ZoteroBridge();
   final _zoteroInspire = const ZoteroInspireApi();
   bool get _zoteroSupported =>
@@ -87,6 +102,13 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
   _localFutures = {};
   int _page = 1;
   int _total = 0;
+
+  /// The query that produced [_hits]; paging, sorting and page size work on it
+  /// even when the text box has been edited since.
+  String _activeQuery = '';
+
+  /// The query of the latest attempt, successful or not, for Retry.
+  String _lastQuery = '';
   int _pageSize = 20;
   static const List<int> _pageSizes = [20, 50, 100, 200];
   String _sort = 'mostcited';
@@ -136,10 +158,17 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     super.dispose();
   }
 
-  Future<void> _search({int? page}) async {
-    final query = _controller.text.trim();
-    if (query.isEmpty) return;
-    unawaited(AppScope.of(context).store.addRecent(query, 'inspire'));
+  /// Runs a search. Without [query] it is a new search of the text box; paging,
+  /// sorting and Retry pass the query they belong to, so editing the box
+  /// without pressing Enter cannot turn "next page" into page 2 of another
+  /// query.
+  Future<void> _search({int? page, String? query}) async {
+    final text = (query ?? _controller.text).trim();
+    if (text.isEmpty) return;
+    if (query == null) {
+      unawaited(AppScope.of(context).store.addRecent(text, 'inspire'));
+    }
+    _lastQuery = text;
     final targetPage = page ?? _page;
     final generation = ++_generation;
     setState(() {
@@ -148,7 +177,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     });
     try {
       final result = await _service.searchPage(
-        query,
+        text,
         page: targetPage,
         size: _pageSize,
         sort: _sort,
@@ -156,6 +185,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
       if (!mounted || generation != _generation) return;
       setState(() {
         _page = targetPage;
+        _activeQuery = text;
         _hits = result.hits;
         _total = result.total;
         _loading = false;
@@ -167,6 +197,12 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
       setState(() {
         _loading = false;
         _error = error;
+        if (text != _activeQuery) {
+          // Results of another query must not stay on screen under the error
+          // as if they answered this one.
+          _hits = const <InspireLiteratureHit>[];
+          _total = 0;
+        }
       });
     }
   }
@@ -174,13 +210,23 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
   void _setPageSize(int size) {
     if (_pageSize == size) return;
     setState(() => _pageSize = size);
-    if (_controller.text.trim().isNotEmpty) _search(page: 1);
+    _researchActive();
   }
 
   void _setSort(String value) {
     if (_sort == value) return;
     setState(() => _sort = value);
-    if (_controller.text.trim().isNotEmpty) _search(page: 1);
+    _researchActive();
+  }
+
+  /// Repeats the query on screen (or, before any result, the text box) from
+  /// page 1 after a change of sort order or page size.
+  void _researchActive() {
+    if (_activeQuery.isNotEmpty) {
+      _search(page: 1, query: _activeQuery);
+    } else if (_controller.text.trim().isNotEmpty) {
+      _search(page: 1);
+    }
   }
 
   Future<void> _prefetchPresence(List<InspireLiteratureHit> hits) async {
@@ -824,7 +870,10 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
                   padding: const EdgeInsets.only(top: Insets.m),
                   child: ErrorPanel(
                     error: _error!,
-                    onRetry: () => _search(page: _page),
+                    onRetry: () => _search(
+                      page: _lastQuery == _activeQuery ? _page : 1,
+                      query: _lastQuery.isEmpty ? null : _lastQuery,
+                    ),
                   ),
                 ),
               if (!_loading && _error == null && _hits.isEmpty)
@@ -914,7 +963,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
   }
 
   Widget _pagination(BuildContext context, AppStrings strings) {
-    final pages = _total <= 0 ? 1 : ((_total - 1) ~/ _pageSize) + 1;
+    final pages = inspireReachablePages(_total, _pageSize);
     final palette = context.palette;
     return Padding(
       padding: const EdgeInsets.only(top: Insets.m, bottom: Insets.m),
@@ -927,7 +976,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
             tooltip: strings.inspirePrevious,
             onPressed: _loading || _page <= 1
                 ? null
-                : () => _search(page: _page - 1),
+                : () => _search(page: _page - 1, query: _activeQuery),
             icon: const Icon(Icons.chevron_left, size: 20),
           ),
           Text(
@@ -939,7 +988,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
             tooltip: strings.inspireNext,
             onPressed: _loading || _page >= pages
                 ? null
-                : () => _search(page: _page + 1),
+                : () => _search(page: _page + 1, query: _activeQuery),
             icon: const Icon(Icons.chevron_right, size: 20),
           ),
         ],

@@ -19,7 +19,12 @@ class InspireBibtexException implements Exception {
 /// - record:  /api/literature/{recid}?format=bibtex
 /// - DOI:    /api/literature?q=doi:{doi}&size=1&format=bibtex
 class InspireBibtexService {
-  const InspireBibtexService();
+  /// [uriBuilder] replaces the INSPIRE address, for tests against a local
+  /// server; the app always uses [bibtexUri].
+  const InspireBibtexService({this.uriBuilder});
+
+  final Uri? Function({required String inspireId, required String doi})?
+  uriBuilder;
 
   static final Map<String, String> _citeKeyCache = {};
   static final Map<String, String> _bibtexCache = {};
@@ -81,7 +86,7 @@ class InspireBibtexService {
     final cacheKey = '${inspireId.trim()}|${doi.trim().toLowerCase()}';
     final cached = _bibtexCache[cacheKey];
     if (cached != null) return cached;
-    final uri = bibtexUri(inspireId: inspireId, doi: doi);
+    final uri = (uriBuilder ?? bibtexUri)(inspireId: inspireId, doi: doi);
     if (uri == null) {
       throw const InspireBibtexException('没有可用的 INSPIRE ID 或 DOI');
     }
@@ -120,6 +125,12 @@ class InspireBibtexService {
       throw const InspireBibtexException('无法连接 INSPIRE');
     } on HandshakeException {
       throw const InspireBibtexException('无法建立 TLS 连接');
+    } on HttpException {
+      // The connection dropped part-way through the answer.
+      throw const InspireBibtexException('INSPIRE 连接中断');
+    } on FormatException {
+      // The body was not valid UTF-8 text.
+      throw const InspireBibtexException('INSPIRE 返回了无法读取的内容');
     } finally {
       client.close(force: true);
     }

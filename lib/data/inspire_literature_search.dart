@@ -167,7 +167,8 @@ class InspireLiteratureSearchService {
       // `first_author` + `author_count` is enough for the result list.
       'fields':
           'titles,first_author,author_count,collaborations,dois,'
-          'publication_info,arxiv_eprints,citation_count,control_number',
+          'publication_info,arxiv_eprints,citation_count,control_number,'
+          'earliest_date',
     });
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 8)
@@ -335,6 +336,15 @@ class InspireLiteratureSearchService {
       }
     }
     final citations = metadata['citation_count'];
+    // A preprint has no publication_info, hence no year there; the record's
+    // earliest date ("2026-05-14", "2026-05", "2026") is its year. Without it a
+    // "last 5 years" filter would drop every unpublished recent paper.
+    if (year == null) {
+      final earliest = metadata['earliest_date']?.toString() ?? '';
+      if (RegExp(r'^\d{4}').hasMatch(earliest)) {
+        year = int.tryParse(earliest.substring(0, 4));
+      }
+    }
     return InspireLiteratureHit(
       recid: recid,
       title: title.isEmpty ? '(untitled INSPIRE record)' : title,
