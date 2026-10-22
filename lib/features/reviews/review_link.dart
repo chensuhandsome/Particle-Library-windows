@@ -24,7 +24,7 @@ Future<bool> openReviewLink(BuildContext context, String target) async {
   if (entry == null) return false;
 
   final notes = AppScope.of(context).notes;
-  var page = 1;
+  int? page;
   if (notes != null && annotationId.isNotEmpty) {
     final annotations = await ReviewAnnotationNotes.load(
       notes,

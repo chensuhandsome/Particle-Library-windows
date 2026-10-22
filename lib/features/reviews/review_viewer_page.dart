@@ -53,6 +53,36 @@ int? currentOutlineRowIndex(List<int?> rowPages, int page) {
   return current;
 }
 
+/// What the reader restores from its saved [state] when it opens a review.
+///
+/// An [explicitPage] (a note's link to an annotation) means the reader was sent
+/// somewhere on purpose: the saved page, zoom and scroll are then not used, or
+/// the link would only work the first time a review is opened.
+({int? page, double? zoom, Offset? scroll}) readingPositionToRestore(
+  Map<String, Object?> state, {
+  int? explicitPage,
+}) {
+  if (explicitPage != null) return (page: null, zoom: null, scroll: null);
+  int? page;
+  double? zoom;
+  Offset? scroll;
+  final savedPage = state['page'];
+  if (savedPage is num && savedPage.isFinite) page = savedPage.toInt();
+  final savedZoom = state['zoom'];
+  if (savedZoom is num && savedZoom.isFinite && savedZoom > 0) {
+    zoom = savedZoom.toDouble();
+  }
+  final savedScroll = state['scroll'];
+  if (savedScroll is List && savedScroll.length == 2) {
+    final x = savedScroll[0];
+    final y = savedScroll[1];
+    if (x is num && y is num && x.isFinite && y.isFinite) {
+      scroll = Offset(x.toDouble(), y.toDouble());
+    }
+  }
+  return (page: page, zoom: zoom, scroll: scroll);
+}
+
 class ReviewViewerPage extends StatefulWidget
     implements ImmersivePage, NoGlobalSelection {
   const ReviewViewerPage({
@@ -60,13 +90,16 @@ class ReviewViewerPage extends StatefulWidget
     required this.title,
     required this.path,
     required this.officialUrl,
-    this.initialPage = 1,
+    this.initialPage,
   });
 
   final String title;
   final String path;
   final String officialUrl;
-  final int initialPage;
+
+  /// A page to open at, for example the page of a note's annotation. When it
+  /// is null the saved reading position is restored instead.
+  final int? initialPage;
 
   @override
   State<ReviewViewerPage> createState() => _ReviewViewerPageState();
@@ -74,10 +107,11 @@ class ReviewViewerPage extends StatefulWidget
 
 class _ReviewViewerPageState extends State<ReviewViewerPage>
     with WidgetsBindingObserver {
+  static const bool _traceEnabled =
+      kDebugMode || bool.fromEnvironment('PDG_REVIEW_TRACE');
+
   void _reviewLog(String message) {
-    if (kDebugMode || const bool.fromEnvironment('PDG_REVIEW_TRACE')) {
-      debugPrint(message);
-    }
+    if (_traceEnabled) debugPrint(message);
   }
 
   void _handleViewerPointerDown(PointerDownEvent event) {
@@ -249,29 +283,25 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
       final width = state['sidebarWidth'];
       if (width is num) _sidebarWidth = width.toDouble().clamp(220, 560);
       final tab = state['sidebarTab'];
-      if (tab is num) _sidebarTab = tab.toInt().clamp(0, 1);
-      final page = state['page'];
-      if (page is num) _restoredPage = page.toInt();
+      if (tab is num) _sidebarTab = tab.toInt().clamp(0, 2);
+      final position = readingPositionToRestore(
+        state,
+        explicitPage: widget.initialPage,
+      );
+      if (position.page != null) _restoredPage = position.page;
       _showAnnotations = state['showAnnotations'] != false;
       _pdfDarkMode = state['dark'] == true;
       final fit = state['fit'];
       if (fit is String && (fit == 'width' || fit == 'page' || fit == 'auto')) {
         _fitMode = fit;
       }
-      final zoom = state['zoom'];
-      if (zoom is num && zoom > 0) _restoredZoom = zoom.toDouble();
+      if (position.zoom != null) _restoredZoom = position.zoom;
       final scroll = state['scroll'];
       _reviewLog(
         'REVIEW load state page=${state['page']} scroll=$scroll '
         'zoom=${state['zoom']} fit=${state['fit']}',
       );
-      if (scroll is List && scroll.length == 2) {
-        final x = scroll[0];
-        final y = scroll[1];
-        if (x is num && y is num) {
-          _restoredScroll = Offset(x.toDouble(), y.toDouble());
-        }
-      }
+      if (position.scroll != null) _restoredScroll = position.scroll;
     }
     // No saved choice: phone reads fitted to width, larger windows to the page.
     if (_fitMode.isEmpty) {
@@ -503,7 +533,12 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
   }
 
   void _toggleHighlightMode() {
-    setState(() => _highlightMode = !_highlightMode);
+    setState(() {
+      _highlightMode = !_highlightMode;
+      // Region drawing and text highlighting use the same drag; only one of
+      // them can be on.
+      if (_highlightMode) _regionMode = false;
+    });
     if (!_highlightMode) _autoHighlightTimer?.cancel();
   }
 
@@ -1372,7 +1407,17 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
 
   void _toggleNotesSplit() {
     if (context.layoutClass == LayoutClass.compact) {
-      unawaited(AppNav.push<void>(context, NoteEditorPage(note: _splitNote)));
+      unawaited(
+        AppNav.push<void>(
+          context,
+          NoteEditorPage(
+            note: _splitNote,
+            initialAnchors: _splitNote == null
+                ? _splitAnchors()
+                : const <NoteAnchorInput>[],
+          ),
+        ),
+      );
       return;
     }
     setState(() {
@@ -1470,11 +1515,15 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
                     initialAnchors: _splitNote == null
                         ? _splitAnchors()
                         : const <NoteAnchorInput>[],
+                    // The editor reports after its own dispose too (it flushes
+                    // unsaved text then), when this page may already be gone.
                     onSaved: (note) {
+                      if (!mounted) return;
                       setState(() => _splitNote = note);
                       unawaited(_loadAnnotations(store));
                     },
                     onDeleted: () {
+                      if (!mounted) return;
                       setState(() {
                         _splitNote = null;
                         _splitSession++;
@@ -1533,6 +1582,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
         );
         frame.image.dispose();
         codec.dispose();
+        descriptor.dispose();
         buffer.dispose();
         if (png == null) return null;
         final support = await appSupportDirectory();
@@ -1733,6 +1783,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
                 onChanged: (next) =>
                     _updateRegionAnnotation(annotation.id, next),
                 onEnd: (next) => unawaited(_persistRegion(annotation.id, next)),
+                onCancel: () => _cancelRegionAdjust(annotation.id),
                 selected: true,
                 onTap: () => _selectAnnotation(annotation),
                 onDoubleTap: () => unawaited(_editAnnotation(annotation)),
@@ -1878,7 +1929,30 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
     );
   }
 
+  /// The annotation as it was when the current drag began. The drag updates
+  /// the list on every move, so by the time it ends the list already holds the
+  /// new rectangle; undo needs the rectangle and image from before.
+  final Map<String, ReviewAnnotation> _regionDragOrigin =
+      <String, ReviewAnnotation>{};
+
+  void _cancelRegionAdjust(String id) {
+    final origin = _regionDragOrigin.remove(id);
+    if (origin == null || !mounted) return;
+    setState(() {
+      _annotations = [
+        for (final annotation in _annotations)
+          annotation.id == id ? origin : annotation,
+      ];
+    });
+  }
+
   void _updateRegionAnnotation(String id, Rect rect) {
+    for (final annotation in _annotations) {
+      if (annotation.id == id) {
+        _regionDragOrigin.putIfAbsent(id, () => annotation);
+        break;
+      }
+    }
     setState(() {
       _annotations = [
         for (final annotation in _annotations)
@@ -1938,6 +2012,8 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
     final index = _annotations.indexWhere((annotation) => annotation.id == id);
     if (index < 0) return;
     final annotation = _annotations[index];
+    // The state before the drag, for undo; the list already shows the new rect.
+    final before = _regionDragOrigin.remove(id) ?? annotation;
     final version = (_regionVersions[id] ?? 0) + 1;
     _regionVersions[id] = version;
     try {
@@ -1953,7 +2029,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
       );
       if (!mounted || _regionVersions[id] != version) return;
       if (updated == null) return;
-      if (imagePath == null && annotation.imagePath != null) {
+      if (imagePath == null && before.imagePath != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1972,10 +2048,10 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
       _pushHistory(
         () => _updateRangeForHistory(
           id,
-          annotation.rects,
-          annotation.text,
-          annotation.imagePath,
-          annotation.imageStale,
+          before.rects,
+          before.text,
+          before.imagePath,
+          before.imageStale,
         ),
         () => _updateRangeForHistory(
           id,
@@ -2884,6 +2960,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
         strings: strings,
         palette: palette,
         onCollapse: onCollapse,
+        refresh: refresh,
       );
     }
     return _ReviewAnnotationSidebar(
@@ -2973,6 +3050,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
     required AppStrings strings,
     required AppPalette palette,
     VoidCallback? onCollapse,
+    VoidCallback? refresh,
   }) {
     final store = _notes;
     final title = _inspectorNote == null ? strings.notesNew : strings.notesEdit;
@@ -2985,7 +3063,12 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
             children: [
               IconButton(
                 tooltip: strings.commonBack,
-                onPressed: () => setState(() => _inspectorEditing = false),
+                onPressed: () {
+                  setState(() => _inspectorEditing = false);
+                  // The phone sheet is its own route: it only rebuilds when it
+                  // is told to, or Back would leave the editor on screen.
+                  refresh?.call();
+                },
                 icon: const Icon(Icons.arrow_back, size: 18),
               ),
               Expanded(
@@ -3029,17 +3112,24 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
                       ? _splitAnchors()
                       : const <NoteAnchorInput>[],
                   onSaved: (note) {
+                    if (!mounted) return;
                     setState(() => _inspectorNote = note);
+                    refresh?.call();
                     unawaited(_loadAnnotations(store));
                   },
                   onDeleted: () {
+                    if (!mounted) return;
                     setState(() {
                       _inspectorEditing = false;
                       _inspectorNote = null;
                     });
+                    refresh?.call();
                     unawaited(_loadAnnotations(store));
                   },
-                  onCancel: () => setState(() => _inspectorEditing = false),
+                  onCancel: () {
+                    setState(() => _inspectorEditing = false);
+                    refresh?.call();
+                  },
                 ),
         ),
       ],
@@ -3064,7 +3154,10 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
               palette: _pdfDarkMode ? AppPalette.dark : context.palette,
               strings: AppScope.of(context).strings,
               close: () => Navigator.of(sheetContext).pop(),
-              refresh: () => setSheetState(() {}),
+              // Editor callbacks can arrive after the sheet was swiped away.
+              refresh: () {
+                if (context.mounted) setSheetState(() {});
+              },
             ),
           ),
         ),
@@ -3570,9 +3663,13 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
   }
 
   Widget _pdfSurface(BuildContext context) {
-    _reviewLog(
-      'REVIEW open: build path=${widget.path} exists=${File(widget.path).existsSync()}',
-    );
+    // Built only when tracing: the stat is a synchronous disk call.
+    if (_traceEnabled) {
+      _reviewLog(
+        'REVIEW open: build path=${widget.path} '
+        'exists=${File(widget.path).existsSync()}',
+      );
+    }
     final documentRef = _pdfDocumentRef ??= PdfDocumentRefFile(widget.path);
     Widget viewer = Listener(
       behavior: HitTestBehavior.translucent,
@@ -3612,7 +3709,7 @@ class _ReviewViewerPageState extends State<ReviewViewerPage>
             _searcher ??= PdfTextSearcher(_controller);
             _currentPage = _controller.pageNumber;
             unawaited(_loadOutline(document));
-            final targetPage = _restoredPage ?? widget.initialPage;
+            final targetPage = _restoredPage ?? widget.initialPage ?? 1;
             unawaited(_fitInitialPage(targetPage));
           },
           pagePaintCallbacks: [
@@ -4831,6 +4928,7 @@ class _PdfRegionAdjustOverlay extends StatefulWidget {
     required this.color,
     required this.onChanged,
     required this.onEnd,
+    required this.onCancel,
     required this.onTap,
     required this.onDoubleTap,
     required this.onLongPress,
@@ -4843,6 +4941,7 @@ class _PdfRegionAdjustOverlay extends StatefulWidget {
   final Color color;
   final ValueChanged<Rect> onChanged;
   final ValueChanged<Rect> onEnd;
+  final VoidCallback onCancel;
   final VoidCallback onTap;
   final VoidCallback onDoubleTap;
   final VoidCallback onLongPress;
@@ -5010,6 +5109,8 @@ class _PdfRegionAdjustOverlayState extends State<_PdfRegionAdjustOverlay> {
           _downHandle = null;
           _handle = _RegionHandle.move;
           _cursor = SystemMouseCursors.move;
+          // The rectangle was moved on screen only; put the saved one back.
+          widget.onCancel();
         },
         child: Stack(
           clipBehavior: Clip.none,
