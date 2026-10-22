@@ -16,7 +16,20 @@ Future<Directory>? _supportDirectory;
 /// The result is cached for the process lifetime so the snapshot, user store
 /// and notes store share a single resolution instead of racing three.
 Future<Directory> appSupportDirectory() {
-  return _supportDirectory ??= _resolveSupportDirectory();
+  final cached = _supportDirectory;
+  if (cached != null) return cached;
+  final future = _resolveSupportDirectory();
+  _supportDirectory = future;
+  // A failed resolution must not be remembered for the whole process: the boot
+  // screen's Retry would then fail forever on a transient storage error. The
+  // error itself still reaches every caller awaiting the future.
+  future.then<void>(
+    (_) {},
+    onError: (Object _) {
+      if (identical(_supportDirectory, future)) _supportDirectory = null;
+    },
+  );
+  return future;
 }
 
 Future<Directory> _resolveSupportDirectory() async {
