@@ -45,19 +45,23 @@ String plainTextFromMarkdown(String markdown) {
   return text.trim();
 }
 
+// A link destination may hold balanced parentheses, as a DOI does
+// ("10.1016/0370-2693(93)90355-u"). The label and the tag exclude the opening
+// delimiter, so a long run of "[" or "<" with no closer cannot make a match
+// attempt scan to the end of the text from every start (quadratic time).
+final RegExp _imagePattern = RegExp(
+  r'!\[([^\[\]]*)\]\((?:[^()]|\([^()]*\))*\)',
+);
+final RegExp _linkPattern = RegExp(r'\[([^\[\]]*)\]\((?:[^()]|\([^()]*\))*\)');
+final RegExp _tagPattern = RegExp(r'<[^<>]+>');
+
 String _stripInlineMarkdown(String line) {
-  var text = line.replaceAllMapped(
-    RegExp(r'!\[([^\]]*)\]\([^)]*\)'),
-    (match) => match[1] ?? '',
-  );
-  text = text.replaceAllMapped(
-    RegExp(r'\[([^\]]*)\]\([^)]*\)'),
-    (match) => match[1] ?? '',
-  );
+  var text = line.replaceAllMapped(_imagePattern, (match) => match[1] ?? '');
+  text = text.replaceAllMapped(_linkPattern, (match) => match[1] ?? '');
   text = text.replaceAll('**', '');
   text = text.replaceAll('__', '');
   text = text.replaceAll('~~', '');
   text = text.replaceAll('`', '');
-  text = text.replaceAll(RegExp(r'<[^>]+>'), '');
+  text = text.replaceAll(_tagPattern, '');
   return text;
 }
