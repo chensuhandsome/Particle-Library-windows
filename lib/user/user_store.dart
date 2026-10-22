@@ -306,7 +306,17 @@ class UserStore extends ChangeNotifier {
     keepOnly('page', 1, 1000000);
     keepOnly('sidebarTab', 0, 100);
     keepOnly('sidebarWidth', 0, 100000);
-    keepOnly('zoom', 0.1, 8);
+    // A zoom read back from the view matrix can overshoot the limit by a
+    // rounding error; clamp it, and drop only a value that is not a usable
+    // positive number.
+    final zoom = clean['zoom'];
+    if (clean.containsKey('zoom')) {
+      if (zoom is num && zoom.isFinite && zoom > 0) {
+        clean['zoom'] = zoom.toDouble().clamp(0.1, 8.0);
+      } else {
+        clean.remove('zoom');
+      }
+    }
     final scroll = clean['scroll'];
     if (clean.containsKey('scroll') &&
         !(scroll is List &&
@@ -318,12 +328,33 @@ class UserStore extends ChangeNotifier {
     return clean;
   }
 
+  /// Removes numbers that JSON cannot carry (infinity, NaN) from decoded data.
+  ///
+  /// A file or backup holding `1e999` decodes to infinity; one such value left
+  /// in the store makes every later `jsonEncode` throw, so nothing could be
+  /// saved again. Map entries with such a value are dropped and list elements
+  /// become null.
+  static Object? withoutNonFinite(Object? value) {
+    if (value is double) return value.isFinite ? value : null;
+    if (value is Map) {
+      return <String, Object?>{
+        for (final entry in value.entries)
+          if (!(entry.value is double && !(entry.value as double).isFinite))
+            entry.key.toString(): withoutNonFinite(entry.value),
+      };
+    }
+    if (value is List) {
+      return [for (final item in value) withoutNonFinite(item)];
+    }
+    return value;
+  }
+
   Future<void> setReviewState(String key, Map<String, Object?> state) async {
     final raw = _data['reviewStates'];
     final states = raw is Map
         ? Map<String, Object?>.from(raw)
         : <String, Object?>{};
-    states[key] = state;
+    states[key] = withoutNonFinite(state);
     _data['reviewStates'] = states;
     await save();
   }
@@ -446,7 +477,8 @@ class UserStore extends ChangeNotifier {
 
   /// Restores a full backup. Settings/favorites are merged rather than
   /// deleting anything local.
-  Future<void> importData(Map<String, Object?> incoming) async {
+  Future<void> importData(Map<String, Object?> data) async {
+    final incoming = Map<String, Object?>.from(withoutNonFinite(data) as Map);
     final rawSettings = incoming['settings'];
     if (rawSettings is Map) {
       final restored = AppSettings.fromJson(
@@ -462,7 +494,19 @@ class UserStore extends ChangeNotifier {
       for (final item in rawFavorites) {
         if (item is! Map) continue;
         final map = Map<String, Object?>.from(item);
-        final key = map['key']?.toString();
+        // Exported favorites carry no "key" field; it is derived from the
+        // entry itself, as it is for the favorites already on this device.
+        final favorite = Favorite.fromJson(map);
+        final String? key;
+        if (favorite == null) {
+          key = map['key']?.toString();
+        } else if (favorite.kind == FavoriteKind.entry
+            ? (favorite.pdgid ?? '').isNotEmpty
+            : favorite.referenceId != null) {
+          key = favorite.key;
+        } else {
+          key = null;
+        }
         if (key != null && key.isNotEmpty) merged.putIfAbsent(key, () => map);
       }
       _data['favorites'] = merged.values.toList(growable: false);
@@ -542,7 +586,9 @@ class UserStore extends ChangeNotifier {
       final content = await file.readAsString();
       if (content.trim().isEmpty) return null;
       final decoded = jsonDecode(content);
-      if (decoded is Map) return Map<String, Object?>.from(decoded);
+      if (decoded is Map) {
+        return Map<String, Object?>.from(withoutNonFinite(decoded) as Map);
+      }
     } catch (_) {}
     return null;
   }
