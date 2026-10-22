@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdgapp/app/app_strings.dart';
 import 'package:pdgapp/app/app_theme.dart';
 import 'package:pdgapp/domain/labels.dart';
+import 'package:pdgapp/features/notes/note_editor.dart';
 import 'package:pdgapp/features/notes/notes_page.dart';
 import 'package:pdgapp/notes/notes.dart';
 
@@ -574,5 +575,76 @@ void main() {
       tester.getSize(find.widgetWithText(FilledButton, 'New note')).height,
       lessThan(40),
     );
+  });
+  testWidgets('editing a note so it leaves the tag filter keeps its editor open', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1300, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await store.create(title: 'Kept open', bodyMarkdown: 'body', tags: ['alpha']);
+    await store.create(title: 'Other note', bodyMarkdown: 'body', tags: ['alpha']);
+    await pumpWorkspace(tester, wideBreakpoint: 700);
+
+    // Filter by the tag, then open the first note.
+    await tester.tap(find.text('alpha').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kept open').first);
+    await tester.pumpAndSettle();
+    final editorFields = find.descendant(
+      of: find.byType(NoteEditor),
+      matching: find.byType(TextField),
+    );
+    expect(editorFields, findsNWidgets(3));
+
+    // Remove the tag in the editor: the note no longer matches the filter.
+    await tester.enterText(editorFields.at(2), '');
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+
+    final saved = (await store.recent()).firstWhere((n) => n.title == 'Kept open');
+    expect(saved.tagNames, isEmpty);
+    // The editor is still there, with the note's title, so typing continues.
+    expect(find.byType(NoteEditor), findsOneWidget);
+    expect(
+      tester.widget<TextField>(editorFields.at(0)).controller!.text,
+      'Kept open',
+    );
+  });
+
+  testWidgets('deleting a note that is open in a new draft closes its editor', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1300, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await pumpWorkspace(tester, wideBreakpoint: 700);
+
+    await tester.tap(find.text('New note').first);
+    await tester.pumpAndSettle();
+    final fields = find.descendant(
+      of: find.byType(NoteEditor),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(fields.at(0), 'Draft to delete');
+    await tester.pump(const Duration(milliseconds: 800));
+    await tester.pumpAndSettle();
+    expect(await store.recent(), hasLength(1));
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NoteEditor),
+        matching: find.byIcon(Icons.delete_outline),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // Confirm in the dialog.
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete').last);
+    await tester.pumpAndSettle();
+
+    expect(await store.recent(), isEmpty);
+    expect(find.byType(NoteEditor), findsNothing);
   });
 }

@@ -21,6 +21,7 @@ import '../common/ui.dart';
 import '../../app/navigation.dart';
 import '../../data/inspire_bibtex.dart';
 import 'csv_cell.dart';
+import 'notes_list_query.dart';
 import 'evidence_view.dart';
 import 'note_editor.dart';
 import 'notes_entity.dart';
@@ -186,42 +187,29 @@ class _NotesWorkspaceState extends State<NotesWorkspace> {
           !collections.any((c) => c.id == _collectionFilter)) {
         _collectionFilter = null;
       }
-      var notes = _tagFilters.isNotEmpty
-          ? await store.notesByTags(
-              _tagFilters,
-              collectionId: _collectionFilter,
-              limit: _pageSize,
-            )
-          : query.isEmpty
-          ? (_unfiledScope
-                ? await store.unfiled(limit: _pageSize)
-                : _collectionFilter == null
-                ? await store.recent(limit: _pageSize)
-                : await store.notesInCollection(
-                    _collectionFilter!,
-                    limit: _pageSize,
-                  ))
-          : await store.search(
-              query,
-              limit: _pageSize,
-              collectionId: _collectionFilter,
-            );
-      if (_unfiledScope) {
-        notes = notes
-            .where((note) => note.collections.isEmpty)
-            .toList(growable: false);
-      }
-      if (_tagFilters.isNotEmpty && query.isNotEmpty) {
-        notes = notes
-            .where((note) => noteMatchesQuery(note, query))
-            .toList(growable: false);
-      }
+      final notes = await loadNoteList(
+        store,
+        pageSize: _pageSize,
+        tags: _tagFilters.toList(growable: false),
+        query: query,
+        collectionId: _collectionFilter,
+        unfiledScope: _unfiledScope,
+      );
       if (!mounted || generation != _generation) return;
       final selectedId = _selected?.id;
-      final selectedGone =
+      var selectedGone =
           selectedId != null &&
           !_draftActive &&
           !notes.any((note) => note.id == selectedId);
+      if (selectedGone) {
+        // Missing from the list is not the same as gone: editing a note can
+        // make it stop matching the active tag, collection or search (its tag
+        // was removed in the editor). It stays open then, instead of the
+        // editor being torn down under the user's cursor; only a note that no
+        // longer exists (deleted) closes the editor.
+        selectedGone = await store.noteById(selectedId) == null;
+        if (!mounted || generation != _generation) return;
+      }
       setState(() {
         _notes = notes;
         final visibleIds = {for (final note in notes) note.id};
@@ -3153,6 +3141,7 @@ class _NotesWorkspaceState extends State<NotesWorkspace> {
         onCopyCiteKeys: (note) => _copyCiteKeys(notes: [note]),
         onCopyBibtex: (note) => _copyBibtex(notes: [note]),
         onSaved: _onDraftSaved,
+        onDeleted: _onDeleted,
         onCancel: () {
           if (!mounted) return;
           setState(() {
