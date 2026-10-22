@@ -56,6 +56,22 @@ const Map<String, String> greekToAscii = {
   'ψ': 'psi',
   'Ω': 'Omega',
   'ω': 'omega',
+  // Variant letterforms (U+03D2 is the "Upsilon with hook" used for ϒ(1S)).
+  'ϒ': 'Upsilon',
+  'ϑ': 'theta',
+  'ϵ': 'epsilon',
+  'ϱ': 'rho',
+  'ϰ': 'kappa',
+};
+
+/// Prime marks written in place of the ASCII apostrophe that PDG names use
+/// (`eta'(958)`): η′ with U+2032, a double prime, a modifier prime, a curly
+/// apostrophe.
+const Map<String, String> _primeMarks = {
+  '′': "'",
+  '″': "''",
+  'ʹ': "'",
+  '’': "'",
 };
 
 const Map<String, String> _latexGreek = {
@@ -257,7 +273,11 @@ String _normalizeCore(String input) {
   for (final rune in s.runes) {
     final char = String.fromCharCode(rune);
     buffer.write(
-      greekToAscii[char] ?? _superscripts[char] ?? _subscripts[char] ?? char,
+      greekToAscii[char] ??
+          _primeMarks[char] ??
+          _superscripts[char] ??
+          _subscripts[char] ??
+          char,
     );
   }
   s = buffer.toString();
@@ -323,6 +343,7 @@ List<String> nameQueryKeys(String input) {
 /// `B185`, `Q123`, `S016T22`). It is only a routing hint; the exact entry lookup
 /// decides whether the identifier exists.
 bool looksLikePdgIdentifier(String input) {
-  return RegExp(r'^[A-Za-z]\d{3}(\.[0-9]+)?[A-Za-z0-9]*$')
+  // Identifiers can end in charge signs ("B033M++", "B043D-0").
+  return RegExp(r'^[A-Za-z]\d{3}(\.[0-9]+)?[A-Za-z0-9+\-]*$')
       .hasMatch(input.trim());
 }

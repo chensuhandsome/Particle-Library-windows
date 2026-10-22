@@ -1248,10 +1248,14 @@ class PdgDatabase {
     int? year,
   }) async {
     final like = '%${_escapeLike(term)}%';
-    final params = <Object?>[term, term, term, term, like, like];
+    // An author name alone ("AAIJ") matches that author's reference labels
+    // ("AAIJ 2012C"): the exact label ranks first, the rest follow.
+    final prefix = '${_escapeLike(term)}%';
+    final params = <Object?>[term, prefix, term, term, term, like, like];
     var sql = '''
       SELECT *, COUNT(*) OVER() AS __total FROM pdgreference
        WHERE (TRIM(document_id) = ? COLLATE NOCASE
+              OR TRIM(document_id) LIKE ? ESCAPE '\\'
               OR TRIM(doi) = ? COLLATE NOCASE
               OR TRIM(inspire_id) = ? COLLATE NOCASE
               OR TRIM(title) = ? COLLATE NOCASE
@@ -1292,10 +1296,14 @@ class PdgDatabase {
     int? year,
   }) async {
     final like = '%${_escapeLike(term)}%';
-    final params = <Object?>[term, term, term, term, like, like];
+    // An author name alone ("AAIJ") matches that author's reference labels
+    // ("AAIJ 2012C"): the exact label ranks first, the rest follow.
+    final prefix = '${_escapeLike(term)}%';
+    final params = <Object?>[term, prefix, term, term, term, like, like];
     var sql = '''
       SELECT * FROM pdgreference
        WHERE (TRIM(document_id) = ? COLLATE NOCASE
+              OR TRIM(document_id) LIKE ? ESCAPE '\\'
               OR TRIM(doi) = ? COLLATE NOCASE
               OR TRIM(inspire_id) = ? COLLATE NOCASE
               OR TRIM(title) = ? COLLATE NOCASE
@@ -1321,10 +1329,12 @@ class PdgDatabase {
 
   Future<int> countSearchReferences(String term, {int? year}) async {
     final like = '%${_escapeLike(term)}%';
-    final params = <Object?>[term, term, term, like, like];
+    final prefix = '${_escapeLike(term)}%';
+    final params = <Object?>[term, prefix, term, term, like, like];
     var sql = '''
       SELECT COUNT(*) AS n FROM pdgreference
        WHERE (TRIM(document_id) = ? COLLATE NOCASE
+              OR TRIM(document_id) LIKE ? ESCAPE '\\'
               OR TRIM(doi) = ? COLLATE NOCASE
               OR TRIM(inspire_id) = ? COLLATE NOCASE
               OR title LIKE ? ESCAPE '\\'
