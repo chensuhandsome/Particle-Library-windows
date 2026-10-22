@@ -179,6 +179,14 @@ class AppStrings {
   String get errorImportNotArray =>
       _t('导入文件不是笔记 JSON 数组。', 'The import is not a notes JSON array.');
   String get errorGeneric => _t('操作失败。', 'The operation failed.');
+  String get errorNetwork => _t(
+    '无法连接网络服务，请检查网络后重试。',
+    'The service could not be reached. Check the connection and try again.',
+  );
+  String errorServiceStatus(String status) => _t(
+    '服务拒绝了请求（HTTP $status）。',
+    'The service refused the request (HTTP $status).',
+  );
   String get commonRetry => _t('重试', 'Retry');
   String get commonRawFields => _t('原始字段', 'Raw fields');
   String get commonRawRecord => _t('原始记录', 'Source record');

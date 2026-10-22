@@ -5,6 +5,9 @@ import 'package:pdgapp/features/common/async_view.dart';
 import 'package:pdgapp/app/app_strings.dart';
 import 'package:pdgapp/app/error_text.dart';
 import 'package:pdgapp/core/errors.dart';
+import 'package:pdgapp/data/inspire_bibtex.dart';
+import 'package:pdgapp/data/inspire_literature_search.dart';
+import 'package:pdgapp/data/review_cache.dart';
 import 'package:pdgapp/domain/labels.dart';
 import 'package:pdgapp/notes/notes_exception.dart';
 
@@ -88,6 +91,35 @@ void main() {
         en,
       ),
       isNull,
+    );
+  });
+  test('English says what went wrong with a network service', () {
+    final offline = errorText(
+      const InspireSearchException('INSPIRE 返回了无法识别的数据。'),
+      en,
+    );
+    expect(offline, 'The service could not be reached. Check the connection '
+        'and try again.');
+    expect(offline, isNot(matches(RegExp(r'[\u3400-\u9fff]'))));
+
+    expect(
+      errorText(const InspireSearchException('INSPIRE 返回 HTTP 429'), en),
+      'The service refused the request (HTTP 429).',
+    );
+    expect(
+      errorText(const InspireBibtexException('联网查询超时'), en),
+      contains('could not be reached'),
+    );
+    expect(
+      errorText(const ReviewCacheException('PDG 返回 HTTP 404'), en),
+      'The service refused the request (HTTP 404).',
+    );
+  });
+
+  test('Chinese keeps the original message', () {
+    expect(
+      errorText(const InspireSearchException('INSPIRE 返回 HTTP 429'), zh),
+      'INSPIRE 返回 HTTP 429',
     );
   });
 }

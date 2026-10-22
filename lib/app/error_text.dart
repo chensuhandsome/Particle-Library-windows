@@ -1,4 +1,9 @@
 import '../core/errors.dart';
+import '../data/inspire_bibtex.dart';
+import '../data/inspire_literature_search.dart';
+import '../data/reference_metadata.dart';
+import '../data/review_cache.dart';
+import '../data/zotero_cache.dart';
 import '../domain/labels.dart';
 import '../notes/notes_exception.dart';
 import 'app_strings.dart';
@@ -50,6 +55,17 @@ String errorText(Object error, AppStrings strings) {
       NotesErrorCode.writeFailed => strings.errorNotesWriteFailed,
       NotesErrorCode.backupFailed => strings.errorNotesBackupFailed,
     };
+  }
+  // Network features carry a Chinese message. Offline, a timeout, a 404 or a
+  // 429 all used to show only "The operation failed."; say what happened.
+  if (error is InspireSearchException ||
+      error is InspireBibtexException ||
+      error is ReferenceMetadataException ||
+      error is ZoteroCacheException ||
+      error is ReviewCacheException) {
+    final status = RegExp(r'HTTP (\d{3})').firstMatch(error.toString());
+    if (status != null) return strings.errorServiceStatus(status.group(1)!);
+    return strings.errorNetwork;
   }
   if (error is FormatException) {
     final message = error.message;
