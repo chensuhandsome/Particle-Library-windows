@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'labels.dart';
 import 'models.dart';
 
@@ -85,6 +87,14 @@ class DisplayQuantity {
     if (isComplexPole(rawText) || number.isEmpty) {
       number = rawText;
     }
+    // A range ("-1.85E-17 to 6.1E-18") whose display text holds only its first
+    // bound would show that bound alone, with a power of ten that belongs to
+    // the whole list. The raw text carries both bounds and their own exponents.
+    final rawRange =
+        rawText.contains(' to ') &&
+        !number.contains(' to ') &&
+        !number.contains('--');
+    if (rawRange) number = rawText;
     if (number.isEmpty && value != null) {
       number = _compactNumber(value);
     }
@@ -94,20 +104,38 @@ class DisplayQuantity {
     // while display_power_of_ten holds the listing-level exponent. The two
     // are relative, so the visible exponent is their sum.
     int? embeddedPower;
-    if (number.isNotEmpty) {
+    if (number.isNotEmpty && !rawRange) {
       final exponent = RegExp(r'\s*[Ee]([+-]?[0-9]+)\s*$').firstMatch(number);
       if (exponent != null) {
         embeddedPower = int.tryParse(exponent.group(1)!);
         number = number.substring(0, exponent.start).trimRight();
       }
     }
-    final effectivePower = inPercent
+    var effectivePower = inPercent
         ? (embeddedPower ?? 0)
         : powerOfTen + (embeddedPower ?? 0);
+    // Each bound of a raw range carries its own exponent (converted below).
+    if (rawRange) effectivePower = 0;
+    // A display text with its own exponent ("(14.42+-0.66)E11") states its
+    // scale itself; only a stored listing-level power is checked against the
+    // value.
+    if (!inPercent && !rawRange && embeddedPower == null) {
+      effectivePower = _powerConsistentWithValue(
+        number: number,
+        power: effectivePower,
+        value: value,
+        rawText: rawText,
+      );
+    }
+    // A word such as "seen" or "not seen" is not a number: no power of ten or
+    // percent sign belongs on it.
+    final hasDigit = embeddedPower != null || RegExp(r'\d').hasMatch(number);
 
     if (number.isNotEmpty) {
       number = number.replaceAll('+-', ' ± ');
-      if (effectivePower != 0 && (!inPercent || effectivePower != -2)) {
+      if (hasDigit &&
+          effectivePower != 0 &&
+          (!inPercent || effectivePower != -2)) {
         number = _withPowerOfTen(number, effectivePower);
       }
       if (!inPercent && (limitType == 'U' || limitType == 'L')) {
@@ -117,7 +145,7 @@ class DisplayQuantity {
           number = '${wantsUpper ? '<' : '>'} $number';
         }
       }
-      if (inPercent) {
+      if (inPercent && hasDigit) {
         if (!number.endsWith('%') && !number.contains('%')) {
           number = '$number%';
         }
@@ -159,10 +187,76 @@ class DisplayQuantity {
 
 String _withPowerOfTen(String number, int power) {
   final trimmed = number.trim();
-  final base = trimmed.contains('±') && !trimmed.startsWith('(')
-      ? '($trimmed)'
-      : trimmed;
+  // The power applies to the whole value, so every multi-part value is
+  // parenthesised: "(3.51 +0.23-0.25)×10⁻³", not "3.51+0.23-0.25×10⁻³", which
+  // reads as a power on the last number only. That covers symmetric and
+  // asymmetric errors and ranges. A leading limit symbol or word ("<", "none")
+  // stays outside, and a value whose bounds carry their own exponents is left
+  // alone.
+  final parts = RegExp(
+    r'^((?:[<>≤≥~]+|[A-Za-z]+)\s*)?(.*)$',
+    dotAll: true,
+  ).firstMatch(trimmed)!;
+  final symbol = parts.group(1) ?? '';
+  final body = parts.group(2)!;
+  final multiPart =
+      body.contains('±') ||
+      body.contains(' to ') ||
+      RegExp(r'[0-9.]\s*[+\-]\s*[0-9.]').hasMatch(body);
+  final ownExponents = RegExp(r'[0-9.]\s*[Ee][+-]?[0-9]').hasMatch(body);
+  final wrap = multiPart && !ownExponents && !body.startsWith('(');
+  final base = wrap ? '$symbol($body)' : trimmed;
   return '$base${_timesTen(power)}';
+}
+
+/// The power of ten that makes the displayed number agree with the stored value.
+///
+/// PDG stores a `display_power_of_ten` beside each value. For a few dozen rows
+/// of the 2026 snapshot it contradicts the value itself by an exact power of
+/// ten (for example the electron EDM limit has `value_text` "< 4.1 E-30" and
+/// `value` 4.1e-30, but a stored power of -28, which would display 4.1e-28).
+/// The numeric value is the measurement, so it decides.
+///
+/// The stored power is overruled only when `value_text` and `value` agree with
+/// each other (so one of them is not the odd one out) and the displayed number
+/// is off from the value by a clean power of ten. Anything else keeps the
+/// stored power.
+int _powerConsistentWithValue({
+  required String number,
+  required int power,
+  required double? value,
+  required String rawText,
+}) {
+  if (value == null || !value.isFinite || value == 0) return power;
+  if (isComplexPole(number) || isComplexPole(rawText)) return power;
+  final shown = _leadingMagnitude(number);
+  final raw = _rawLeadingValue(rawText);
+  if (shown == null || shown == 0 || raw == null || raw == 0) return power;
+  final magnitude = value.abs();
+  if ((raw / magnitude - 1).abs() > 0.12) return power;
+  final j = math.log(magnitude / (shown * math.pow(10.0, power))) / math.ln10;
+  final steps = j.round();
+  if (steps == 0 || (j - steps).abs() > 0.05) return power;
+  return power + steps;
+}
+
+/// Magnitude of the first number in a display string (signs and limit symbols
+/// ignored), or null.
+double? _leadingMagnitude(String text) {
+  final match = RegExp(r'\d+\.?\d*|\.\d+').firstMatch(text);
+  return match == null ? null : double.tryParse(match.group(0)!);
+}
+
+/// Magnitude of the leading number of a `value_text` such as "< 4.1 E-30".
+double? _rawLeadingValue(String text) {
+  final match = RegExp(
+    r'^[<>≤≥\s]*[-+]?(\d+\.?\d*|\.\d+)\s*(?:[Ee]\s*([-+]?\d+))?',
+  ).firstMatch(text);
+  if (match == null) return null;
+  final mantissa = double.tryParse(match.group(1)!);
+  if (mantissa == null) return null;
+  final exponent = int.tryParse(match.group(2) ?? '0') ?? 0;
+  return mantissa * math.pow(10.0, exponent);
 }
 
 String _timesTen(int power) {
