@@ -107,6 +107,8 @@ class _HomePageState extends State<HomePage> {
     _debounce?.cancel();
     _detailController?.resetToRoot();
     _controller.clear();
+    // A search still running must not fill the emptied page when it returns.
+    _generation++;
     _results.value = null;
     setState(() {
       _scope = SearchScope.all;
@@ -138,6 +140,9 @@ class _HomePageState extends State<HomePage> {
     _debounce?.cancel();
     final text = _controller.text.trim();
     if (text.isEmpty) {
+      // Cleared while a search was running: its answer no longer belongs here.
+      _generation++;
+      _inFlightKey = null;
       setState(() {
         _results.value = null;
         _error = null;
