@@ -145,4 +145,56 @@ void main() {
     );
     expect(await api.addItemWithPicker('1234567'), isNull);
   });
+  test('the write token is never sent to a host that is not this computer', () async {
+    final token = List<String>.filled(43, 'C').join();
+    // A real listener on loopback stands in for "somewhere else": the request
+    // is addressed by a name that is not a loopback name, so it must be refused
+    // before any connection is made.
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    var requests = 0;
+    server.listen((request) async {
+      requests++;
+      await request.response.close();
+    });
+    final api = ZoteroInspireApi(
+      baseUrl: 'http://example.org:${server.port}',
+      tokenOverride: token,
+    );
+    await expectLater(
+      api.addItem(
+        recid: '1',
+        target: const ZoteroSaveTarget(
+          libraryID: 1,
+          collectionIDs: [],
+          tags: [],
+          note: '',
+        ),
+      ),
+      throwsA(isA<ZoteroInspireException>()),
+    );
+    expect((await api.probe()).available, isFalse);
+    expect(requests, 0);
+  });
+
+  test('loopback names are accepted', () async {
+    final token = List<String>.filled(43, 'D').join();
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    var requests = 0;
+    server.listen((request) async {
+      requests++;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({'ok': true, 'capabilities': []}));
+      await request.response.close();
+    });
+    for (final host in ['127.0.0.1', 'localhost']) {
+      final api = ZoteroInspireApi(
+        baseUrl: 'http://$host:${server.port}',
+        tokenOverride: token,
+      );
+      expect((await api.probe()).available, isTrue, reason: host);
+    }
+    expect(requests, greaterThanOrEqualTo(2));
+  });
 }
