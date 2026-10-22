@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# The jobs only read the repository.
+permissions:
+  contents: read
+
 jobs:
   analyze:
     runs-on: macos-latest
