@@ -218,8 +218,8 @@ class _ShortcutRecorderDialogState extends State<_ShortcutRecorderDialog> {
       shift: keyboard.isShiftPressed,
     );
     setState(() {
-      _draft = binding.hasModifier ? binding : null;
-      _error = binding.hasModifier
+      _draft = binding.isUsable ? binding : null;
+      _error = binding.isUsable
           ? null
           : widget.strings.settingsShortcutNeedsModifier;
     });

@@ -1317,7 +1317,11 @@ class AppStrings {
     'Press a new key combination. At least one modifier is required; Esc cancels.',
   );
   String get settingsShortcutNeedsModifier =>
-      _t('请使用至少一个修饰键。', 'Use at least one modifier key.');
+      _t(
+        '请使用 ⌘/Ctrl；Alt 或 Shift 只能配合方向键、功能键等不输入字符的按键。',
+        'Use ⌘/Ctrl. Alt or Shift only work with keys that type nothing, '
+            'such as arrows and function keys.',
+      );
   String settingsShortcutConflict(String command) => _t(
     '该组合键已被“$command”使用。',
     'That combination is already used by “$command”.',
