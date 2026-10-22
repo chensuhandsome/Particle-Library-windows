@@ -1026,6 +1026,8 @@ class AppStrings {
     '选择已有笔记追加选中的内容，或新建一条：',
     'Append the selection to an existing note, or create one:',
   );
+  String notesCaptureAppendingTo(String title) =>
+      _t('将追加到：$title', 'Appending to: $title');
   String get notesAddSelection => _t('添加到笔记', 'Add to note');
   String get navHome => _t('主页', 'Home');
   String get notesCopiedMarkdown => _t('Markdown 已复制', 'Markdown copied');
