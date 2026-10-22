@@ -3,7 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+
+import '../core/app_paths.dart';
 
 enum FavoriteKind { entry, reference }
 
@@ -232,13 +233,28 @@ class UserStore extends ChangeNotifier {
   Future<void> _writeChain = Future.value();
   String? recoveryWarning;
 
+  /// Reads only the saved settings for the boot screen, without opening or
+  /// locking the full user store. Returns null when no settings exist yet.
+  static Future<AppSettings?> previewSettings() async {
+    try {
+      final support = await appSupportDirectory();
+      final file = File('${support.path}/ParticleDesk/user_store.json');
+      if (!await file.exists()) return null;
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded is! Map) return null;
+      return AppSettings.fromJson(decoded['settings']);
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<UserStore> open({String? overridePath}) async {
     File? file;
     if (overridePath != null) {
       file = File(overridePath);
     } else {
       try {
-        final support = await getApplicationSupportDirectory();
+        final support = await appSupportDirectory();
         file = File('${support.path}/ParticleDesk/user_store.json');
       } catch (_) {
         file = null;
@@ -259,6 +275,24 @@ class UserStore extends ChangeNotifier {
   Future<void> setSettings(AppSettings value) async {
     _data['settings'] = value.toJson();
     notifyListeners();
+    await save();
+  }
+
+  Map<String, Object?>? reviewState(String key) {
+    final raw = _data['reviewStates'];
+    if (raw is! Map) return null;
+    final value = raw[key];
+    if (value is! Map) return null;
+    return Map<String, Object?>.from(value);
+  }
+
+  Future<void> setReviewState(String key, Map<String, Object?> state) async {
+    final raw = _data['reviewStates'];
+    final states = raw is Map
+        ? Map<String, Object?>.from(raw)
+        : <String, Object?>{};
+    states[key] = state;
+    _data['reviewStates'] = states;
     await save();
   }
 
@@ -414,6 +448,20 @@ class UserStore extends ChangeNotifier {
         merged.putIfAbsent(key, () => map);
       }
       _data['recents'] = merged.values.take(20).toList(growable: false);
+    }
+    final rawStates = incoming['reviewStates'];
+    if (rawStates is Map) {
+      final merged = <String, Object?>{
+        for (final entry
+            in ((_data['reviewStates'] as Map?) ?? const {}).entries)
+          entry.key.toString(): entry.value,
+      };
+      for (final entry in rawStates.entries) {
+        final key = entry.key.toString();
+        if (key.isEmpty || entry.value is! Map) continue;
+        merged.putIfAbsent(key, () => entry.value);
+      }
+      _data['reviewStates'] = merged;
     }
     final rawTitles = incoming['referenceTitles'];
     if (rawTitles is Map) {

@@ -65,6 +65,9 @@ class ReviewAnnotationNotes {
         reviewTitle: _titleFromFile(record.fileName),
         uuid: uuid,
         createdAt: record.createdAt,
+        imagePath: record.imagePath,
+        imageStale: record.imageStale,
+        tags: record.tags,
       );
     }
     // Keep the sidecar for a retry if malformed/duplicate records were
@@ -73,6 +76,12 @@ class ReviewAnnotationNotes {
       await legacy.archive();
     }
   }
+
+  /// All notes anchored to [fileName], including annotation notes. The
+  /// inspector's Notes tab lists these; the Annotations tab projects the
+  /// subset that carries page geometry.
+  static Future<List<NoteRecord>> notesFor(NotesStore notes, String fileName) =>
+      notes.notesForTarget(NoteTargetKinds.review, _reviewKey(fileName));
 
   static Future<List<ReviewAnnotation>> load(
     NotesStore notes,
@@ -111,6 +120,9 @@ class ReviewAnnotationNotes {
     required String color,
     required String reviewTitle,
     String comment = '',
+    String? imagePath,
+    bool imageStale = false,
+    Iterable<String> tags = const <String>[],
   }) => _createNote(
     notes,
     fileName: fileName,
@@ -120,13 +132,17 @@ class ReviewAnnotationNotes {
     comment: comment,
     color: color,
     reviewTitle: reviewTitle,
+    imagePath: imagePath,
+    imageStale: imageStale,
+    tags: tags,
   );
 
   static Future<void> updateComment(
     NotesStore notes,
     ReviewAnnotation annotation,
-    String comment,
-  ) async {
+    String comment, {
+    Iterable<String>? tags,
+  }) async {
     final noteId = annotation.noteId;
     if (noteId == null) return;
     final note = await notes.noteById(noteId);
@@ -154,6 +170,12 @@ class ReviewAnnotationNotes {
     // comment remains authoritative in the anchor context; only an untouched
     // generated body is rewritten.
     final generatedBodyUntouched = note.bodyMarkdown.trim() == oldBody.trim();
+    final commentChanged = currentComment != comment.trim();
+    final nextBody = !commentChanged
+        ? null
+        : generatedBodyUntouched
+        ? body
+        : _projectComment(note.bodyMarkdown, comment);
     final anchors = <NoteAnchorInput>[];
     for (final anchor in note.anchors) {
       final isReviewAnchor =
@@ -176,8 +198,9 @@ class ReviewAnnotationNotes {
     }
     await notes.update(
       note.id,
-      bodyMarkdown: generatedBodyUntouched ? body : null,
+      bodyMarkdown: nextBody,
       anchors: anchors,
+      tags: tags,
       expectedRevision: note.revision,
     );
   }
@@ -187,6 +210,8 @@ class ReviewAnnotationNotes {
     ReviewAnnotation annotation, {
     required List<Rect> rects,
     required String text,
+    String? imagePath,
+    bool? imageStale,
   }) async {
     final noteId = annotation.noteId;
     if (noteId == null) return null;
@@ -233,6 +258,9 @@ class ReviewAnnotationNotes {
                       [rect.left, rect.top, rect.right, rect.bottom],
                   ],
                   'quote': text,
+                  'imagePath': ?imagePath,
+                  if (imageStale != null)
+                    'imageStale': imageStale ? true : null,
                 }
               : anchor.context,
         ),
@@ -264,6 +292,9 @@ class ReviewAnnotationNotes {
       color: annotation.color,
       createdAt: annotation.createdAt,
       noteId: annotation.noteId,
+      imagePath: imagePath ?? annotation.imagePath,
+      imageStale: imageStale ?? annotation.imageStale,
+      tags: note.tagNames,
     );
   }
 
@@ -286,6 +317,9 @@ class ReviewAnnotationNotes {
     required String reviewTitle,
     String? uuid,
     DateTime? createdAt,
+    String? imagePath,
+    bool imageStale = false,
+    Iterable<String> tags = const <String>[],
   }) async {
     final id = _newAnnotationId(pageNumber);
     final reviewKey = _reviewKey(fileName);
@@ -311,12 +345,15 @@ class ReviewAnnotationNotes {
       'color': color,
       'quote': text,
       'comment': comment,
+      'imagePath': ?imagePath,
+      if (imageStale) 'imageStale': true,
     };
     final note = await notes.create(
       title: title,
       bodyMarkdown: body,
       uuid: uuid,
       createdAt: createdAt,
+      tags: tags,
       anchors: [
         NoteAnchorInput.review(
           reviewKey,
@@ -335,6 +372,9 @@ class ReviewAnnotationNotes {
       color: color,
       createdAt: note.createdAt,
       noteId: note.id,
+      imagePath: imagePath,
+      imageStale: imageStale,
+      tags: note.tagNames,
     );
   }
 
@@ -376,6 +416,9 @@ class ReviewAnnotationNotes {
       color: context['color']?.toString() ?? 'yellow',
       createdAt: note.createdAt,
       noteId: note.id,
+      imagePath: context['imagePath']?.toString(),
+      imageStale: context['imageStale'] == true,
+      tags: note.tagNames,
     );
   }
 
@@ -429,11 +472,46 @@ class ReviewAnnotationNotes {
     ].join('\n');
   }
 
+  static String _projectComment(String body, String comment) {
+    const startMarker = '<!-- annotation-comment:start -->';
+    const endMarker = '<!-- annotation-comment:end -->';
+    var before = body;
+    var after = '';
+    final start = before.indexOf(startMarker);
+    if (start >= 0) {
+      final end = before.indexOf(endMarker, start + startMarker.length);
+      if (end >= 0) {
+        after = before.substring(end + endMarker.length).trim();
+        before = before.substring(0, start);
+      } else {
+        before = before.substring(0, start);
+      }
+    }
+    // Migrate the old single-marker projection without deleting prose the user
+    // appended after its quoted comment.
+    before = before.replaceAll(
+      RegExp(r'\n*<!-- annotation-comment -->\n> [^\n]*\n?'),
+      '',
+    );
+    final parts = <String>[
+      if (before.trim().isNotEmpty) before.trimRight(),
+      if (comment.trim().isNotEmpty)
+        '$startMarker\n> ${comment.trim()}\n$endMarker',
+      if (after.isNotEmpty) after,
+    ];
+    return parts.isEmpty ? '' : '${parts.join('\n\n')}\n';
+  }
+
   static String _commentFromBody(String body) {
     final lines = body.split('\n');
     final result = <String>[];
     for (final line in lines) {
       final trimmed = line.trim();
+      if (trimmed == '<!-- annotation-comment -->' ||
+          trimmed == '<!-- annotation-comment:start -->' ||
+          trimmed == '<!-- annotation-comment:end -->') {
+        continue;
+      }
       if (trimmed.startsWith('>')) continue;
       if (RegExp(r'^\[.*\]\(review:[^)]+\)$').hasMatch(trimmed)) continue;
       result.add(line);

@@ -3,6 +3,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../features/entry/entry_route_page.dart';
 import '../features/reference/reference_page.dart';
+import '../features/series/measurement_deep_link.dart';
 import 'immersive_page.dart';
 
 /// Key of the Search tab's navigator. Kept as a string so HomePage can
@@ -47,13 +48,22 @@ class NavigationController extends NavigatorObserver with ChangeNotifier {
 
   /// Whether the route currently on top of this stack is an [ImmersivePage].
   bool get topIsImmersive => _entries.length > 1 && _entries.last.immersive;
+
+  /// Whether the top route owns text selection and must not inherit the
+  /// app-wide [SelectionArea].
+  bool get topDisablesGlobalSelection =>
+      _entries.length > 1 && _entries.last.disableGlobalSelection;
   bool get canGoForward => _forward.isNotEmpty;
   bool get hasHistory => canGoBack || canGoForward;
 
   Future<T?> push<T>(Widget page) {
     final navigator = navigatorKey.currentState;
     if (navigator == null) return Future<T?>.value();
-    final entry = _NavEntry((_) => page, immersive: page is ImmersivePage);
+    final entry = _NavEntry(
+      (_) => page,
+      immersive: page is ImmersivePage,
+      disableGlobalSelection: page is NoGlobalSelection,
+    );
     final route = MaterialPageRoute<T>(builder: entry.builder!);
     entry.route = route;
     _entries.add(entry);
@@ -163,11 +173,17 @@ class NavigationController extends NavigatorObserver with ChangeNotifier {
 }
 
 class _NavEntry {
-  _NavEntry(this.builder, {this.route, this.immersive = false});
+  _NavEntry(
+    this.builder, {
+    this.route,
+    this.immersive = false,
+    this.disableGlobalSelection = false,
+  });
 
   final WidgetBuilder? builder;
   Route<dynamic>? route;
   final bool immersive;
+  final bool disableGlobalSelection;
 }
 
 /// Which navigator the persistent top bar controls.
@@ -246,6 +262,13 @@ class NavigationHub extends ChangeNotifier {
     final tab = activeTabController;
     if (tab != null && tab.canGoBack) return false;
     return activeDetailController?.topIsImmersive ?? false;
+  }
+
+  /// Whether the visible page owns its own text selection.
+  bool get globalSelectionDisabled {
+    final tab = activeTabController;
+    if (tab != null && tab.topDisablesGlobalSelection) return true;
+    return activeDetailController?.topDisablesGlobalSelection ?? false;
   }
 
   bool get canGoBack => backController != null;
@@ -405,5 +428,18 @@ class AppNav {
     int referenceId,
   ) async {
     await push(context, ReferencePage(referenceId: referenceId));
+  }
+
+  /// Opens one measurement directly. A missing row falls back inside the page
+  /// to the series route instead of silently doing nothing.
+  static Future<void> openMeasurement(
+    BuildContext context, {
+    required String pdgid,
+    required int measurementId,
+  }) async {
+    await push(
+      context,
+      MeasurementDeepLinkPage(pdgid: pdgid, measurementId: measurementId),
+    );
   }
 }

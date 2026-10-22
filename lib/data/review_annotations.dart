@@ -1,8 +1,9 @@
+import '../core/app_paths.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
-import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 /// One highlight/note attached to a cached review PDF.
@@ -20,6 +21,9 @@ class ReviewAnnotation {
     required this.color,
     required this.createdAt,
     this.noteId,
+    this.imagePath,
+    this.imageStale = false,
+    this.tags = const <String>[],
   });
 
   final String id;
@@ -34,6 +38,15 @@ class ReviewAnnotation {
   /// Owning note id, when this annotation is stored in the notes database.
   final String? noteId;
 
+  /// Rendered PNG for a region annotation, when available.
+  final String? imagePath;
+
+  /// True when the region geometry changed but the PNG could not be refreshed.
+  final bool imageStale;
+
+  /// Tags mirrored from the owning note.
+  final List<String> tags;
+
   Map<String, Object?> toJson() => {
     'id': id,
     'fileName': fileName,
@@ -45,6 +58,9 @@ class ReviewAnnotation {
     'note': note,
     'color': color,
     'createdAt': createdAt.toUtc().toIso8601String(),
+    if (imagePath != null) 'imagePath': imagePath,
+    if (imageStale) 'imageStale': true,
+    'tags': tags,
   };
 
   static ReviewAnnotation? fromJson(Object? raw) {
@@ -89,6 +105,12 @@ class ReviewAnnotation {
       color: data['color']?.toString() ?? 'yellow',
       createdAt: createdAt.toLocal(),
       noteId: data['noteId']?.toString(),
+      imagePath: data['imagePath']?.toString(),
+      imageStale: data['imageStale'] == true,
+      tags: [
+        for (final tag in (data['tags'] as List? ?? const <Object?>[]))
+          if (tag?.toString().trim().isNotEmpty ?? false) tag.toString().trim(),
+      ],
     );
   }
 }
@@ -116,7 +138,7 @@ class ReviewAnnotationStore {
   final File file;
 
   static Future<ReviewAnnotationStore> open() async {
-    final support = await getApplicationSupportDirectory();
+    final support = await appSupportDirectory();
     final target = File('${support.path}/ParticleDesk/review_annotations.json');
     return ReviewAnnotationStore(target);
   }
@@ -192,4 +214,51 @@ class ReviewAnnotationStore {
       rethrow;
     }
   }
+}
+
+/// Merges per-fragment text-selection rectangles into contiguous spans for
+/// display. The stored fragment rectangles are still kept for exact range
+/// adjustment.
+List<Rect> mergeRectsForDisplay(List<Rect> rects) {
+  if (rects.length <= 1) return rects;
+  final ordered = [...rects]
+    ..sort((a, b) {
+      final top = a.top.compareTo(b.top);
+      return top != 0 ? top : a.left.compareTo(b.left);
+    });
+  final rows = <List<Rect>>[];
+  for (final rect in ordered) {
+    var placed = false;
+    for (final row in rows) {
+      final reference = row.first;
+      final overlap =
+          (rect.bottom < reference.bottom ? rect.bottom : reference.bottom) -
+          (rect.top > reference.top ? rect.top : reference.top);
+      final minHeight = rect.height < reference.height
+          ? rect.height
+          : reference.height;
+      if (overlap >= minHeight * 0.5) {
+        row.add(rect);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) rows.add(<Rect>[rect]);
+  }
+  final merged = <Rect>[];
+  for (final row in rows) {
+    row.sort((a, b) => a.left.compareTo(b.left));
+    var current = row.first;
+    for (final rect in row.skip(1)) {
+      final gap = rect.left - current.right;
+      if (gap <= 0.02) {
+        current = current.expandToInclude(rect);
+      } else {
+        merged.add(current);
+        current = rect;
+      }
+    }
+    merged.add(current);
+  }
+  return merged;
 }

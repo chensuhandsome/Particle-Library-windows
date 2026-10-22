@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_scope.dart';
 import '../../app/app_theme.dart';
 
 /// A thin vertical drag handle used between a resizable panel and the content.
@@ -33,7 +34,10 @@ class _VerticalResizeHandleState extends State<VerticalResizeHandle> {
     final palette = context.palette;
     final active = _hover || _dragging;
     return Semantics(
-      label: widget.tooltip ?? '调整侧栏宽度',
+      label:
+          widget.tooltip ??
+          AppScope.maybeOf(context)?.strings.resizeSidebar ??
+          'Resize sidebar',
       child: MouseRegion(
         cursor: SystemMouseCursors.resizeColumn,
         onEnter: (_) => setState(() => _hover = true),
@@ -120,6 +124,8 @@ class CollapsibleSidebar extends StatelessWidget {
     this.tooltip,
     this.railIcon = Icons.view_sidebar_outlined,
     this.railTooltip,
+    this.handleOnLeft = false,
+    this.expandIcon = Icons.keyboard_double_arrow_right,
   });
 
   final bool expanded;
@@ -132,6 +138,13 @@ class CollapsibleSidebar extends StatelessWidget {
   final IconData railIcon;
   final String? railTooltip;
 
+  /// Put the drag handle on the left edge (panels docked to the right).
+  final bool handleOnLeft;
+
+  /// Chevron shown in the collapsed rail; right for a left panel, left for a
+  /// right panel.
+  final IconData expandIcon;
+
   @override
   Widget build(BuildContext context) {
     if (!expanded) {
@@ -139,6 +152,7 @@ class CollapsibleSidebar extends StatelessWidget {
         icon: railIcon,
         tooltip: railTooltip ?? tooltip ?? '',
         onExpand: onExpand,
+        expandIcon: expandIcon,
       );
     }
     return CollapsibleSidePanel(
@@ -146,6 +160,7 @@ class CollapsibleSidebar extends StatelessWidget {
       tooltip: tooltip,
       onDrag: onDrag ?? (_) {},
       onReset: onReset,
+      handleOnLeft: handleOnLeft,
       child: child,
     );
   }
@@ -158,11 +173,13 @@ class CollapsedSidebarRail extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onExpand,
+    this.expandIcon = Icons.keyboard_double_arrow_right,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onExpand;
+  final IconData expandIcon;
 
   static const double width = 46;
 
@@ -179,7 +196,7 @@ class CollapsedSidebarRail extends StatelessWidget {
             tooltip: tooltip,
             visualDensity: VisualDensity.compact,
             onPressed: onExpand,
-            icon: const Icon(Icons.keyboard_double_arrow_right, size: 18),
+            icon: Icon(expandIcon, size: 18),
           ),
           const SizedBox(height: 4),
           Icon(icon, size: 18, color: palette.textSecondary),

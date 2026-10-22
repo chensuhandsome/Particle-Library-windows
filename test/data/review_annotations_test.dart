@@ -49,6 +49,19 @@ void main() {
     expect(rect.height, greaterThan(0));
   });
 
+  test('word fragments merge into line spans for display', () {
+    final merged = mergeRectsForDisplay(const [
+      Rect.fromLTRB(0.1, 0.1, 0.2, 0.15),
+      Rect.fromLTRB(0.205, 0.1, 0.3, 0.15),
+      Rect.fromLTRB(0.1, 0.2, 0.2, 0.25),
+    ]);
+    expect(merged, hasLength(2));
+    expect(merged.first.left, 0.1);
+    expect(merged.first.right, 0.3);
+    expect(merged.first.top, 0.1);
+    expect(merged.last.top, 0.2);
+  });
+
   test('review annotations round-trip normalized rectangles', () async {
     final dir = await Directory.systemTemp.createTemp('review-annotations-');
     final store = ReviewAnnotationStore(File('${dir.path}/annotations.json'));
@@ -61,6 +74,8 @@ void main() {
       note: 'remember this',
       color: 'yellow',
       createdAt: DateTime(2026, 10, 18, 12),
+      imagePath: '/tmp/region.png',
+      imageStale: true,
     );
     await store.save([annotation]);
     final loaded = await store.load();
@@ -68,6 +83,8 @@ void main() {
     expect(loaded.single.pageNumber, 3);
     expect(loaded.single.rects.single.left, closeTo(0.1, 1e-9));
     expect(loaded.single.note, 'remember this');
+    expect(loaded.single.imagePath, '/tmp/region.png');
+    expect(loaded.single.imageStale, isTrue);
     await dir.delete(recursive: true);
   });
 }

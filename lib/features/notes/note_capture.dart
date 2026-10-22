@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/error_text.dart';
 import '../../app/navigation.dart';
 import '../../notes/notes.dart';
+import '../common/floating_panel.dart';
 import 'note_editor.dart';
 import 'notes_anchor.dart';
 import 'notes_format.dart';
+
+/// Last collection explicitly chosen in the capture sheet. This is an
+/// in-memory convenience default, not a second source of collection truth.
+abstract final class NoteCaptureDefaults {
+  static String? lastCollectionId;
+}
 
 String selectedQuoteBlock(String text, String label) {
   final quote = text
@@ -48,11 +56,21 @@ Future<void> captureTextToNote(
   final unique = <String, NoteRecord>{
     for (final note in [...existing, ...recent]) note.id: note,
   }.values.toList()..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  final collections = await store.collections();
+  var selectedCollectionId = NoteCaptureDefaults.lastCollectionId;
+  if (!collections.any((collection) => collection.id == selectedCollectionId)) {
+    selectedCollectionId = null;
+  }
 
   if (!context.mounted) return;
   final searchController = TextEditingController();
+  // The capture dialog is modal: hide floating lookup panels first, otherwise
+  // they sit above the dialog (overlay entries) and cover part of it.
+  final rootNavigator = Navigator.of(context, rootNavigator: true);
+  final dialogContext = rootNavigator.context;
+  FloatingPanelHost.suspendAll();
   final choice = await showDialog<_CaptureChoice>(
-    context: context,
+    context: dialogContext,
     builder: (dialogContext) => StatefulBuilder(
       builder: (context, setDialogState) {
         final query = searchController.text.trim();
@@ -89,6 +107,33 @@ Future<void> captureTextToNote(
                             : text.trim(),
                         maxLines: 7,
                         overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                  if (collections.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: strings.notesCollections,
+                        isDense: true,
+                        border: const OutlineInputBorder(),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: selectedCollectionId,
+                          hint: Text(strings.notesNoCollections),
+                          items: [
+                            for (final collection in collections)
+                              DropdownMenuItem<String>(
+                                value: collection.id,
+                                child: Text(collection.name),
+                              ),
+                          ],
+                          onChanged: (value) => setDialogState(
+                            () => selectedCollectionId = value,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -168,11 +213,17 @@ Future<void> captureTextToNote(
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: Text(strings.commonCancel),
             ),
-            FilledButton.icon(
+            TextButton(
               onPressed: () =>
                   Navigator.of(dialogContext).pop(const _CaptureChoice()),
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(strings.notesCaptureNew),
+              child: Text(strings.notesCaptureSave),
+            ),
+            FilledButton.icon(
+              onPressed: () =>
+                  Navigator.of(dialogContext)
+                      .pop(const _CaptureChoice(openAfterSave: true)),
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: Text(strings.notesCaptureSaveAndOpen),
             ),
           ],
         );
@@ -180,7 +231,15 @@ Future<void> captureTextToNote(
     ),
   );
   searchController.dispose();
-  if (choice == null) return;
+  if (choice == null) {
+    FloatingPanelHost.resumeAll();
+    return;
+  }
+  if (choice.openAfterSave) {
+    FloatingPanelHost.closeAll();
+  } else {
+    FloatingPanelHost.resumeAll();
+  }
 
   final sourceLines = <String>[];
   final seenSources = <String>{};
@@ -205,31 +264,39 @@ Future<void> captureTextToNote(
       final body = note.bodyMarkdown.trim().isEmpty
           ? quote
           : '${note.bodyMarkdown.trim()}\n\n$quote';
-      final merged = <NoteAnchorInput>[
-        for (final anchor in note.anchors)
-          NoteAnchorInput(
-            targetKind: anchor.targetKind,
-            targetKey: anchor.targetKey,
-            snapshotHash: anchor.snapshotHash.isEmpty
-                ? null
-                : anchor.snapshotHash,
-            targetLabel: anchor.targetLabel,
-            status: anchor.status,
-            context: anchor.context,
-          ),
-        ...anchors,
-      ];
-      final seen = <String>{};
-      merged.retainWhere(
-        (anchor) =>
-            seen.add('${anchor.targetId}\u0000${anchor.snapshotHash ?? ''}'),
-      );
+      final mergedByKey = <String, NoteAnchorInput>{};
+      for (final anchor in note.anchors) {
+        mergedByKey['${anchor.targetId}\u0000${anchor.snapshotHash}'] =
+            NoteAnchorInput(
+              targetKind: anchor.targetKind,
+              targetKey: anchor.targetKey,
+              snapshotHash: anchor.snapshotHash.isEmpty
+                  ? null
+                  : anchor.snapshotHash,
+              targetLabel: anchor.targetLabel,
+              status: anchor.status,
+              context: anchor.context,
+            );
+      }
+      for (final anchor in anchors) {
+        final key = '${anchor.targetId}\u0000${anchor.snapshotHash ?? ''}';
+        final existing = mergedByKey[key];
+        if (existing != null && anchor.context == null) {
+          // Keep an existing context when appending a plain source link.
+          continue;
+        }
+        mergedByKey[key] = anchor;
+      }
+      final merged = mergedByKey.values.toList(growable: false);
       record = await store.update(
         note.id,
         bodyMarkdown: body,
         anchors: merged,
         expectedRevision: note.revision,
       );
+      if (selectedCollectionId != null) {
+        await store.addNoteToCollection(note.id, selectedCollectionId!);
+      }
     } else {
       record = await store.create(
         title: defaultNoteTitle(
@@ -239,18 +306,38 @@ Future<void> captureTextToNote(
         ),
         bodyMarkdown: quote,
         anchors: anchors,
+        collectionIds: selectedCollectionId == null
+            ? const <String>[]
+            : <String>[selectedCollectionId!],
       );
     }
+    if (const bool.fromEnvironment('PDG_REVIEW_TRACE')) {
+      debugPrint(
+        'NOTE capture existing=${choice.existing?.id} saved=${record.id} '
+        'bodyLen=${record.bodyMarkdown.length} rev=${record.revision} '
+        'anchors=${record.anchors.length}',
+      );
+    }
+    NoteCaptureDefaults.lastCollectionId = selectedCollectionId;
     scope.notesChanges.value++;
   } catch (error) {
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${strings.notesSaveFailed}: $error')),
+    if (!dialogContext.mounted) return;
+    ScaffoldMessenger.of(dialogContext).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${strings.notesSaveFailed}: ${errorText(error, strings)}',
+        ),
+      ),
     );
     return;
   }
-  if (!context.mounted) return;
-  await AppNav.push<void>(context, NoteEditorPage(note: record));
+  if (!dialogContext.mounted) return;
+  if (choice.openAfterSave) {
+    await AppNav.push<void>(dialogContext, NoteEditorPage(note: record));
+  } else {
+    ScaffoldMessenger.of(dialogContext)
+        .showSnackBar(SnackBar(content: Text(strings.notesCaptured)));
+  }
 }
 
 /// Adds an entity link to a note, letting the user append to an existing note
@@ -270,7 +357,8 @@ Future<void> addEntityToNote(
 );
 
 class _CaptureChoice {
-  const _CaptureChoice({this.existing});
+  const _CaptureChoice({this.existing, this.openAfterSave = false});
 
   final NoteRecord? existing;
+  final bool openAfterSave;
 }

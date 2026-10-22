@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/error_text.dart';
 import '../../app/app_strings.dart';
 import '../../app/immersive_page.dart';
 import '../../app/app_theme.dart';
@@ -10,9 +12,12 @@ import '../../notes/notes.dart';
 import '../common/description_text.dart';
 import '../common/page.dart';
 import '../common/snack_bars.dart';
+import '../common/floating_panel.dart';
 import '../common/ui.dart';
+import 'note_tag_field.dart';
 import 'notes_format.dart';
 import 'tag_tools.dart';
+import '../entry/entry_route_page.dart';
 import '../reference/reference_page.dart';
 import '../../search/search_service.dart';
 import '../../app/navigation.dart';
@@ -45,7 +50,12 @@ class NoteEditor extends StatefulWidget {
     this.changeSignal,
     this.onSaved,
     this.onDeleted,
+    this.onCancel,
+    this.onCopyCiteKeys,
+    this.onCopyBibtex,
+    this.draft = false,
     this.autofocusTitle = false,
+    this.compact = false,
     this.debounce = const Duration(milliseconds: 500),
   });
 
@@ -57,7 +67,15 @@ class NoteEditor extends StatefulWidget {
   final ValueNotifier<int>? changeSignal;
   final ValueChanged<NoteRecord>? onSaved;
   final VoidCallback? onDeleted;
+  final VoidCallback? onCancel;
+  final Future<void> Function(NoteRecord note)? onCopyCiteKeys;
+  final Future<void> Function(NoteRecord note)? onCopyBibtex;
+  final bool draft;
   final bool autofocusTitle;
+
+  /// Narrow embedding (the reader's split pane): the PDG rail would take most
+  /// of the width, so the lookup opens as a dialog instead.
+  final bool compact;
   final Duration debounce;
 
   @override
@@ -70,6 +88,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
   late final TextEditingController _tagController;
   late final FocusNode _titleFocus;
   late final FocusNode _bodyFocus;
+  late final FocusNode _tagFocus;
   late final List<NoteAnchorInput> _draftAnchors;
 
   NoteRecord? _record;
@@ -84,9 +103,11 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
   Timer? _linkHoverTimer;
   Timer? _linkHoverHideTimer;
   OverlayEntry? _linkHoverOverlay;
+  OverlayEntry? _lookupOverlay;
   int _linkHoverGeneration = 0;
   bool _saving = false;
   bool _disposed = false;
+  bool _discarded = false;
   bool _previewOnly = false;
   bool _showPdgRail = true;
   String? _linkPreviewTarget;
@@ -95,6 +116,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
   List<String> _knownTags = const <String>[];
   late Set<String> _collectionIds;
   late Set<String> _savedCollectionIds;
+  bool _collectionsDirty = false;
   final List<NoteAnchorInput> _quickAnchors = <NoteAnchorInput>[];
   final Set<String> _removedAnchorIds = <String>{};
   late String _savedAnchorSignature;
@@ -121,12 +143,18 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     _tagController = TextEditingController(text: _savedTags.join(', '));
     _titleFocus = FocusNode();
     _bodyFocus = FocusNode();
+    _tagFocus = FocusNode();
     _lastSignature = _dirtySignature;
     _titleController.addListener(_onChanged);
     _bodyController.addListener(_onChanged);
     _tagController.addListener(_onChanged);
     WidgetsBinding.instance.addObserver(this);
+    widget.changeSignal?.addListener(_onExternalNotesChanged);
     unawaited(_loadCollections());
+    // The passed record can be a snapshot taken before another surface
+    // appended to the note; refresh from the store so a re-created editor does
+    // not show (and later save) the stale body.
+    if (_record != null) unawaited(_refreshNoteMetadata(_record!.id));
     if (widget.autofocusTitle) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _titleFocus.requestFocus();
@@ -136,14 +164,22 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    if (const bool.fromEnvironment('PDG_REVIEW_TRACE')) {
+      debugPrint(
+        'NOTE editor dispose id=${_record?.id} changes=$_hasChanges '
+        'discarded=$_discarded bodyLen=${_bodyController.text.length}',
+      );
+    }
     _disposed = true;
+    widget.changeSignal?.removeListener(_onExternalNotesChanged);
     WidgetsBinding.instance.removeObserver(this);
     _autosaveTimer?.cancel();
     _linkHoverTimer?.cancel();
     _linkHoverHideTimer?.cancel();
     _linkHoverOverlay?.remove();
     _linkHoverOverlay = null;
-    if (_saving || _hasChanges) {
+    _closeFloatingLookup();
+    if (!_discarded && (_saving || _hasChanges)) {
       _flushOnDispose();
     }
     _titleController.dispose();
@@ -151,6 +187,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     _tagController.dispose();
     _titleFocus.dispose();
     _bodyFocus.dispose();
+    _tagFocus.dispose();
     super.dispose();
   }
 
@@ -218,6 +255,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     if (result == null || !mounted) return;
     setState(() {
       _collectionIds = result;
+      _collectionsDirty = true;
       _lastSignature = _dirtySignature;
       _stage = _SaveStage.pending;
     });
@@ -333,7 +371,8 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     return title != _savedTitle ||
         body != _savedBody ||
         !_sameTags(tags, _savedTags) ||
-        !_sameStringSets(_collectionIds, _savedCollectionIds) ||
+        (_collectionsDirty &&
+            !_sameStringSets(_collectionIds, _savedCollectionIds)) ||
         _anchorSignature() != _savedAnchorSignature;
   }
 
@@ -343,7 +382,10 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     if (signature == _lastSignature) return;
     _lastSignature = signature;
     _autosaveTimer?.cancel();
-    if (!_saving && mounted) {
+    // The text fields repaint themselves; rebuilding the editor (toolbar,
+    // status, anchors) on every keystroke made typing on a phone jitter.
+    // Only the stage transition needs a rebuild.
+    if (!_saving && mounted && _stage != _SaveStage.pending) {
       setState(() => _stage = _SaveStage.pending);
     }
     _scheduleAutosave();
@@ -396,6 +438,53 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     return future;
   }
 
+  /// Another surface (PDG lookup, note links, the notes list) may add an
+  /// anchor to the note open here. Refresh its metadata without touching the
+  /// title/body the user is typing.
+  void _onExternalNotesChanged() {
+    final current = _record;
+    if (const bool.fromEnvironment('PDG_REVIEW_TRACE')) {
+      debugPrint('NOTE change signal id=${current?.id} saving=$_saving');
+    }
+    if (current == null || _saving) return;
+    unawaited(_refreshNoteMetadata(current.id));
+  }
+
+  Future<void> _refreshNoteMetadata(String id) async {
+    final fresh = await widget.store.noteById(id);
+    if (!mounted || fresh == null) return;
+    final current = _record;
+    if (current == null || fresh.revision == current.revision) return;
+    final savedBody = current.bodyMarkdown;
+    final freshBody = fresh.bodyMarkdown;
+    setState(() {
+      _record = fresh;
+      // Another surface appended a quote/source line (the PDG lookup): merge
+      // the suffix into the text being edited instead of losing it on the next
+      // autosave, which would write our older body back.
+      if (freshBody != savedBody) {
+        final suffix = freshBody.startsWith(savedBody)
+            ? freshBody.substring(savedBody.length)
+            : '\n\n$freshBody';
+        final text = _bodyController.text;
+        if (text == savedBody) {
+          _bodyController.value = TextEditingValue(
+            text: freshBody,
+            selection: TextSelection.collapsed(offset: freshBody.length),
+          );
+          _savedBody = freshBody;
+        } else {
+          final merged = '$text$suffix';
+          _bodyController.value = TextEditingValue(
+            text: merged,
+            selection: TextSelection.collapsed(offset: merged.length),
+          );
+        }
+      }
+      _savedAnchorSignature = _anchorSignature();
+    });
+  }
+
   Future<NoteRecord?> _persistBody({
     bool reportState = true,
     bool force = false,
@@ -438,42 +527,132 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
         );
       } else {
         final anchorsChanged = _anchorSignature() != _savedAnchorSignature;
-        final collectionsChanged = !_sameStringSets(
-          _collectionIds,
-          _savedCollectionIds,
-        );
-        saved = await widget.store.update(
+        // Another surface may have appended a quote/source line (PDG lookup)
+        // while this editor was open and its change signal was not processed
+        // yet. Merge that suffix instead of overwriting it on save.
+        var bodyToSave = body;
+        var anchorsToSave = anchorsChanged ? _allAnchors() : null;
+        var expectedRevision = force ? null : _record?.revision;
+        final latest = await widget.store.noteById(existing.id);
+        if (const bool.fromEnvironment('PDG_REVIEW_TRACE')) {
+          debugPrint(
+            'NOTE save id=${existing.id} rev=${existing.revision} '
+            'latestRev=${latest?.revision} bodyLen=${body.length} '
+            'titleChanged=${latest != null && latest.title != existing.title}',
+          );
+        }
+        final base = _record?.bodyMarkdown ?? '';
+        if (latest != null &&
+            _record != null &&
+            latest.revision != _record!.revision &&
+            // Only an append (the capture flow) is merged silently; a real
+            // external edit keeps the conflict path below.
+            latest.title == _record!.title &&
+            latest.bodyMarkdown.startsWith(base)) {
+          final latestBody = latest.bodyMarkdown;
+          final suffix = latestBody.substring(base.length);
+          if (suffix.isNotEmpty) {
+            bodyToSave = '${bodyToSave.trimRight()}$suffix';
+          }
+          if (const bool.fromEnvironment('PDG_REVIEW_TRACE')) {
+            debugPrint(
+              'NOTE save merged id=${existing.id} suffixLen=${suffix.length} '
+              'finalLen=${bodyToSave.length}',
+            );
+          }
+          final merged = <String, NoteAnchorInput>{};
+          for (final anchor in latest.anchors) {
+            merged['${anchor.targetId}\u0000${anchor.snapshotHash}'] =
+                NoteAnchorInput(
+                  targetKind: anchor.targetKind,
+                  targetKey: anchor.targetKey,
+                  snapshotHash: anchor.snapshotHash.isEmpty
+                      ? null
+                      : anchor.snapshotHash,
+                  targetLabel: anchor.targetLabel,
+                  status: anchor.status,
+                  context: anchor.context,
+                );
+          }
+          for (final anchor in _allAnchors()) {
+            merged['${anchor.targetId}\u0000${anchor.snapshotHash ?? ''}'] =
+                anchor;
+          }
+          anchorsToSave = merged.values.toList(growable: false);
+          expectedRevision = latest.revision;
+        }
+        await widget.store.update(
           existing.id,
           title: title,
-          bodyMarkdown: body,
-          anchors: anchorsChanged ? _allAnchors() : null,
+          bodyMarkdown: bodyToSave,
+          anchors: anchorsToSave,
           tags: tags,
-          collectionIds: collectionsChanged ? _collectionIds.toList() : null,
-          expectedRevision: force ? null : _record?.revision,
+          expectedRevision: expectedRevision,
         );
+        if (_collectionsDirty) {
+          final before = {
+            for (final collection in existing.collections) collection.id,
+          };
+          for (final id in _collectionIds.difference(before)) {
+            await widget.store.addNoteToCollection(existing.id, id);
+          }
+          for (final id in before.difference(_collectionIds)) {
+            await widget.store.removeNoteFromCollection(existing.id, id);
+          }
+        }
+        saved = (await widget.store.noteById(existing.id))!;
       }
       _saving = false;
       _record = saved;
       _savedTitle = saved.title;
       _savedBody = saved.bodyMarkdown;
       _savedTags = saved.tagNames;
-      _savedCollectionIds = {
+      _collectionIds = {
         for (final collection in saved.collections) collection.id,
       };
+      _savedCollectionIds = Set<String>.of(_collectionIds);
       _quickAnchors.clear();
       _savedAnchorSignature = _anchorSignature();
+      _collectionsDirty = false;
       changeSignal?.value++;
+      // Notify the owner even when this widget is being disposed: a draft
+      // remount needs the durable row so it does not create a second note.
+      widget.onSaved?.call(saved);
       if (_disposed || !mounted) return saved;
       final stillDirty = _hasChanges;
       setState(() {
         _stage = stillDirty ? _SaveStage.pending : _SaveStage.saved;
         _saveError = null;
       });
-      widget.onSaved?.call(saved);
       if (stillDirty) _scheduleAutosave();
       return saved;
     } catch (error) {
       _saving = false;
+      // A content update may have committed before a membership edge failed.
+      // Reload the durable row so the next autosave does not reuse a stale
+      // revision. A real conflict, however, must keep the stale revision so
+      // the next save cannot silently overwrite the other writer's content;
+      // the Reload/Keep-mine banner is the only resolution path.
+      final conflict =
+          error is NotesException && error.code == NotesErrorCode.conflict;
+      if (!conflict && existing != null) {
+        try {
+          final latest = await widget.store.noteById(existing.id);
+          if (latest != null && mounted) {
+            _record = latest;
+            _savedTitle = latest.title;
+            _savedBody = latest.bodyMarkdown;
+            _savedTags = latest.tagNames;
+            _collectionIds = {
+              for (final collection in latest.collections) collection.id,
+            };
+            _savedCollectionIds = Set<String>.of(_collectionIds);
+            _collectionsDirty = false;
+          }
+        } catch (_) {
+          // Keep the original error; the user can still retry or copy text.
+        }
+      }
       if (_disposed || !mounted) return null;
       setState(() {
         _stage = _SaveStage.failed;
@@ -522,8 +701,9 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
             _anchorSignature() == _savedAnchorSignature) {
           return;
         }
+        NoteRecord? saved;
         if (existing == null) {
-          await store.create(
+          saved = await store.create(
             title: title,
             bodyMarkdown: body,
             anchors: anchors,
@@ -537,10 +717,22 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
             bodyMarkdown: body,
             anchors: anchors,
             tags: tags,
-            collectionIds: collectionIds,
             expectedRevision: existing.revision,
           );
+          if (_collectionsDirty) {
+            final before = {
+              for (final collection in existing.collections) collection.id,
+            };
+            for (final id in collectionIds.toSet().difference(before)) {
+              await store.addNoteToCollection(existing.id, id);
+            }
+            for (final id in before.difference(collectionIds.toSet())) {
+              await store.removeNoteFromCollection(existing.id, id);
+            }
+          }
+          saved = await store.noteById(existing.id);
         }
+        if (saved != null) widget.onSaved?.call(saved);
         changeSignal?.value++;
       } catch (error) {
         // The editor is gone, so there is no place for a dialog. Keep the
@@ -548,6 +740,58 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
         debugPrint('Particle Library: note flush on close failed: $error');
       }
     }());
+  }
+
+  Future<void> _cancelDraft() async {
+    if (!widget.draft) return;
+    final title = _committedText(_titleController).trim();
+    final body = _committedText(_bodyController).trim();
+    final tags = parseNoteTags(_committedText(_tagController));
+    final hasAnchors = _allAnchors().isNotEmpty;
+    final hasContent =
+        title.isNotEmpty ||
+        body.isNotEmpty ||
+        tags.isNotEmpty ||
+        hasAnchors ||
+        _record != null;
+    if (hasContent) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(widget.strings.notesDiscardDraft),
+          content: Text(widget.strings.notesDiscardDraftBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(widget.strings.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(widget.strings.notesDiscardDraftAction),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+    _discarded = true;
+    _autosaveTimer?.cancel();
+    final active = _activePersist;
+    if (active != null) {
+      try {
+        await active;
+      } catch (_) {}
+    }
+    final record = _record;
+    if (record != null) {
+      try {
+        await widget.store.delete(record.id);
+        widget.changeSignal?.value++;
+      } catch (error) {
+        debugPrint('Particle Library: discard draft failed: $error');
+      }
+    }
+    widget.onCancel?.call();
   }
 
   Future<void> _linkAnotherNote() async {
@@ -646,20 +890,60 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
 
   void _removePersistedAnchor(NoteAnchor anchor) {
     final key = _persistedAnchorKey(anchor);
+    final input = NoteAnchorInput(
+      targetKind: anchor.targetKind,
+      targetKey: anchor.targetKey,
+      snapshotHash: anchor.snapshotHash.isEmpty ? null : anchor.snapshotHash,
+      targetLabel: anchor.targetLabel,
+      status: anchor.status,
+      context: anchor.context,
+    );
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _removedAnchorIds.add(key));
     _onChanged();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(widget.strings.notesAnchorRemoved)));
+    showUndoSnackBar(
+      messenger,
+      message: widget.strings.notesAnchorRemoved,
+      undoLabel: widget.strings.notesUndo,
+      onUndo: () {
+        if (!mounted) return;
+        setState(() {
+          _removedAnchorIds.remove(key);
+          _quickAnchors.add(input);
+        });
+        _onChanged();
+      },
+    );
   }
 
   void _removeDraftAnchor(NoteAnchorInput anchor) {
-    setState(() => _quickAnchors.remove(anchor));
-    _draftAnchors.remove(anchor);
+    final wasDraft = _draftAnchors.contains(anchor);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() {
+      _quickAnchors.remove(anchor);
+      _draftAnchors.remove(anchor);
+    });
     _onChanged();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(widget.strings.notesAnchorRemoved)));
+    showUndoSnackBar(
+      messenger,
+      message: widget.strings.notesAnchorRemoved,
+      undoLabel: widget.strings.notesUndo,
+      onUndo: () {
+        if (!mounted) return;
+        setState(() {
+          if (_quickAnchors.contains(anchor) ||
+              _draftAnchors.contains(anchor)) {
+            return;
+          }
+          if (wasDraft) {
+            _draftAnchors.add(anchor);
+          } else {
+            _quickAnchors.add(anchor);
+          }
+        });
+        _onChanged();
+      },
+    );
   }
 
   Future<void> _showRelatedNotes() async {
@@ -921,6 +1205,15 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
   Future<void> _openPdgLookup() async {
     final scope = AppScope.maybeOf(context);
     if (scope == null) return;
+    // Make sure a draft exists in the store before the lookup's capture
+    // dialog lists notes, otherwise the user cannot append to this note.
+    if (_hasChanges) await _persist();
+    if (!mounted) return;
+    final size = MediaQuery.sizeOf(context);
+    if (size.width >= 900) {
+      _toggleFloatingLookup(scope.services, size);
+      return;
+    }
     await showDialog<void>(
       context: context,
       builder: (context) => Dialog(
@@ -940,6 +1233,42 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     );
   }
 
+  void _toggleFloatingLookup(AppServices scope, Size size) {
+    if (_lookupOverlay != null) {
+      if (_lookupOverlay!.mounted) {
+        _closeFloatingLookup();
+        return;
+      }
+      _lookupOverlay = null;
+    }
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final width = math.min(520.0, size.width - 48);
+    final height = math.min(620.0, size.height - 120);
+    final rect = Rect.fromLTWH((size.width - width) / 2, 80, width, height);
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => _FloatingLookupHost(
+        search: scope.search,
+        strings: widget.strings,
+        initialRect: rect,
+        maxSize: Size(size.width - 24, size.height - 60),
+        onClose: _closeFloatingLookup,
+      ),
+    );
+    _lookupOverlay = entry;
+    FloatingPanelHost.register(entry, overlay);
+    overlay.insert(entry);
+  }
+
+  void _closeFloatingLookup() {
+    final entry = _lookupOverlay;
+    if (entry != null) {
+      FloatingPanelHost.unregister(entry);
+      entry.remove();
+    }
+    _lookupOverlay = null;
+  }
+
   Future<void> _copyMarkdown() async {
     final saved = await _persist();
     if (!mounted) return;
@@ -954,6 +1283,19 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
       noteAsMarkdown(saved, untitled: widget.strings.notesUntitled),
       message: widget.strings.notesCopiedMarkdown,
     );
+  }
+
+  Future<void> _copyReference({required bool bibtex}) async {
+    final saved = await _persist();
+    if (!mounted) return;
+    if (saved == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(widget.strings.notesSaveFailed)));
+      return;
+    }
+    final callback = bibtex ? widget.onCopyBibtex : widget.onCopyCiteKeys;
+    if (callback != null) await callback(saved);
   }
 
   Future<void> _confirmDelete() async {
@@ -1007,19 +1349,127 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
         _saveError = error;
       });
       messenger.showSnackBar(
-        SnackBar(content: Text('${strings.notesDeleteFailed}: $error')),
+        SnackBar(
+          content: Text(
+            '${strings.notesDeleteFailed}: ${errorText(error, strings)}',
+          ),
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The window height is not the room the editor gets: the app bar, the
+        // keyboard and the page chrome take their share. A landscape phone has
+        // ~440 dp of window, so decide from the space actually available.
+        final height = constraints.maxHeight;
+        // The Scaffold has already consumed the keyboard inset (it resized
+        // this box), so the available height is the only keyboard signal left.
+        // 300 dp is below a landscape phone with the keyboard up and well
+        // above the candidate-bar jitter, so it does not oscillate.
+        return _buildEditor(
+          context,
+          tight: height < 480,
+          veryTight: height < 300,
+        );
+      },
+    );
+  }
+
+  Widget _titleField(BuildContext context, {required bool dense}) {
+    final strings = widget.strings;
+    return TextField(
+      controller: _titleController,
+      focusNode: _titleFocus,
+      maxLines: 1,
+      style: dense
+          ? Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600)
+          : Theme.of(context).textTheme.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w600, height: 1.25),
+      textInputAction: TextInputAction.next,
+      decoration: InputDecoration(
+        hintText: strings.notesTitleHint,
+        border: InputBorder.none,
+        filled: false,
+        isDense: dense,
+        contentPadding: EdgeInsets.zero,
+      ),
+    );
+  }
+
+  /// Secondary editor actions for the one-row landscape header.
+  Widget _editorOverflow(BuildContext context) {
+    final strings = widget.strings;
+    final hasCite =
+        widget.onCopyCiteKeys != null || widget.onCopyBibtex != null;
+    return PopupMenuButton<String>(
+      tooltip: strings.commonMoreOptions,
+      icon: const Icon(Icons.more_vert, size: 20),
+      onSelected: (value) {
+        switch (value) {
+          case 'pdg':
+            unawaited(_openPdgLookup());
+          case 'related':
+            unawaited(_showRelatedNotes());
+          case 'markdown':
+            unawaited(_copyMarkdown());
+          case 'citekeys':
+            unawaited(_copyReference(bibtex: false));
+          case 'bibtex':
+            unawaited(_copyReference(bibtex: true));
+          case 'delete':
+            unawaited(_confirmDelete());
+          case 'discard':
+            unawaited(_cancelDraft());
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(value: 'pdg', child: Text(strings.notesPdgLookup)),
+        if (_record != null && _record!.anchors.isNotEmpty)
+          PopupMenuItem(value: 'related', child: Text(strings.notesRelated)),
+        if (_record != null && hasCite) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: 'markdown',
+            child: Text(strings.notesCopyMarkdown),
+          ),
+          PopupMenuItem(
+            value: 'citekeys',
+            child: Text(strings.notesCopyCiteKeys),
+          ),
+          PopupMenuItem(value: 'bibtex', child: Text(strings.notesCopyBibtex)),
+        ] else if (_record != null)
+          PopupMenuItem(
+            value: 'markdown',
+            child: Text(strings.notesCopyMarkdown),
+          ),
+        if (_record != null) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem(value: 'delete', child: Text(strings.notesDelete)),
+        ],
+        if (widget.draft && widget.onCancel != null)
+          PopupMenuItem(
+            value: 'discard',
+            child: Text(strings.notesDiscardDraft),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildEditor(
+    BuildContext context, {
+    required bool tight,
+    required bool veryTight,
+  }) {
     final palette = context.palette;
     final strings = widget.strings;
     final tags = parseNoteTags(_tagController.text);
     final anchors = _record?.anchors ?? const <NoteAnchor>[];
     final scope = AppScope.maybeOf(context);
-    final tight = MediaQuery.sizeOf(context).height < 420;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         Insets.l,
@@ -1030,16 +1480,13 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _record == null ? strings.notesNew : strings.notesEdit,
-                  style: Theme.of(context).textTheme.labelLarge
-                      ?.copyWith(color: palette.textSecondary),
-                ),
-              ),
-              _StatusIndicator(
+          LayoutBuilder(
+            builder: (context, headerConstraints) {
+              final compactHeader = headerConstraints.maxWidth < 620;
+              // Landscape: title and toolbar share one row so the body keeps
+              // the vertical space a second row would cost.
+              final singleRow = tight && !compactHeader;
+              final status = _StatusIndicator(
                 stage: _stage,
                 error: _saveError,
                 strings: strings,
@@ -1056,99 +1503,192 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
                             NotesErrorCode.conflict
                     ? _keepMine
                     : null,
-              ),
-              if (scope != null)
-                Builder(
-                  builder: (context) {
-                    final railVisible =
-                        MediaQuery.sizeOf(context).width >= 1360 &&
-                        _showPdgRail &&
-                        _linkPreviewTarget == null;
-                    return IconButton(
-                      tooltip: strings.notesPdgLookup,
-                      style: IconButton.styleFrom(
-                        backgroundColor: railVisible
-                            ? palette.primary.withValues(alpha: 0.12)
-                            : null,
-                        foregroundColor: railVisible ? palette.primary : null,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(9),
+              );
+              final actions = <Widget>[
+                if (scope != null)
+                  Builder(
+                    builder: (context) {
+                      final railVisible =
+                          !widget.compact &&
+                          MediaQuery.sizeOf(context).width >= 1360 &&
+                          _showPdgRail &&
+                          _linkPreviewTarget == null;
+                      return IconButton(
+                        tooltip: strings.notesPdgLookup,
+                        style: IconButton.styleFrom(
+                          backgroundColor: railVisible
+                              ? palette.primary.withValues(alpha: 0.12)
+                              : null,
+                          foregroundColor: railVisible ? palette.primary : null,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(9),
+                          ),
                         ),
+                        onPressed: () {
+                          if (!widget.compact &&
+                              MediaQuery.sizeOf(context).width >= 1360) {
+                            setState(() {
+                              _linkPreviewTarget = null;
+                              _showPdgRail = !_showPdgRail;
+                            });
+                          } else {
+                            _openPdgLookup();
+                          }
+                        },
+                        icon: Icon(
+                          railVisible
+                              ? Icons.travel_explore
+                              : Icons.travel_explore_outlined,
+                          size: 19,
+                        ),
+                      );
+                    },
+                  ),
+                IconButton(
+                  tooltip: strings.notesLinkNote,
+                  onPressed: _linkAnotherNote,
+                  icon: const Icon(Icons.add_link, size: 19),
+                ),
+                if (_record != null && _record!.anchors.isNotEmpty)
+                  IconButton(
+                    tooltip: strings.notesRelated,
+                    onPressed: _showRelatedNotes,
+                    icon: const Icon(Icons.hub_outlined, size: 19),
+                  ),
+                IconButton(
+                  tooltip: _previewOnly
+                      ? strings.notesWrite
+                      : strings.notesPreview,
+                  onPressed: () => setState(() => _previewOnly = !_previewOnly),
+                  icon: Icon(
+                    _previewOnly
+                        ? Icons.edit_note_outlined
+                        : Icons.visibility_outlined,
+                    size: 19,
+                  ),
+                ),
+                IconButton(
+                  tooltip: strings.notesCopyMarkdown,
+                  onPressed: _record == null ? null : _copyMarkdown,
+                  icon: const Icon(Icons.copy_all_outlined, size: 18),
+                ),
+                if (_record != null &&
+                    (widget.onCopyCiteKeys != null ||
+                        widget.onCopyBibtex != null))
+                  PopupMenuButton<String>(
+                    tooltip: strings.notesCopyCiteKeys,
+                    icon: const Icon(Icons.format_quote, size: 18),
+                    onSelected: (value) =>
+                        unawaited(_copyReference(bibtex: value == 'bibtex')),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'citekeys',
+                        child: Text(strings.notesCopyCiteKeys),
                       ),
-                      onPressed: () {
-                        if (MediaQuery.sizeOf(context).width >= 1360) {
-                          setState(() {
-                            _linkPreviewTarget = null;
-                            _showPdgRail = !_showPdgRail;
-                          });
-                        } else {
-                          _openPdgLookup();
-                        }
-                      },
-                      icon: Icon(
-                        railVisible
-                            ? Icons.travel_explore
-                            : Icons.travel_explore_outlined,
-                        size: 19,
+                      PopupMenuItem(
+                        value: 'bibtex',
+                        child: Text(strings.notesCopyBibtex),
                       ),
+                    ],
+                  ),
+                if (_record != null)
+                  IconButton(
+                    tooltip: strings.notesDelete,
+                    onPressed: _confirmDelete,
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                  ),
+                if (widget.draft && widget.onCancel != null)
+                  IconButton(
+                    tooltip: strings.notesDiscardDraft,
+                    onPressed: _cancelDraft,
+                    icon: const Icon(Icons.close, size: 19),
+                  ),
+              ];
+              if (singleRow) {
+                // The title keeps the same position whether the tools are
+                // shown or hidden: moving it would rebuild the field and
+                // close the keyboard.
+                return Row(
+                  children: [
+                    Visibility(
+                      visible: !veryTight,
+                      maintainState: true,
+                      child: status,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: _titleField(context, dense: true)),
+                    Visibility(
+                      visible: !veryTight,
+                      maintainState: true,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: _previewOnly
+                                ? strings.notesWrite
+                                : strings.notesPreview,
+                            onPressed: () =>
+                                setState(() => _previewOnly = !_previewOnly),
+                            icon: Icon(
+                              _previewOnly
+                                  ? Icons.edit_note_outlined
+                                  : Icons.visibility_outlined,
+                              size: 19,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: strings.notesLinkNote,
+                            onPressed: _linkAnotherNote,
+                            icon: const Icon(Icons.add_link, size: 19),
+                          ),
+                          _editorOverflow(context),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }
+              final header = compactHeader
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        status,
+                        Wrap(
+                          spacing: 0,
+                          runSpacing: 0,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: actions,
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [status, ...actions],
                     );
-                  },
-                ),
-              IconButton(
-                tooltip: strings.notesLinkNote,
-                onPressed: _linkAnotherNote,
-                icon: const Icon(Icons.add_link, size: 19),
-              ),
-              if (_record != null && _record!.anchors.isNotEmpty)
-                IconButton(
-                  tooltip: strings.notesRelated,
-                  onPressed: _showRelatedNotes,
-                  icon: const Icon(Icons.hub_outlined, size: 19),
-                ),
-              IconButton(
-                tooltip: _previewOnly
-                    ? strings.notesWrite
-                    : strings.notesPreview,
-                onPressed: () => setState(() => _previewOnly = !_previewOnly),
-                icon: Icon(
-                  _previewOnly
-                      ? Icons.edit_note_outlined
-                      : Icons.visibility_outlined,
-                  size: 19,
-                ),
-              ),
-              IconButton(
-                tooltip: strings.notesCopyMarkdown,
-                onPressed: _record == null ? null : _copyMarkdown,
-                icon: const Icon(Icons.copy_all_outlined, size: 18),
-              ),
-              if (_record != null)
-                IconButton(
-                  tooltip: strings.notesDelete,
-                  onPressed: _confirmDelete,
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                ),
-            ],
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Visibility(
+                    visible: !veryTight,
+                    maintainState: true,
+                    child: header,
+                  ),
+                  _titleField(context, dense: false),
+                ],
+              );
+            },
           ),
-          TextField(
-            controller: _titleController,
-            focusNode: _titleFocus,
-            style: Theme.of(context).textTheme.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w600, height: 1.25),
-            textInputAction: TextInputAction.next,
-            decoration: InputDecoration(
-              hintText: strings.notesTitleHint,
-              border: InputBorder.none,
-              filled: false,
-              contentPadding: EdgeInsets.zero,
-            ),
-          ),
-          if (!tight &&
-              (anchors.isNotEmpty ||
-                  _draftAnchors.isNotEmpty ||
-                  _quickAnchors.isNotEmpty ||
-                  tags.isNotEmpty))
-            Padding(
+          Visibility(
+            visible:
+                !tight &&
+                (anchors.isNotEmpty ||
+                    _draftAnchors.isNotEmpty ||
+                    _quickAnchors.isNotEmpty ||
+                    tags.isNotEmpty),
+            maintainState: true,
+            child: Padding(
               padding: const EdgeInsets.only(top: Insets.s),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1156,10 +1696,24 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
                   if (anchors.isNotEmpty ||
                       _draftAnchors.isNotEmpty ||
                       _quickAnchors.isNotEmpty) ...[
-                    Text(
-                      strings.notesAnchorsLabel,
-                      style: Theme.of(context).textTheme.labelSmall
-                          ?.copyWith(color: palette.textSecondary),
+                    Row(
+                      children: [
+                        Text(
+                          strings.notesAnchorsLabel,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: palette.textSecondary),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _anchorSummary(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(color: palette.textSecondary),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Wrap(
@@ -1169,6 +1723,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
                         for (final anchor in anchors)
                           _anchorChip(
                             context,
+                            kind: anchor.targetKind,
                             label: anchorDisplayLabel(anchor),
                             targetId: anchor.targetId,
                             resolved: anchor.isResolved,
@@ -1179,6 +1734,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
                           for (final input in _draftAnchors)
                             _anchorChip(
                               context,
+                              kind: input.targetKind,
                               label: input.targetLabel.trim().isEmpty
                                   ? input.targetId
                                   : input.targetLabel,
@@ -1189,6 +1745,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
                         for (final input in _quickAnchors)
                           _anchorChip(
                             context,
+                            kind: input.targetKind,
                             label: input.targetLabel.trim().isEmpty
                                 ? input.targetId
                                 : input.targetLabel,
@@ -1231,9 +1788,10 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
                 ],
               ),
             ),
-          const SizedBox(height: Insets.s),
+          ),
+          SizedBox(height: tight ? 2 : Insets.s),
           Divider(height: 1, color: palette.divider),
-          const SizedBox(height: Insets.s),
+          SizedBox(height: tight ? 2 : Insets.s),
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1241,7 +1799,10 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final wide = constraints.maxWidth >= 640;
+                      // Short landscape shows the editor alone: side-by-side
+                      // preview there leaves neither pane usable. The preview
+                      // toggle still switches the whole body to preview.
+                      final wide = constraints.maxWidth >= 640 && !tight;
                       final editor = TextField(
                         controller: _bodyController,
                         focusNode: _bodyFocus,
@@ -1282,6 +1843,7 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
                   ),
                 ),
                 if (scope != null &&
+                    !widget.compact &&
                     MediaQuery.sizeOf(context).width >= 1360 &&
                     (_showPdgRail || _linkPreviewTarget != null))
                   SizedBox(
@@ -1305,11 +1867,13 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
               ],
             ),
           ),
-          const SizedBox(height: Insets.s),
+          SizedBox(height: tight ? 2 : Insets.s),
           Divider(height: 1, color: palette.divider),
-          const SizedBox(height: Insets.s),
-          if (!tight)
-            Wrap(
+          SizedBox(height: tight ? 2 : Insets.s),
+          Visibility(
+            visible: !tight,
+            maintainState: true,
+            child: Wrap(
               spacing: 6,
               runSpacing: 4,
               crossAxisAlignment: WrapCrossAlignment.center,
@@ -1330,65 +1894,64 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
                     visualDensity: VisualDensity.compact,
                     label: Text(collection.name),
                     onDeleted: () async {
-                      setState(() => _collectionIds.remove(collection.id));
+                      setState(() {
+                        _collectionIds.remove(collection.id);
+                        _collectionsDirty = true;
+                      });
                       await _saveNow();
                     },
                   ),
               ],
             ),
-          TextField(
-            controller: _tagController,
-            style: Theme.of(context).textTheme.bodySmall,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(
-              hintText: strings.notesTagsHint,
-              prefixIcon: Icon(
-                Icons.sell_outlined,
-                size: 16,
-                color: palette.textSecondary,
-              ),
-              prefixIconConstraints: const BoxConstraints(
-                minWidth: 30,
-                minHeight: 20,
-              ),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 9,
-              ),
+          ),
+          // Hide the tag field only when it cannot own focus: while the body
+          // is being typed in a short landscape window it would otherwise
+          // leave the text area a few pixels tall. It stays mounted, and it is
+          // never hidden while focused (that would drop the input connection).
+          Visibility(
+            visible: !veryTight || _tagFocus.hasFocus,
+            maintainState: true,
+            child: NoteTagField(
+              controller: _tagController,
+              knownTags: _knownTags,
+              strings: widget.strings,
+              onChanged: _onChanged,
+              focusNode: _tagFocus,
             ),
           ),
-          if (_knownTags.any(
-            (tag) => !parseNoteTags(_tagController.text).contains(tag),
-          )) ...[
-            const SizedBox(height: 5),
-            Wrap(
-              spacing: 4,
-              runSpacing: 2,
-              children: [
-                for (final tag in _knownTags)
-                  if (!parseNoteTags(_tagController.text).contains(tag))
-                    ActionChip(
-                      label: Text(tag),
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      onPressed: () {
-                        final current = parseNoteTags(_tagController.text);
-                        current.add(tag);
-                        _tagController.text = current.join(', ');
-                        _onChanged();
-                      },
-                    ),
-              ],
-            ),
-          ],
         ],
       ),
     );
   }
 
+  String _anchorSummary() {
+    final counts = <String, int>{};
+    var unresolved = 0;
+    for (final anchor in _allAnchors()) {
+      counts.update(anchor.targetKind, (value) => value + 1, ifAbsent: () => 1);
+      if (!anchor.status.isResolved) unresolved++;
+    }
+    final parts = <String>[];
+    for (final entry in counts.entries) {
+      final label = switch (entry.key) {
+        NoteTargetKinds.note => widget.strings.notesAnchorKindNote,
+        NoteTargetKinds.measurement =>
+          widget.strings.notesAnchorKindMeasurement,
+        NoteTargetKinds.reference => widget.strings.notesAnchorKindReference,
+        NoteTargetKinds.review => widget.strings.notesAnchorKindReview,
+        _ => widget.strings.notesAnchorKindPdgid,
+      };
+      parts.add('$label ${entry.value}');
+    }
+    if (unresolved > 0) {
+      parts.add('${widget.strings.notesAnchorUnresolved} $unresolved');
+    }
+    return parts.join(' · ');
+  }
+
   Widget _anchorChip(
     BuildContext context, {
+    required String kind,
     required String label,
     required String targetId,
     required bool resolved,
@@ -1397,15 +1960,46 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
   }) {
     final palette = context.palette;
     final strings = widget.strings;
+    final (IconData icon, String kindLabel, Color kindColor) = switch (kind) {
+      NoteTargetKinds.note => (
+        Icons.sticky_note_2_outlined,
+        strings.notesAnchorKindNote,
+        palette.primary,
+      ),
+      NoteTargetKinds.measurement => (
+        Icons.straighten_outlined,
+        strings.notesAnchorKindMeasurement,
+        palette.accent,
+      ),
+      NoteTargetKinds.reference => (
+        Icons.menu_book_outlined,
+        strings.notesAnchorKindReference,
+        palette.accent,
+      ),
+      NoteTargetKinds.review => (
+        Icons.picture_as_pdf_outlined,
+        strings.notesAnchorKindReview,
+        palette.warning,
+      ),
+      _ => (
+        Icons.science_outlined,
+        strings.notesAnchorKindPdgid,
+        palette.textSecondary,
+      ),
+    };
     final chip = Chip(
       avatar: Icon(
-        resolved ? Icons.link : Icons.link_off,
+        resolved ? icon : Icons.link_off,
         size: 14,
-        color: resolved ? palette.textSecondary : palette.warning,
+        color: resolved ? kindColor : palette.warning,
       ),
       label: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 260),
-        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Text(
+          kind == NoteTargetKinds.pdgid ? label : '$kindLabel · $label',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
       backgroundColor: resolved
           ? null
@@ -1421,8 +2015,8 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
     );
     final wrapped = Tooltip(
       message: resolved
-          ? targetId
-          : '${strings.notesAnchorUnresolved}\n$targetId',
+          ? '$kindLabel\n$targetId'
+          : '${strings.notesAnchorUnresolved}\n$kindLabel · $targetId',
       child: chip,
     );
     if (onTap == null) return wrapped;
@@ -1499,14 +2093,16 @@ class _StatusIndicator extends StatelessWidget {
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (stage == _SaveStage.saving)
-          const SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(strokeWidth: 1.8),
-          )
-        else
-          Icon(icon, size: 14, color: color),
+        SizedBox(
+          width: 14,
+          height: 14,
+          child: stage == _SaveStage.saving
+              ? const Padding(
+                  padding: EdgeInsets.all(1),
+                  child: CircularProgressIndicator(strokeWidth: 1.8),
+                )
+              : Icon(icon, size: 14, color: color),
+        ),
         const SizedBox(width: 4),
         Text(
           label,
@@ -1543,12 +2139,83 @@ class _StatusIndicator extends StatelessWidget {
       ],
     );
     if (error == null) return row;
-    return Tooltip(message: '$error', child: row);
+    return Tooltip(message: errorText(error!, strings), child: row);
   }
 }
 
 /// Standalone editor route used by the narrow Notes page and by entity
 /// backlinks/composers.
+/// Content of the wide-screen floating lookup: a nested [Navigator] so a
+/// result opens *inside* the panel and the note editor underneath keeps its
+/// text and focus.
+class _FloatingLookupHost extends StatefulWidget {
+  const _FloatingLookupHost({
+    required this.search,
+    required this.strings,
+    required this.initialRect,
+    required this.maxSize,
+    required this.onClose,
+  });
+
+  final SearchService search;
+  final AppStrings strings;
+  final Rect initialRect;
+  final Size maxSize;
+  final VoidCallback onClose;
+
+  @override
+  State<_FloatingLookupHost> createState() => _FloatingLookupHostState();
+}
+
+class _FloatingLookupHostState extends State<_FloatingLookupHost> {
+  final GlobalKey<NavigatorState> _navigator = GlobalKey<NavigatorState>();
+  int _depth = 0;
+
+  void _push(SearchHit hit) {
+    final page = _pageFor(hit);
+    final navigator = _navigator.currentState;
+    if (page == null || navigator == null) return;
+    setState(() => _depth++);
+    navigator.push(MaterialPageRoute<void>(builder: (_) => page)).whenComplete(
+      () {
+        if (mounted && _depth > 0) setState(() => _depth--);
+      },
+    );
+  }
+
+  Widget? _pageFor(SearchHit hit) {
+    if (hit.note != null) return NoteEditorPage(note: hit.note);
+    if (hit.referenceId != null) {
+      return ReferencePage(referenceId: hit.referenceId!);
+    }
+    final pdgid = hit.pdgid;
+    if (pdgid == null) return null;
+    return EntryRoutePage(pdgid: pdgid);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FloatingPanel(
+      title: widget.strings.notesPdgLookup,
+      initialRect: widget.initialRect,
+      maxSize: widget.maxSize,
+      onClose: widget.onClose,
+      onBack: _depth > 0 ? () => _navigator.currentState?.maybePop() : null,
+      child: Navigator(
+        key: _navigator,
+        onGenerateRoute: (_) => MaterialPageRoute<void>(
+          builder: (_) => NotePdgRail(
+            search: widget.search,
+            strings: widget.strings,
+            autofocus: true,
+            onOpen: _push,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class NoteEditorPage extends StatelessWidget implements ImmersivePage {
   const NoteEditorPage({
     super.key,
@@ -1569,7 +2236,6 @@ class NoteEditorPage extends StatelessWidget implements ImmersivePage {
     if (store == null) {
       return PageScaffold(
         title: Text(strings.notesTitle),
-        subtitle: strings.notesLocalOnly,
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(Insets.l),
@@ -1584,14 +2250,16 @@ class NoteEditorPage extends StatelessWidget implements ImmersivePage {
       strings: strings,
       note: note,
       initialAnchors: initialAnchors,
+      initialCollectionIds: initialCollectionIds,
       changeSignal: scope.notesChanges,
       autofocusTitle: note == null,
+      draft: note == null,
       onDeleted: () => Navigator.of(context).maybePop(),
+      onCancel: () => Navigator.of(context).maybePop(),
     );
     return PageScaffold(
       maxWidth: 980,
       title: Text(note == null ? strings.notesNew : strings.notesEdit),
-      subtitle: strings.notesLocalOnly,
       body: editor,
     );
   }

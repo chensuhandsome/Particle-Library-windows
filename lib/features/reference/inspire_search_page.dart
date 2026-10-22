@@ -5,22 +5,50 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/error_text.dart';
 import '../../app/app_strings.dart';
 import '../../app/app_theme.dart';
 import '../../app/navigation.dart';
 import '../../data/inspire_bibtex.dart';
 import '../../data/inspire_literature_search.dart';
+import '../../data/pdg_notes.dart';
 import '../../data/zotero_bridge.dart';
 import '../../data/zotero_cache.dart';
 import '../../data/zotero_inspire_api.dart';
+import 'inspire_search_field.dart';
+import 'inspire_search_help.dart';
 import '../common/async_view.dart';
+
+import '../common/context_sidebar.dart';
 import '../common/description_text.dart';
 import '../common/page.dart';
 import '../common/snack_bars.dart';
 import '../common/ui.dart';
+import '../help/help_page.dart';
 import '../common/zotero_icon.dart';
 import 'zotero_setup_dialog.dart';
 import 'reference_page.dart';
+
+/// Filters that describe opposite states of the same property; enabling one
+/// switches its partner off instead of ANDing them into no results.
+const Map<String, String> inspireFilterOpposites = {
+  'local': 'notLocal',
+  'notLocal': 'local',
+  'zotero': 'notZotero',
+  'notZotero': 'zotero',
+  'published': 'preprint',
+  'preprint': 'published',
+};
+
+/// Toggles [value] in [active], clearing its opposite when enabling.
+Set<String> toggleInspireFilter(Set<String> active, String value) {
+  final next = Set<String>.of(active);
+  if (next.remove(value)) return next;
+  final opposite = inspireFilterOpposites[value];
+  if (opposite != null) next.remove(opposite);
+  next.add(value);
+  return next;
+}
 
 /// Online INSPIRE search for authors, titles and other bibliographic terms
 /// that are not present in the local PDG snapshot.
@@ -54,14 +82,16 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
   bool _loading = false;
   Object? _error;
   int _generation = 0;
-  final Map<String, int?> _localIds = <String, int?>{};
-  final Map<String, Future<int?>> _localFutures = <String, Future<int?>>{};
+  final Map<String, ({int? id, PdgNoteReference? patch})> _localTargets = {};
+  final Map<String, Future<({int? id, PdgNoteReference? patch})>>
+  _localFutures = {};
   int _page = 1;
   int _total = 0;
-  int _pageSize = 50;
+  int _pageSize = 20;
   static const List<int> _pageSizes = [20, 50, 100, 200];
   String _sort = 'mostcited';
   final TextEditingController _filterController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
   final Set<String> _activeFilters = <String>{};
   final Map<int, bool> _zoteroPresence = <int, bool>{};
   ZoteroCacheIndex? _zoteroCache;
@@ -101,6 +131,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
   void dispose() {
     _controller.dispose();
     _filterController.dispose();
+    _searchFocus.dispose();
     _zoteroProbeTimer?.cancel();
     super.dispose();
   }
@@ -108,6 +139,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
   Future<void> _search({int? page}) async {
     final query = _controller.text.trim();
     if (query.isEmpty) return;
+    unawaited(AppScope.of(context).store.addRecent(query, 'inspire'));
     final targetPage = page ?? _page;
     final generation = ++_generation;
     setState(() {
@@ -153,7 +185,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
 
   Future<void> _prefetchPresence(List<InspireLiteratureHit> hits) async {
     if (hits.isEmpty) return;
-    final localResults = <String, int?>{};
+    final localResults = <String, ({int? id, PdgNoteReference? patch})>{};
     for (var start = 0; start < hits.length; start += 8) {
       final chunk = hits.sublist(
         start,
@@ -162,8 +194,9 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
       final entries = await Future.wait([
         for (final hit in chunk)
           if (hit.doi.trim().isNotEmpty)
-            _localFuture(hit.doi)
-                .then((id) => MapEntry(hit.doi.trim().toLowerCase(), id)),
+            _localTarget(
+              hit.doi,
+            ).then((target) => MapEntry(hit.doi.trim().toLowerCase(), target)),
       ]);
       for (final entry in entries) {
         localResults[entry.key] = entry.value;
@@ -189,14 +222,50 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     }
     if (!mounted) return;
     setState(() {
-      _localIds.addAll(localResults);
+      _localTargets.addAll(localResults);
       _zoteroPresence.addAll(zoteroResults);
     });
   }
 
+  List<String> _inspireHistory() => [
+    for (final recent in AppScope.of(context).store.recents)
+      if (recent.scope == 'inspire') recent.query,
+  ];
+
+  Future<void> _clearInspireHistory() async {
+    final store = AppScope.of(context).store;
+    for (final query in _inspireHistory()) {
+      await store.removeRecent(query, 'inspire');
+    }
+    if (!mounted) return;
+    setState(() {});
+    // Close the suggestion overlay once the history is empty.
+    _searchFocus.unfocus();
+    _searchFocus.requestFocus();
+  }
+
+  void _openInspireHelp(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width >= 620) {
+      // Wide enough for the shared context sidebar, where the cheat sheet
+      // lives; make sure that sidebar is not switched off.
+      final settings = AppScope.of(context).settings;
+      if (settings.sidebarMode == 'off') {
+        unawaited(settings.setSidebarMode('auto'));
+      }
+      return;
+    }
+    AppNav.push<void>(context, const HelpPage(initialSection: 'inspire'));
+  }
+
   void _toggleFilter(String value) {
+    // Compute before mutating: in a cascade the argument of addAll is
+    // evaluated after clear(), so toggling used to re-add the filter.
+    final next = toggleInspireFilter(_activeFilters, value);
     setState(() {
-      if (!_activeFilters.add(value)) _activeFilters.remove(value);
+      _activeFilters
+        ..clear()
+        ..addAll(next);
     });
   }
 
@@ -207,7 +276,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
           if (text.isNotEmpty) {
             final haystack = [
               hit.title,
-              hit.authors.join(' '),
+              hit.byline,
               hit.doi,
               hit.arxivId,
               hit.journal,
@@ -216,8 +285,10 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
             if (!haystack.contains(text)) return false;
           }
           final doi = hit.doi.trim().toLowerCase();
-          final localKnown = doi.isNotEmpty && _localIds.containsKey(doi);
-          final local = localKnown && _localIds[doi] != null;
+          final target = doi.isEmpty ? null : _localTargets[doi];
+          final localKnown = target != null;
+          final local =
+              target != null && (target.id != null || target.patch != null);
           if (_activeFilters.contains('local') && !local) return false;
           if (_activeFilters.contains('notLocal') && !(localKnown && !local)) {
             return false;
@@ -422,7 +493,11 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('${strings.inspireAddToZoteroFailed}: $error')),
+        SnackBar(
+          content: Text(
+            '${strings.inspireAddToZoteroFailed}: ${errorText(error, strings)}',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _zoteroAddBusy = null);
@@ -522,7 +597,11 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${strings.inspireZoteroFailed}: $error')),
+        SnackBar(
+          content: Text(
+            '${strings.inspireZoteroFailed}: ${errorText(error, strings)}',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _zoteroBusy = null);
@@ -546,7 +625,11 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${strings.referenceBibtexFailed}: $error')),
+        SnackBar(
+          content: Text(
+            '${strings.referenceBibtexFailed}: ${errorText(error, strings)}',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _bibtexBusy = null);
@@ -563,7 +646,7 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${AppScope.of(context).strings.inspireZoteroFailed}: $error',
+            '${AppScope.of(context).strings.inspireZoteroFailed}: ${errorText(error, AppScope.of(context).strings)}',
           ),
         ),
       );
@@ -577,24 +660,24 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
     mode: LaunchMode.externalApplication,
   );
 
-  Future<int?> _localFuture(String doi) {
+  Future<({int? id, PdgNoteReference? patch})> _localTarget(String doi) {
     final key = doi.trim().toLowerCase();
-    if (key.isEmpty) return Future<int?>.value(null);
-    if (_localIds.containsKey(key)) {
-      return Future<int?>.value(_localIds[key]);
-    }
+    if (key.isEmpty) return Future.value((id: null, patch: null));
+    final cached = _localTargets[key];
+    if (cached != null) return Future.value(cached);
     return _localFutures.putIfAbsent(key, () async {
       try {
         final references = await AppScope.of(context).database
             .referencesByDoi(key);
         final id = references.isEmpty ? null : references.first.id;
-        if (mounted) {
-          setState(() => _localIds[key] = id);
-        }
-        return id;
+        final patch = id == null ? await PdgNotes.referenceForDoi(key) : null;
+        final target = (id: id, patch: patch);
+        if (mounted) setState(() => _localTargets[key] = target);
+        return target;
       } catch (_) {
-        if (mounted) setState(() => _localIds[key] = null);
-        return null;
+        const target = (id: null, patch: null);
+        if (mounted) setState(() => _localTargets[key] = target);
+        return target;
       }
     });
   }
@@ -608,197 +691,224 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
       title: Text(strings.inspireSearchTitle),
       subtitle: strings.inspireSearchSubtitle,
       maxWidth: 960,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          Insets.l,
-          Insets.m,
-          Insets.l,
-          Insets.xxl,
-        ),
-        children: [
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => _search(page: 1),
-            decoration: InputDecoration(
-              hintText: strings.inspireSearchHint,
-              prefixIcon: const Icon(Icons.search, size: 20),
-              suffixIcon: IconButton(
-                tooltip: strings.inspireSearchAction,
-                onPressed: _loading ? null : () => _search(page: 1),
-                icon: const Icon(Icons.arrow_forward, size: 18),
-              ),
+      showSidebarToggle: true,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final content = ListView(
+            padding: const EdgeInsets.fromLTRB(
+              Insets.l,
+              Insets.m,
+              Insets.l,
+              Insets.xxl,
             ),
-          ),
-          const SizedBox(height: Insets.s),
-          Text(
-            strings.inspireSearchOnlineNote,
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: palette.textSecondary),
-          ),
-          const SizedBox(height: Insets.s),
-          Row(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _filterController,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    hintText: strings.inspireFilterHint,
-                    prefixIcon: const Icon(Icons.filter_alt_outlined, size: 18),
-                    suffixIcon: _filterController.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: strings.commonClear,
-                            onPressed: () {
-                              _filterController.clear();
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.close, size: 16),
-                          ),
-                    isDense: true,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              _filterMenu(context, strings),
-            ],
-          ),
-          if (_activeFilters.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Wrap(
-                spacing: 5,
-                runSpacing: 3,
+              Row(
                 children: [
-                  for (final entry in <(String, String)>[
-                    ('local', strings.inspireFilterLocal),
-                    ('notLocal', strings.inspireFilterNotLocal),
-                    if (_zoteroCache != null) ...[
-                      ('zotero', strings.inspireFilterZotero),
-                      ('notZotero', strings.inspireFilterNotZotero),
-                    ],
-                    ('published', strings.inspireFilterPublished),
-                    ('preprint', strings.inspireFilterPreprint),
-                    ('highCited', strings.inspireFilterHighCited),
-                    ('recent5', strings.inspireFilterRecent5),
-                  ])
-                    if (_activeFilters.contains(entry.$1))
-                      InputChip(
-                        label: Text(entry.$2),
-                        visualDensity: VisualDensity.compact,
-                        onDeleted: () => _toggleFilter(entry.$1),
-                      ),
-                ],
-              ),
-            ),
-          if (_zoteroSupported &&
-              _zoteroAvailable == true &&
-              _zoteroCache == null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                strings.inspireZoteroCacheHint,
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: palette.textSecondary),
-              ),
-            ),
-          if (_loading)
-            Padding(
-              padding: const EdgeInsets.only(top: Insets.m),
-              child: Row(
-                children: [
-                  const BrandMark(size: 28, animate: true),
-                  const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          strings.commonLoading,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 3),
-                        const LinearProgressIndicator(minHeight: 2),
-                      ],
+                    child: InspireSearchField(
+                      controller: _controller,
+                      focusNode: _searchFocus,
+                      hintText: strings.inspireSearchHint,
+                      searchTooltip: strings.inspireSearchAction,
+                      history: _inspireHistory,
+                      onSearch: () => _search(page: 1),
+                      onClearHistory: () => unawaited(_clearInspireHistory()),
                     ),
                   ),
+                  if (!showContextSidebar(
+                    context,
+                    MediaQuery.sizeOf(context).width,
+                  ))
+                    IconButton(
+                      tooltip: strings.inspireHelpTitle,
+                      onPressed: () => _openInspireHelp(context),
+                      icon: const Icon(Icons.help_outline, size: 20),
+                    ),
                 ],
               ),
-            ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: Insets.m),
-              child: ErrorPanel(
-                error: _error!,
-                onRetry: () => _search(page: _page),
+              const SizedBox(height: Insets.s),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _filterController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        hintText: strings.inspireFilterHint,
+                        prefixIcon: const Icon(
+                          Icons.filter_alt_outlined,
+                          size: 18,
+                        ),
+                        suffixIcon: _filterController.text.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: strings.commonClear,
+                                onPressed: () {
+                                  _filterController.clear();
+                                  setState(() {});
+                                },
+                                icon: const Icon(Icons.close, size: 16),
+                              ),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _filterMenu(context, strings),
+                ],
               ),
-            ),
-          if (!_loading && _error == null && _hits.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: Insets.l),
-              child: EmptyPanel(
-                message: strings.inspireSearchEmpty,
-                icon: Icons.search_off,
+              if (_activeFilters.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Wrap(
+                    spacing: 5,
+                    runSpacing: 3,
+                    children: [
+                      for (final entry in <(String, String)>[
+                        ('local', strings.inspireFilterLocal),
+                        ('notLocal', strings.inspireFilterNotLocal),
+                        if (_zoteroCache != null) ...[
+                          ('zotero', strings.inspireFilterZotero),
+                          ('notZotero', strings.inspireFilterNotZotero),
+                        ],
+                        ('published', strings.inspireFilterPublished),
+                        ('preprint', strings.inspireFilterPreprint),
+                        ('highCited', strings.inspireFilterHighCited),
+                        ('recent5', strings.inspireFilterRecent5),
+                      ])
+                        if (_activeFilters.contains(entry.$1))
+                          InputChip(
+                            label: Text(entry.$2),
+                            visualDensity: VisualDensity.compact,
+                            onDeleted: () => _toggleFilter(entry.$1),
+                          ),
+                    ],
+                  ),
+                ),
+              if (_zoteroSupported &&
+                  _zoteroAvailable == true &&
+                  _zoteroCache == null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    strings.inspireZoteroCacheHint,
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: palette.textSecondary),
+                  ),
+                ),
+              if (_loading)
+                Padding(
+                  padding: const EdgeInsets.only(top: Insets.m),
+                  child: Row(
+                    children: [
+                      const BrandMark(size: 28, animate: true),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              strings.commonLoading,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 3),
+                            const LinearProgressIndicator(minHeight: 2),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: Insets.m),
+                  child: ErrorPanel(
+                    error: _error!,
+                    onRetry: () => _search(page: _page),
+                  ),
+                ),
+              if (!_loading && _error == null && _hits.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: Insets.l),
+                  child: EmptyPanel(
+                    message: strings.inspireSearchEmpty,
+                    icon: Icons.search_off,
+                  ),
+                ),
+              if (!_loading &&
+                  _error == null &&
+                  _hits.isNotEmpty &&
+                  filtered.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: Insets.l),
+                  child: EmptyPanel(
+                    message: strings.inspireFilterNoResults,
+                    icon: Icons.filter_alt_off_outlined,
+                  ),
+                ),
+              if (_hits.isNotEmpty) ...[
+                const SizedBox(height: Insets.m),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final count = Text(
+                      _activeFilters.isNotEmpty ||
+                              _filterController.text.trim().isNotEmpty
+                          ? strings.inspireFilteredShowing(
+                              filtered.length,
+                              _hits.length,
+                            )
+                          : _total > _hits.length
+                          ? strings.inspireShowing(_hits.length, _total)
+                          : strings.inspireSearchResults(_total),
+                      style: Theme.of(context).textTheme.labelMedium
+                          ?.copyWith(color: palette.textSecondary),
+                    );
+                    final controls = Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _pageSizeControl(context, strings),
+                        _sortControl(context, strings),
+                      ],
+                    );
+                    if (constraints.maxWidth < 620) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [count, const SizedBox(height: 4), controls],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: count),
+                        const SizedBox(width: 12),
+                        controls,
+                      ],
+                    );
+                  },
+                ),
+                for (final hit in filtered) _hitTile(context, hit, strings),
+                _pagination(context, strings),
+              ],
+            ],
+          );
+          if (!showContextSidebar(context, constraints.maxWidth)) {
+            return content;
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: content),
+              ResizableContextSidebar(
+                viewportWidth: constraints.maxWidth,
+                child: ContextSidebar(
+                  facts: const <SidebarFact>[],
+                  sections: const <Widget>[InspireSearchHelp()],
+                ),
               ),
-            ),
-          if (!_loading &&
-              _error == null &&
-              _hits.isNotEmpty &&
-              filtered.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: Insets.l),
-              child: EmptyPanel(
-                message: strings.inspireFilterNoResults,
-                icon: Icons.filter_alt_off_outlined,
-              ),
-            ),
-          if (_hits.isNotEmpty) ...[
-            const SizedBox(height: Insets.m),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final count = Text(
-                  _activeFilters.isNotEmpty ||
-                          _filterController.text.trim().isNotEmpty
-                      ? strings.inspireFilteredShowing(
-                          filtered.length,
-                          _hits.length,
-                        )
-                      : _total > _hits.length
-                      ? strings.inspireShowing(_hits.length, _total)
-                      : strings.inspireSearchResults(_total),
-                  style: Theme.of(context).textTheme.labelMedium
-                      ?.copyWith(color: palette.textSecondary),
-                );
-                final controls = Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    _pageSizeControl(context, strings),
-                    _sortControl(context, strings),
-                  ],
-                );
-                if (constraints.maxWidth < 620) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [count, const SizedBox(height: 4), controls],
-                  );
-                }
-                return Row(
-                  children: [
-                    Expanded(child: count),
-                    const SizedBox(width: 12),
-                    controls,
-                  ],
-                );
-              },
-            ),
-            for (final hit in filtered) _hitTile(context, hit, strings),
-            _pagination(context, strings),
-          ],
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -948,16 +1058,20 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
               hit.title,
               selectable: true,
               maxLines: 3,
-              style: Theme.of(context).textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                // Tighten the default 1.5 line box: the card title sits right
+                // above the byline and the theme's regular leading left a
+                // visible gap.
+                height: 1.25,
+              ),
             ),
-            if (hit.authors.isNotEmpty) ...[
-              const SizedBox(height: 4),
+            if (hit.bylineShort.isNotEmpty) ...[
+              const SizedBox(height: 2),
               SelectableText(
-                hit.authors.take(5).join(', ') +
-                    (hit.authors.length > 5 ? ' et al.' : ''),
+                hit.bylineShort,
                 style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: palette.textSecondary),
+                    ?.copyWith(color: palette.textSecondary, height: 1.3),
               ),
             ],
             const SizedBox(height: 4),
@@ -971,11 +1085,13 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
               spacing: 8,
               runSpacing: 4,
               children: [
-                FutureBuilder<int?>(
-                  future: _localFuture(hit.doi),
+                FutureBuilder<({int? id, PdgNoteReference? patch})>(
+                  future: _localTarget(hit.doi),
                   builder: (context, snapshot) {
-                    final id = snapshot.data;
-                    final enabled = id != null;
+                    final target = snapshot.data;
+                    final id = target?.id;
+                    final patch = target?.patch;
+                    final enabled = id != null || patch != null;
                     return Tooltip(
                       message: enabled
                           ? strings.inspireSearchOpenLocal
@@ -985,7 +1101,9 @@ class _InspireSearchPageState extends State<InspireSearchPage> {
                             ? null
                             : () => AppNav.push<void>(
                                 context,
-                                ReferencePage(referenceId: id),
+                                id != null
+                                    ? ReferencePage(referenceId: id)
+                                    : ReferencePage.patch(patch: patch!),
                               ),
                         icon: Icon(
                           enabled ? Icons.menu_book_outlined : Icons.menu_book,

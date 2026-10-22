@@ -3,12 +3,12 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 import 'note_markdown.dart';
 import 'notes_exception.dart';
 import 'notes_models.dart';
+import '../core/app_paths.dart';
 
 /// Local, writable user-notes database.
 ///
@@ -57,11 +57,13 @@ class NotesImportResult {
     required this.added,
     required this.skipped,
     required this.failed,
+    this.renamedCollections = const <String>[],
   });
 
   final int added;
   final int skipped;
   final int failed;
+  final List<String> renamedCollections;
 }
 
 class NotesStore {
@@ -175,7 +177,7 @@ class NotesStore {
       return File(trimmed).absolute.path;
     }
     try {
-      final support = await getApplicationSupportDirectory();
+      final support = await appSupportDirectory();
       return '${support.path}${Platform.pathSeparator}ParticleDesk'
           '${Platform.pathSeparator}$databaseFileName';
     } catch (error) {
@@ -196,12 +198,15 @@ class NotesStore {
     Iterable<String> collectionIds = const <String>[],
     String? uuid,
     DateTime? createdAt,
+    DateTime? updatedAt,
+    DateTime? deletedAt,
   }) async {
     _ensureOpen();
     final preparedAnchors = _normalizeAnchors(anchors);
     final preparedTags = _normalizeTags(tags);
     final preparedCollections = _normalizeCollectionIds(collectionIds);
     final now = createdAt == null ? _nowIso() : _formatTimestamp(createdAt);
+    final updated = updatedAt == null ? now : _formatTimestamp(updatedAt);
     final id = _newUuid();
     final noteUuid = (uuid ?? '').trim().isEmpty ? _newUuid() : uuid!.trim();
     final bodyPlain = plainTextFromMarkdown(bodyMarkdown);
@@ -211,8 +216,17 @@ class NotesStore {
         'INSERT INTO notes('
         'id, uuid, title, body_md, body_plain, created_at, updated_at, '
         'deleted_at, revision'
-        ') VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 1)',
-        [id, noteUuid, title, bodyMarkdown, bodyPlain, now, now],
+        ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)',
+        [
+          id,
+          noteUuid,
+          title,
+          bodyMarkdown,
+          bodyPlain,
+          now,
+          updated,
+          deletedAt == null ? null : _formatTimestamp(deletedAt),
+        ],
       );
       _insertAnchors(id, preparedAnchors, now);
       _insertTags(id, preparedTags);
@@ -472,11 +486,98 @@ class NotesStore {
     });
   }
 
-  Future<NoteCollection> createCollection(String name) async {
+  /// Collections with their active-note counts in one query.
+  Future<List<NoteCollectionSummary>> collectionSummaries() async {
+    _ensureOpen();
+    return _readSync('读取 collection 计数', () {
+      final rows = _db.select('''
+        SELECT c.*, COUNT(n.id) AS active_note_count
+          FROM collections c
+          LEFT JOIN note_collections nc ON nc.collection_id = c.id
+          LEFT JOIN notes n ON n.id = nc.note_id AND n.deleted_at IS NULL
+         GROUP BY c.id
+         ORDER BY c.name COLLATE NOCASE, c.id
+      ''');
+      return [
+        for (final row in rows)
+          NoteCollectionSummary(
+            collection: _collectionFromRow(row),
+            activeNoteCount: (row['active_note_count'] as int?) ?? 0,
+          ),
+      ];
+    });
+  }
+
+  /// Adds one note to one collection. Membership-only writes do not bump the
+  /// note revision or updated_at; the operation is idempotent.
+  Future<void> addNoteToCollection(String noteId, String collectionId) async {
+    _ensureOpen();
+    final id = _requireNoteId(noteId);
+    final cid = _requireCollectionId(collectionId);
+    _writeSync('加入 collection', () {
+      _requireActiveNote(id);
+      _requireCollection(cid);
+      _db.execute(
+        'INSERT OR IGNORE INTO note_collections(note_id, collection_id) '
+        'VALUES (?, ?)',
+        [id, cid],
+      );
+    });
+  }
+
+  /// Removes one note from one collection. The note itself is preserved;
+  /// operation is idempotent.
+  Future<void> removeNoteFromCollection(
+    String noteId,
+    String collectionId,
+  ) async {
+    _ensureOpen();
+    final id = _requireNoteId(noteId);
+    final cid = _requireCollectionId(collectionId);
+    _writeSync('移出 collection', () {
+      _requireActiveNote(id);
+      _requireCollection(cid);
+      _db.execute(
+        'DELETE FROM note_collections WHERE note_id = ? AND collection_id = ?',
+        [id, cid],
+      );
+    });
+  }
+
+  /// Active notes not assigned to any collection, newest first.
+  Future<List<NoteRecord>> unfiled({
+    int limit = defaultRecentLimit,
+    int offset = 0,
+  }) async {
+    _ensureOpen();
+    _requirePositiveLimit(limit);
+    if (offset < 0) {
+      throw const NotesException(NotesErrorCode.invalidInput, 'offset 不能为负数。');
+    }
+    return _readSync('读取未归入集合的笔记', () {
+      final rows = _db.select(
+        'SELECT n.* FROM notes n '
+        'WHERE n.deleted_at IS NULL AND NOT EXISTS ('
+        '  SELECT 1 FROM note_collections nc WHERE nc.note_id = n.id'
+        ') ORDER BY n.updated_at DESC, n.id ASC LIMIT ? OFFSET ?',
+        [limit, offset],
+      );
+      return _loadNotes(rows);
+    });
+  }
+
+  Future<NoteCollection> createCollection(
+    String name, {
+    String? id,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) async {
     _ensureOpen();
     final normalized = _normalizeCollectionName(name);
-    final now = _nowIso();
-    final id = _newUuid();
+    final requestedId = id?.trim() ?? '';
+    final collectionId = requestedId.isEmpty ? _newUuid() : requestedId;
+    final created = (createdAt ?? DateTime.now().toUtc()).toUtc();
+    final updated = (updatedAt ?? created).toUtc();
     _writeSync('创建 collection', () {
       if (_collectionNameExists(normalized)) {
         throw NotesException(
@@ -484,13 +585,27 @@ class NotesStore {
           'collection 名称已存在：$normalized',
         );
       }
+      final existing = _db.select('SELECT 1 FROM collections WHERE id = ?', [
+        collectionId,
+      ]);
+      if (existing.isNotEmpty) {
+        throw NotesException(
+          NotesErrorCode.invalidInput,
+          'collection id 已存在：$collectionId',
+        );
+      }
       _db.execute(
         'INSERT INTO collections(id, name, created_at, updated_at) '
         'VALUES (?, ?, ?, ?)',
-        [id, normalized, now, now],
+        [
+          collectionId,
+          normalized,
+          created.toIso8601String(),
+          updated.toIso8601String(),
+        ],
       );
     });
-    return _requireCollection(id);
+    return _requireCollection(collectionId);
   }
 
   Future<NoteCollection> renameCollection(String id, String name) async {
@@ -531,6 +646,54 @@ class NotesStore {
     });
   }
 
+  /// Restores a collection and its note memberships in one transaction.
+  ///
+  /// Unlike [addNoteToCollection], this also restores memberships for notes
+  /// that are currently in the trash, so undoing a collection delete does not
+  /// silently detach deleted notes.
+  Future<void> restoreCollection(
+    NoteCollection collection,
+    Iterable<String> noteIds,
+  ) async {
+    _ensureOpen();
+    final normalizedName = _normalizeCollectionName(collection.name);
+    final ids = <String>{for (final id in noteIds) id.trim()};
+    _writeSync('恢复 collection', () {
+      final nameRows = _db.select(
+        'SELECT id FROM collections WHERE name = ? COLLATE NOCASE',
+        [normalizedName],
+      );
+      if (nameRows.any((row) => row['id'] != collection.id)) {
+        throw NotesException(
+          NotesErrorCode.invalidInput,
+          'collection 名称已存在：$normalizedName',
+        );
+      }
+      final existing = _db.select('SELECT 1 FROM collections WHERE id = ?', [
+        collection.id,
+      ]);
+      if (existing.isNotEmpty) {
+        throw NotesException(
+          NotesErrorCode.invalidInput,
+          'collection id 已存在：${collection.id}',
+        );
+      }
+      _db.execute(
+        'INSERT INTO collections(id, name, created_at, updated_at) '
+        'VALUES (?, ?, ?, ?)',
+        [
+          collection.id,
+          normalizedName,
+          collection.createdAt.toUtc().toIso8601String(),
+          collection.updatedAt.toUtc().toIso8601String(),
+        ],
+      );
+      for (final noteId in ids) {
+        _insertCollections(noteId, [collection.id]);
+      }
+    });
+  }
+
   Future<void> setNoteCollections(
     String noteId,
     Iterable<String> collectionIds,
@@ -548,28 +711,28 @@ class NotesStore {
       _db.execute('DELETE FROM note_collections WHERE note_id = ?', [id]);
       _insertCollections(id, normalized);
       // Membership-only writes do not invalidate an open editor's content
-      // revision. The editor only sends membership when the user changed it.
-      _db.execute('UPDATE notes SET updated_at = ? WHERE id = ?', [
-        _nowIso(),
-        id,
-      ]);
+      // revision and do not change the note's recent ordering.
     });
   }
 
   Future<List<NoteRecord>> notesInCollection(
     String collectionId, {
     int limit = defaultRecentLimit,
+    int offset = 0,
   }) async {
     _ensureOpen();
     _requirePositiveLimit(limit);
+    if (offset < 0) {
+      throw const NotesException(NotesErrorCode.invalidInput, 'offset 不能为负数。');
+    }
     final id = _requireCollectionId(collectionId);
     return _readSync('读取 collection 笔记', () {
       final rows = _db.select(
         'SELECT DISTINCT n.* FROM notes n '
         'JOIN note_collections nc ON nc.note_id = n.id '
         'WHERE nc.collection_id = ? AND n.deleted_at IS NULL '
-        'ORDER BY n.updated_at DESC, n.id ASC LIMIT ?',
-        [id, limit],
+        'ORDER BY n.updated_at DESC, n.id ASC LIMIT ? OFFSET ?',
+        [id, limit, offset],
       );
       return _loadNotes(rows);
     });
@@ -928,6 +1091,11 @@ class NotesStore {
   /// import must not silently overwrite newer local edits. Missing collections
   /// are created by name. Malformed records are counted in [failed] while the
   /// rest of the file continues to import.
+  /// Imports notes and collections from a notes.v1/v2 payload.
+  ///
+  /// The payload is validated completely before anything is written. All
+  /// collections and notes are then inserted in one transaction; a database
+  /// failure rolls the whole import back. Duplicate note UUIDs are skipped.
   Future<NotesImportResult> importJson(Object? decoded) async {
     _ensureOpen();
     final root = decoded is Map ? decoded['notes'] : decoded;
@@ -937,105 +1105,337 @@ class NotesStore {
         '导入文件不是笔记 JSON 数组。',
       );
     }
-    final knownCollections = <String, String>{
-      for (final collection in await collections())
+    _validateImportPayload(decoded, root);
+    final localCollections = await collections();
+    final localById = <String, String>{
+      for (final collection in localCollections) collection.id: collection.id,
+    };
+    final knownByName = <String, String>{
+      for (final collection in localCollections)
         collection.name.toLowerCase(): collection.id,
     };
-    var added = 0;
+    final knownByImportedId = <String, String>{};
+    final plannedCollections = <_ImportCollectionPlan>[];
+    final renamedCollections = <String>[];
+    final plannedNames = <String>{
+      for (final collection in localCollections) collection.name.toLowerCase(),
+    };
+
+    String uniqueCollectionName(String base) {
+      var candidate = '$base (imported)';
+      var index = 2;
+      while (plannedNames.contains(candidate.toLowerCase())) {
+        candidate = '$base (imported $index)';
+        index++;
+      }
+      return candidate;
+    }
+
+    String resolveCollection({
+      required String rawId,
+      required String name,
+      DateTime? createdAt,
+      DateTime? updatedAt,
+    }) {
+      final trimmedName = name.trim();
+      final trimmedId = rawId.trim();
+      if (trimmedId.isNotEmpty) {
+        final local = localById[trimmedId] ?? knownByImportedId[trimmedId];
+        if (local != null) return local;
+      }
+      final lookup = trimmedName.toLowerCase();
+      if (trimmedId.isEmpty) {
+        final existing = knownByName[lookup];
+        if (existing != null) return existing;
+      }
+      var targetName = trimmedName;
+      if (trimmedId.isNotEmpty && knownByName.containsKey(lookup)) {
+        targetName = uniqueCollectionName(trimmedName);
+      }
+      final id = trimmedId.isEmpty ? _newUuid() : trimmedId;
+      if (targetName != trimmedName) {
+        renamedCollections.add('$trimmedName → $targetName');
+      }
+      final normalizedTarget = _normalizeCollectionName(targetName);
+      final plan = _ImportCollectionPlan(
+        id: id,
+        name: normalizedTarget,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      );
+      plannedCollections.add(plan);
+      plannedNames.add(normalizedTarget.toLowerCase());
+      knownByName[normalizedTarget.toLowerCase()] = id;
+      if (normalizedTarget == trimmedName) knownByName[lookup] = id;
+      if (trimmedId.isNotEmpty) {
+        knownByImportedId[trimmedId] = id;
+        localById[trimmedId] = id;
+      }
+      return id;
+    }
+
+    final registry = decoded is Map ? decoded['collections'] : null;
+    if (registry is List) {
+      for (final value in registry) {
+        if (value is! Map) continue;
+        resolveCollection(
+          rawId: value['id']?.toString() ?? '',
+          name: value['name']?.toString() ?? '',
+          createdAt: DateTime.tryParse(value['createdAt']?.toString() ?? ''),
+          updatedAt: DateTime.tryParse(value['updatedAt']?.toString() ?? ''),
+        );
+      }
+    }
+
+    final existingUuids = _readSync('读取导入去重键', () {
+      return {
+        for (final row in _db.select('SELECT uuid FROM notes'))
+          row['uuid']?.toString() ?? '',
+      };
+    });
+    final seenUuids = <String>{};
+    final notes = <_ImportNotePlan>[];
     var skipped = 0;
-    var failed = 0;
     for (final raw in root) {
-      if (raw is! Map) {
-        failed++;
-        continue;
-      }
-      final map = Map<String, Object?>.from(raw);
-      final uuid = map['uuid']?.toString().trim() ?? '';
-      if (uuid.isEmpty) {
-        failed++;
-        continue;
-      }
-      final duplicate = _readSync('检查导入笔记', () {
-        return _db.select('SELECT id FROM notes WHERE uuid = ? LIMIT 1', [
-          uuid,
-        ]).isNotEmpty;
-      });
-      if (duplicate) {
+      if (raw is! Map) continue;
+      final uuid = raw['uuid']?.toString().trim() ?? '';
+      if (existingUuids.contains(uuid) || !seenUuids.add(uuid)) {
         skipped++;
         continue;
       }
-      try {
-        final anchors = <NoteAnchorInput>[];
-        final rawAnchors = map['anchors'];
-        if (rawAnchors is List) {
-          for (final value in rawAnchors) {
-            if (value is! Map) continue;
-            final anchor = Map<String, Object?>.from(value);
-            final kind = anchor['targetKind']?.toString().trim() ?? '';
-            final key = anchor['targetKey']?.toString().trim() ?? '';
-            if (kind.isEmpty || key.isEmpty) continue;
-            final statusName = anchor['status']?.toString();
-            final status = NoteAnchorStatus.values.firstWhere(
-              (candidate) => candidate.wireName == statusName,
-              orElse: () => NoteAnchorStatus.exact,
-            );
-            final rawContext = anchor['context'];
-            final context = rawContext is Map
-                ? Map<String, Object?>.from(rawContext)
-                : null;
-            anchors.add(
-              NoteAnchorInput(
-                targetKind: kind,
-                targetKey: key,
-                snapshotHash: anchor['snapshotHash']?.toString(),
-                targetLabel: anchor['targetLabel']?.toString() ?? '',
-                status: status,
-                context: context,
-              ),
-            );
-          }
+      final anchors = <NoteAnchorInput>[];
+      final rawAnchors = raw['anchors'];
+      if (rawAnchors is List) {
+        for (final value in rawAnchors) {
+          if (value is! Map) continue;
+          final anchor = Map<String, Object?>.from(value);
+          final kind = anchor['targetKind']?.toString().trim() ?? '';
+          final key = anchor['targetKey']?.toString().trim() ?? '';
+          if (kind.isEmpty || key.isEmpty) continue;
+          final statusName = anchor['status']?.toString();
+          final status = statusName == 'resolved'
+              ? NoteAnchorStatus.exact
+              : NoteAnchorStatus.values.firstWhere(
+                  (candidate) => candidate.wireName == statusName,
+                  orElse: () => NoteAnchorStatus.exact,
+                );
+          final rawContext = anchor['context'];
+          anchors.add(
+            NoteAnchorInput(
+              targetKind: kind,
+              targetKey: key,
+              snapshotHash: anchor['snapshotHash']?.toString(),
+              targetLabel: anchor['targetLabel']?.toString() ?? '',
+              status: status,
+              context: rawContext is Map
+                  ? Map<String, Object?>.from(rawContext)
+                  : null,
+            ),
+          );
         }
-        final tags = <String>[];
-        final rawTags = map['tags'];
-        if (rawTags is List) {
-          for (final value in rawTags) {
-            final tag = value?.toString().trim() ?? '';
-            if (tag.isNotEmpty) tags.add(tag);
-          }
+      }
+      final tags = <String>[];
+      final rawTags = raw['tags'];
+      if (rawTags is List) {
+        for (final value in rawTags) {
+          final tag = value?.toString().trim() ?? '';
+          if (tag.isNotEmpty) tags.add(tag);
         }
-        final collectionIds = <String>[];
-        final rawCollections = map['collections'];
-        if (rawCollections is List) {
-          for (final value in rawCollections) {
-            if (value is! Map) continue;
-            final name = value['name']?.toString().trim() ?? '';
-            if (name.isEmpty) continue;
-            final lookup = name.toLowerCase();
-            var id = knownCollections[lookup];
-            if (id == null) {
-              final created = await createCollection(name);
-              id = created.id;
-              knownCollections[lookup] = id;
-            }
-            if (!collectionIds.contains(id)) collectionIds.add(id);
-          }
+      }
+      final collectionIds = <String>[];
+      final rawCollections = raw['collections'];
+      if (rawCollections is List) {
+        for (final value in rawCollections) {
+          if (value is! Map) continue;
+          final id = resolveCollection(
+            rawId: value['id']?.toString() ?? '',
+            name: value['name']?.toString() ?? '',
+          );
+          if (!collectionIds.contains(id)) collectionIds.add(id);
         }
-        final createdAt = DateTime.tryParse(map['createdAt']?.toString() ?? '');
-        await create(
+      }
+      final createdAt = DateTime.tryParse(raw['createdAt']?.toString() ?? '');
+      final updatedAt = DateTime.tryParse(raw['updatedAt']?.toString() ?? '');
+      final deletedAt = DateTime.tryParse(raw['deletedAt']?.toString() ?? '');
+      notes.add(
+        _ImportNotePlan(
           uuid: uuid,
-          title: map['title']?.toString() ?? '',
-          bodyMarkdown: map['bodyMarkdown']?.toString() ?? '',
-          anchors: anchors,
-          tags: tags,
+          title: raw['title']?.toString() ?? '',
+          bodyMarkdown: raw['bodyMarkdown']?.toString() ?? '',
+          anchors: _normalizeAnchors(anchors),
+          tags: _normalizeTags(tags),
           collectionIds: collectionIds,
           createdAt: createdAt,
+          updatedAt: updatedAt,
+          deletedAt: deletedAt,
+        ),
+      );
+    }
+
+    _writeSync('导入笔记', () {
+      for (final collection in plannedCollections) {
+        _db.execute(
+          'INSERT INTO collections(id, name, created_at, updated_at) '
+          'VALUES (?, ?, ?, ?)',
+          [
+            collection.id,
+            collection.name,
+            (collection.createdAt ?? DateTime.now().toUtc())
+                .toUtc()
+                .toIso8601String(),
+            (collection.updatedAt ??
+                    collection.createdAt ??
+                    DateTime.now().toUtc())
+                .toUtc()
+                .toIso8601String(),
+          ],
         );
-        added++;
-      } catch (_) {
-        failed++;
+      }
+      for (final note in notes) {
+        final id = _newUuid();
+        final createdAt = note.createdAt ?? DateTime.now().toUtc();
+        final updatedAt = note.updatedAt ?? createdAt;
+        final created = _formatTimestamp(createdAt);
+        _db.execute(
+          'INSERT INTO notes('
+          'id, uuid, title, body_md, body_plain, created_at, updated_at, '
+          'deleted_at, revision'
+          ') VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)',
+          [
+            id,
+            note.uuid,
+            note.title,
+            note.bodyMarkdown,
+            plainTextFromMarkdown(note.bodyMarkdown),
+            created,
+            _formatTimestamp(updatedAt),
+            note.deletedAt == null ? null : _formatTimestamp(note.deletedAt!),
+          ],
+        );
+        _insertAnchors(id, note.anchors, created);
+        _insertTags(id, note.tags);
+        _insertCollections(id, note.collectionIds);
+      }
+    });
+    return NotesImportResult(
+      added: notes.length,
+      skipped: skipped,
+      failed: 0,
+      renamedCollections: List<String>.unmodifiable(renamedCollections),
+    );
+  }
+
+  void _validateImportPayload(Object? decoded, List<Object?> root) {
+    final collectionIds = <String>{};
+    final registry = decoded is Map ? decoded['collections'] : null;
+    if (registry != null && registry is! List) {
+      throw const NotesException(
+        NotesErrorCode.invalidInput,
+        '导入文件的 collections 必须是数组。',
+      );
+    }
+    if (registry is List) {
+      for (final value in registry) {
+        if (value is! Map) {
+          throw const NotesException(
+            NotesErrorCode.invalidInput,
+            '导入文件包含无效的集合记录。',
+          );
+        }
+        final name = value['name']?.toString().trim() ?? '';
+        if (name.isEmpty) {
+          throw const NotesException(
+            NotesErrorCode.invalidInput,
+            '导入文件包含空名称集合。',
+          );
+        }
+        final id = value['id']?.toString().trim() ?? '';
+        if (id.isNotEmpty && !collectionIds.add(id)) {
+          throw NotesException(
+            NotesErrorCode.invalidInput,
+            '导入文件包含重复集合 id：$id',
+          );
+        }
       }
     }
-    return NotesImportResult(added: added, skipped: skipped, failed: failed);
+    for (final raw in root) {
+      if (raw is! Map) {
+        throw const NotesException(NotesErrorCode.invalidInput, '导入文件包含非对象笔记。');
+      }
+      final uuid = raw['uuid']?.toString().trim() ?? '';
+      if (uuid.isEmpty) {
+        throw const NotesException(
+          NotesErrorCode.invalidInput,
+          '导入文件包含缺少 uuid 的笔记。',
+        );
+      }
+      final rawAnchors = raw['anchors'];
+      if (rawAnchors != null && rawAnchors is! List) {
+        throw NotesException(
+          NotesErrorCode.invalidInput,
+          '笔记 $uuid 的 anchors 必须是数组。',
+        );
+      }
+      if (rawAnchors is List) {
+        for (final value in rawAnchors) {
+          if (value is! Map) {
+            throw NotesException(
+              NotesErrorCode.invalidInput,
+              '笔记 $uuid 包含无效锚点。',
+            );
+          }
+          final kind = value['targetKind']?.toString().trim() ?? '';
+          final key = value['targetKey']?.toString().trim() ?? '';
+          if (kind.isEmpty || key.isEmpty) {
+            throw NotesException(
+              NotesErrorCode.invalidInput,
+              '笔记 $uuid 包含缺少 targetKind/targetKey 的锚点。',
+            );
+          }
+          final status = value['status']?.toString();
+          if (status != null &&
+              status != 'resolved' &&
+              !NoteAnchorStatus.values.any((s) => s.wireName == status)) {
+            throw NotesException(
+              NotesErrorCode.invalidInput,
+              '笔记 $uuid 包含未知锚点状态：$status',
+            );
+          }
+          final context = value['context'];
+          if (context != null && context is! Map) {
+            throw NotesException(
+              NotesErrorCode.invalidInput,
+              '笔记 $uuid 的锚点 context 必须是对象或 null。',
+            );
+          }
+        }
+      }
+      final rawCollections = raw['collections'];
+      if (rawCollections != null && rawCollections is! List) {
+        throw NotesException(
+          NotesErrorCode.invalidInput,
+          '笔记 $uuid 的 collections 必须是数组。',
+        );
+      }
+      if (rawCollections is List) {
+        for (final value in rawCollections) {
+          if (value is! Map) {
+            throw NotesException(
+              NotesErrorCode.invalidInput,
+              '笔记 $uuid 包含无效集合引用。',
+            );
+          }
+          final id = value['id']?.toString().trim() ?? '';
+          final name = value['name']?.toString().trim() ?? '';
+          if (id.isEmpty && name.isEmpty) {
+            throw NotesException(
+              NotesErrorCode.invalidInput,
+              '笔记 $uuid 包含缺少 id/name 的集合引用。',
+            );
+          }
+        }
+      }
+    }
   }
 
   Future<List<NoteRecord>> allForExport({bool includeDeleted = false}) async {
@@ -1805,6 +2205,13 @@ CREATE INDEX idx_note_collections_collection
     return _collectionFromRow(rows.first);
   }
 
+  void _requireActiveNote(String id) {
+    final rows = _db.select('SELECT deleted_at FROM notes WHERE id = ?', [id]);
+    if (rows.isEmpty || rows.first['deleted_at'] != null) {
+      throw NotesException(NotesErrorCode.notFound, '笔记不存在或已删除：$id');
+    }
+  }
+
   void _insertCollections(String noteId, List<String> collectionIds) {
     for (final collectionId in collectionIds) {
       _db.execute(
@@ -2070,4 +2477,42 @@ CREATE INDEX idx_note_collections_collection
         'T${pad(utc.hour, 2)}:${pad(utc.minute, 2)}:${pad(utc.second, 2)}'
         '.${fraction}Z';
   }
+}
+
+class _ImportCollectionPlan {
+  const _ImportCollectionPlan({
+    required this.id,
+    required this.name,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  final String id;
+  final String name;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+}
+
+class _ImportNotePlan {
+  const _ImportNotePlan({
+    required this.uuid,
+    required this.title,
+    required this.bodyMarkdown,
+    required this.anchors,
+    required this.tags,
+    required this.collectionIds,
+    this.createdAt,
+    this.updatedAt,
+    this.deletedAt,
+  });
+
+  final String uuid;
+  final String title;
+  final String bodyMarkdown;
+  final List<NoteAnchorInput> anchors;
+  final List<String> tags;
+  final List<String> collectionIds;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
 }

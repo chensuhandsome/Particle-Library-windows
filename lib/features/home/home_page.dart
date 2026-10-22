@@ -285,7 +285,7 @@ class _HomePageState extends State<HomePage> {
                 CollapsibleSidebar(
                   expanded: _searchPanelOpen,
                   width: resultsWidth,
-                  tooltip: '拖拽调整搜索栏宽度；拉到最窄可收起，双击恢复默认',
+                  tooltip: AppScope.of(context).strings.searchResizeTooltip,
                   railIcon: Icons.search,
                   railTooltip: AppScope.of(context).strings.sidebarShow,
                   onExpand: () => setState(() => _searchPanelOpen = true),
@@ -495,17 +495,16 @@ class _SearchPanel extends StatelessWidget {
           const SizedBox(height: Insets.s),
           Align(
             alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: () => onSearchInspire(''),
-              icon: const Icon(Icons.travel_explore, size: 17),
-              label: Text(strings.inspireSearchAction),
+            // The offline/online scope note moved to a tooltip and the help
+            // page; it no longer costs a line under the button.
+            child: Tooltip(
+              message: strings.inspireSearchEntryHint,
+              child: OutlinedButton.icon(
+                onPressed: () => onSearchInspire(''),
+                icon: const Icon(Icons.travel_explore, size: 17),
+                label: Text(strings.inspireSearchAction),
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            strings.inspireSearchEntryHint,
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: palette.textSecondary),
           ),
         ],
         const SizedBox(height: 2),

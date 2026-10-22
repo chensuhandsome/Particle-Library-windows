@@ -57,6 +57,11 @@ class AppStrings {
   String get searchLoading => _t('正在搜索…', 'Searching…');
   String get searchShowingFirst =>
       _t('仅显示前若干项', 'Showing the first matches only');
+  String searchShowingFirstCount(int count) =>
+      _t('仅显示前 $count 项', 'Showing the first $count matches only');
+  String get searchKindParticleName => _t('粒子名称', 'Particle name');
+  String get searchKindPdgAlias => _t('PDG 别名', 'PDG alias');
+  String get searchKindCommonName => _t('通用名称', 'Common name');
   String get searchResultCount => _t('结果', 'Results');
   String get searchIdAccepted =>
       _t('识别为 PDG 标识符', 'Recognized as a PDG identifier');
@@ -88,7 +93,14 @@ class AppStrings {
   String get commonBack => _t('返回', 'Back');
   String get commonForward => _t('前进', 'Forward');
   String get commonClose => _t('关闭', 'Close');
+  String get commonDone => _t('完成', 'Done');
   String get commonCancel => _t('取消', 'Cancel');
+  String get notesDiscardDraft => _t('放弃草稿', 'Discard draft');
+  String get notesDiscardDraftBody => _t(
+    '草稿内容（包括已自动保存的部分）会被删除，无法恢复。',
+    'The draft, including any autosaved content, will be deleted. This cannot be undone.',
+  );
+  String get notesDiscardDraftAction => _t('放弃', 'Discard');
   String get commonCreate => _t('创建', 'Create');
   String get commonSave => _t('保存', 'Save');
   String get pageOutline => _t('页面目录', 'On this page');
@@ -114,6 +126,59 @@ class AppStrings {
   String get commonEmptyString => _t('空字符串', 'Empty string');
   String get commonLoading => _t('正在读取…', 'Loading…');
   String get commonError => _t('读取失败', 'Failed to load');
+  String get searchResizeTooltip => _t(
+    '拖拽调整搜索栏宽度；拉到最窄可收起，双击恢复默认',
+    'Drag to resize the search panel; drag to the narrowest to collapse, double-click to reset',
+  );
+  String get favoritesResizeTooltip => _t(
+    '拖拽调整收藏筛选栏宽度；拉到最窄可收起',
+    'Drag to resize the favorites filter panel; drag to the narrowest to collapse',
+  );
+  String get contextSidebarResizeTooltip => _t(
+    '拖拽调整侧栏宽度；拉到最窄可隐藏，双击恢复自动',
+    'Drag to resize the sidebar; drag to the narrowest to hide, double-click to restore automatic width',
+  );
+  String get resizeSidebar => _t('调整侧栏宽度', 'Resize sidebar');
+  String get limitRange => _t('区间/排除区间', 'Range/excluded range');
+  String get limitUpper => _t('上限', 'Upper limit');
+  String get limitLower => _t('下限', 'Lower limit');
+  String decayExpandedFromPdgItemMap(String chain) =>
+      _t('经 pdgitem_map 展开：$chain', 'Expanded via pdgitem_map: $chain');
+  String decayTrueTypeNotFraction(String type) => _t(
+    '目标条目的真实类型为 $type；不把它改称分支分数。',
+    'The target entry is of type $type; it is not relabeled as a branching fraction.',
+  );
+  String errorEntryNotInSnapshot(String id) =>
+      _t('当前快照未收录条目 $id。', 'This snapshot does not contain entry $id.');
+  String errorReferenceNotInSnapshot(String id) =>
+      _t('当前快照未收录文献记录 $id。', 'This snapshot does not contain reference $id.');
+  String get errorNoteMissing =>
+      _t('笔记不存在或已被删除。', 'The note no longer exists.');
+  String get errorCollectionMissing =>
+      _t('集合不存在。', 'The collection no longer exists.');
+  String get errorNotesConflict => _t(
+    '笔记已被其他编辑更新，请重新载入后再保存。',
+    'The note was changed by another editor. Reload before saving.',
+  );
+  String get errorNotesUnavailable =>
+      _t('笔记数据库不可用。', 'The notes database is unavailable.');
+  String get errorNotesCorrupt =>
+      _t('笔记数据库损坏。', 'The notes database is corrupt.');
+  String get errorNotesWriteFailed =>
+      _t('笔记写入失败。', 'Could not write the note.');
+  String get errorNotesBackupFailed =>
+      _t('笔记备份失败。', 'Could not back up the notes database.');
+  String get errorInvalidInput =>
+      _t('输入数据无效。', 'The supplied data is invalid.');
+  String get errorBackupMissing =>
+      _t('备份中缺少 backup.json。', 'The backup is missing backup.json.');
+  String get errorBackupInvalid =>
+      _t('备份 JSON 无效。', 'The backup JSON is invalid.');
+  String get errorBackupVersion =>
+      _t('不支持的完整备份版本。', 'This full-backup version is not supported.');
+  String get errorImportNotArray =>
+      _t('导入文件不是笔记 JSON 数组。', 'The import is not a notes JSON array.');
+  String get errorGeneric => _t('操作失败。', 'The operation failed.');
   String get commonRetry => _t('重试', 'Retry');
   String get commonRawFields => _t('原始字段', 'Raw fields');
   String get commonRawRecord => _t('原始记录', 'Source record');
@@ -125,6 +190,9 @@ class AppStrings {
   String get commonShowLess => _t('收起', 'Show less');
   String get commonViewAll => _t('查看全部', 'View all');
   String get commonOpen => _t('打开', 'Open');
+  String get commonUndo => _t('撤销', 'Undo');
+  String get commonRedo => _t('重做', 'Redo');
+  String get commonGo => _t('跳转', 'Go');
   String get commonDetails => _t('详情', 'Details');
   String get commonCount => _t('数量', 'Count');
   String get commonYear => _t('年份', 'Year');
@@ -205,6 +273,7 @@ class AppStrings {
   String get particleSelfConjugate => _t('自共轭', 'Self-conjugate');
   String get particleQuantumNumbers => _t('量子数（原始字段）', 'Quantum numbers (raw)');
   String get particleProperties => _t('性质', 'Properties');
+  String get particleSummarySection => _t('摘要', 'Summary');
   String get particleDecays => _t('衰变', 'Decays');
   String get particleReferences => _t('文献', 'References');
   String get particleMainProperties => _t('主要性质', 'Key properties');
@@ -435,6 +504,7 @@ class AppStrings {
       _t('单举项（表示存在未列出的产物）', 'Inclusive item (unlisted products may exist)');
   String get decayTextToken =>
       _t('文本/条件/记号，不能当作粒子', 'Text, condition or punctuation; not a particle');
+  String get decayMultiStageBadge => _t('多阶段', 'Multi-stage');
   String get decayMultiStageNote => _t(
     '原文包含多个阶段箭头；这里按原始顺序展示，不把不同阶段的产物合并成一个末态。',
     'The source contains several stage arrows; tokens are shown in source order and stages are not merged into one final state.',
@@ -492,16 +562,37 @@ class AppStrings {
       _t('通用名称，展开为 $count 个粒子', 'Generic name; expands to $count particles');
 
   String get referenceTitle => _t('文献', 'Publication');
+  String get referencePdgLiveNoEntries =>
+      _t('没有找到引用这条文献的 PDG 条目。', 'No PDG entry cites this work.');
+  String get referenceCitedByEntries =>
+      _t('在 PDG 中引用它的条目', 'PDG entries that cite it');
+  String get referencePdgLiveNote =>
+      _t('PDG Live 摘要中的引用', 'Cited in a PDG Live summary');
+  String get referencePdgLiveExplanation => _t(
+    '这条文献只在 PDG Live 的摘要说明中被引用，本地 PDG 数据表没有它的测量记录；题录信息由 INSPIRE 补全。',
+    'This work is cited only in a PDG Live summary; the local PDG listings have no measurements for it. The bibliographic record is completed from INSPIRE.',
+  );
   String get inspireSearchTitle => _t('INSPIRE 文献搜索', 'Search INSPIRE');
   String get inspireSearchSubtitle => _t(
     '使用 INSPIRE 语法在线检索文献',
     'Search INSPIRE online with INSPIRE query syntax',
   );
   String get inspireSearchHint => _t(
-    '输入 INSPIRE 语法或关键词，例如 cn BESIII、t "muon"',
-    'Enter INSPIRE syntax or keywords, e.g. cn BESIII, t "muon"',
+    '输入 INSPIRE 语法或关键词，例如 cn BESIII、t muon',
+    'Enter INSPIRE syntax or keywords, e.g. cn BESIII, t muon',
   );
   String get inspireSearchAction => _t('搜索 INSPIRE', 'Search INSPIRE');
+  String get inspireHelpTitle => _t('INSPIRE 搜索语法', 'INSPIRE search syntax');
+  String get inspireHelpIntro => _t(
+    '搜索框把内容原样发给 INSPIRE；下面是最常用的写法。',
+    'The box sends your text to INSPIRE unchanged; these are the most common forms.',
+  );
+  String get inspireHelpOpenDocs => _t('INSPIRE 搜索帮助', 'INSPIRE search help');
+  String get inspireHelpOpenAllTerms =>
+      _t('完整搜索项列表', 'Full list of search terms');
+  String get inspireSearchHistory => _t('搜索历史', 'Search history');
+  String get inspireClearHistory =>
+      _t('清除 INSPIRE 搜索历史', 'Clear INSPIRE search history');
   String get inspireSearchEntryHint => _t(
     '题名、期刊和年份可离线搜索；作者、合作组和 INSPIRE 语法需联网检索。',
     'Titles, journals and years work offline; authors, collaborations and INSPIRE syntax require the online search.',
@@ -551,8 +642,8 @@ class AppStrings {
   String get inspireSearchOpenLocal =>
       _t('打开本地 PDG 文献记录', 'Open local PDG reference');
   String get inspireSearchSyntaxExamples => _t(
-    '支持 INSPIRE 语法：cn BESIII · t "muon" · arxiv:0902.4759 · doi:10.1103/PhysRevLett.6.381',
-    'INSPIRE syntax is supported: cn BESIII · t "muon" · arxiv:0902.4759 · doi:10.1103/PhysRevLett.6.381',
+    '支持 INSPIRE 语法：cn BESIII · t muon · arXiv:1705.00141 · doi:10.1103/PhysRevLett.6.381',
+    'INSPIRE syntax is supported: cn BESIII · t muon · arXiv:1705.00141 · doi:10.1103/PhysRevLett.6.381',
   );
   String get inspireSearchOpenLocalHint => _t(
     '“打开本地 PDG 文献记录”表示按 DOI 查找 PDG 快照中的文献条目，不是打开 PDG 网站。',
@@ -706,6 +797,71 @@ class AppStrings {
   String get notesCollectionFailed =>
       _t('无法创建 collection', 'Could not create collection');
   String get notesAllCollections => _t('全部笔记', 'All notes');
+  String get notesUnfiled => _t('未归入集合', 'Unfiled');
+  String get notesEvidence => _t('证据', 'Evidence');
+  String get notesResizeListTooltip => _t(
+    '拖动调整笔记列表宽度；拉到最窄可隐藏，双击恢复默认',
+    'Drag to resize the note list; drag to the narrowest to hide, double-click to reset',
+  );
+  String get notesEvidenceStatusLabel => _t('状态', 'Status');
+  String measurementNumber(int id) => _t('测量 #$id', 'Measurement #$id');
+  String get notesNotesView => _t('笔记', 'Notes');
+  String get notesManageCollections => _t('管理集合', 'Manage collections');
+  String get notesRenameCollection => _t('重命名集合', 'Rename collection');
+  String get notesDeleteCollection => _t('删除集合', 'Delete collection');
+  String get notesCollectionDeleted => _t('集合已删除', 'Collection deleted');
+  String get notesDeleteCollectionBody => _t(
+    '只删除集合和归属，不删除笔记。',
+    'This deletes the collection and its assignments; notes are kept.',
+  );
+  String get notesCollectionNoteCount => _t('笔记', 'notes');
+  String get notesEvidenceEmpty =>
+      _t('此范围内还没有可显示数值的证据。', 'No numeric evidence in this scope yet.');
+  String get notesEvidenceQuantity => _t('测量量', 'Quantity');
+  String notesReviewLinks(int count) =>
+      _t('检查失效链接（$count）', 'Review links ($count)');
+  String get notesReviewLinksTitle => _t('检查失效的关联', 'Review unresolved links');
+  String get notesReviewLinksHint => _t(
+    '打开对应笔记后移除或替换失效 anchor。旧 anchor 不会自动删除，移除操作可以撤销。',
+    'Open the note to remove or replace the broken anchor. Old anchors are not removed automatically, and removal is undoable.',
+  );
+  String get notesReviewOpenNote => _t('打开笔记', 'Open note');
+  String get notesReanchor => _t('重新锚定', 'Re-anchor');
+  String get notesReanchorPrompt => _t(
+    '输入新的 anchor key。measurement 使用 pdgid:measurementId；旧 anchor 会保留。',
+    'Enter the new anchor key. Measurements use pdgid:measurementId; the old anchor is kept.',
+  );
+  String get notesReanchorInvalid =>
+      _t('anchor key 无法解析。', 'The anchor key could not be resolved.');
+  String get notesReanchored => _t('已添加新的 anchor。', 'New anchor added.');
+  String get notesEvidenceHint => _t(
+    '捕获值是写入笔记时冻结的实验测量值。当前 PDG 是该测量量在当前 PDG 版本中的平均值或拟合值；单个测量本来就不会与平均值相同，因此 measurement 行只并排显示两个值，不标“变化”状态。',
+    'Captured is the experimental value frozen when the note was written. PDG current is the current average or fit for that quantity; a single measurement is not expected to equal it, so measurement rows show both values without a changed/current verdict.',
+  );
+  String get notesEvidenceTypeMeasurement => _t('实验测量', 'Measurement');
+  String get notesEvidenceTypeSummary => _t('PDG 汇总', 'PDG summary');
+  String get notesEvidenceTypeReference => _t('文献', 'Reference');
+  String get notesEvidenceCaptured => _t('捕获值', 'Captured');
+  String get notesEvidenceCurrent => _t('当前 PDG', 'PDG current');
+  String get notesEvidenceStatusCurrent => _t('一致', 'Current');
+  String get notesEvidenceStatusChanged => _t('已变化', 'Changed');
+  String get notesEvidenceStatusMissing => _t('找不到', 'Missing');
+  String get notesEvidenceStatusFuzzy => _t('模糊匹配', 'Fuzzy');
+  String get notesEvidenceStatusUnresolved => _t('未解析', 'Unresolved');
+  String get notesEvidenceStatusUncompared => _t('未比较', 'Uncompared');
+  String get notesEvidenceStatusMatchesPdg => _t('与 PDG 一致', 'Matches PDG');
+  String get notesEvidenceNotRecorded =>
+      _t('未记录捕获值', 'No captured value recorded');
+  String get notesEvidenceMissingSource => _t(
+    '当前快照中找不到该测量。',
+    'This measurement is missing from the current snapshot.',
+  );
+  String get notesEvidenceSourceHint => _t(
+    '数值来自只读 PDG 快照；修改笔记不会修改 PDG。',
+    'Values come from the read-only PDG snapshot; editing a note never edits PDG.',
+  );
+  String get notesExportCsv => _t('导出证据 CSV', 'Export evidence CSV');
+  String get notesExportCsvDone => _t('CSV 已导出', 'CSV exported');
   String get notesCollections => _t('Collections', 'Collections');
   String get notesPdgLookup => _t('PDG 速查', 'PDG lookup');
   String get notesPdgLookupHint =>
@@ -722,6 +878,39 @@ class AppStrings {
   String get notesPdgLookupAdded => _t('来源已添加到笔记', 'Source added to note');
   String notesSourceLine(String source) => _t('来源：$source', 'Source: $source');
   String get notesAddToCollection => _t('添加到 Collection', 'Add to collection');
+  String get notesSelectNotes => _t('选择笔记', 'Select notes');
+  String get notesSelectAllNotes => _t('全选', 'Select all');
+  String get notesClearSelection => _t('取消选择', 'Clear selection');
+  String notesSelectedCount(int count) => _t('已选 $count 条', '$count selected');
+  String get notesAddSelectedToCollection =>
+      _t('加入 Collection', 'Add to collection');
+  String notesAddedToCollection(int count, String name) =>
+      _t('已将 $count 条笔记加入“$name”。', 'Added $count notes to "$name".');
+  String get notesDragToCollection => _t(
+    '拖动笔记到集合，或右键集合添加已有笔记',
+    'Drag notes onto a collection, or right-click a collection to add existing notes',
+  );
+  String get notesAddExistingNotes => _t('添加已有笔记…', 'Add existing notes…');
+  String notesAddExistingNotesTitle(String name) =>
+      _t('添加到“$name”', 'Add notes to “$name”');
+  String get notesNoAvailableNotes =>
+      _t('没有可添加的笔记。', 'No notes available to add.');
+  String get notesAddNotes => _t('添加', 'Add');
+  String notesAddSelectedCount(int count) =>
+      _t('添加已选 $count 条', 'Add $count selected');
+  String get notesDropHere => _t('松开加入此集合', 'Drop to add here');
+  String get reviewHighlightAdded => _t(
+    '高亮已保存为笔记，可加入集合。',
+    'Highlight saved as a note; add it to a collection.',
+  );
+  String get reviewSelectHighlights => _t('选择高亮', 'Select highlights');
+  String get reviewClearHighlightSelection => _t('取消选择', 'Clear selection');
+  String reviewSelectedHighlights(int count) =>
+      _t('已选 $count 条高亮', '$count highlights selected');
+  String get reviewAddSelectedHighlights =>
+      _t('加入 Collection', 'Add to collection');
+  String get reviewHighlightAddedToCollection =>
+      _t('高亮笔记已加入集合。', 'Highlight notes added to the collection.');
   String get notesAlreadyInCollection => _t('已在其中', 'Already added');
   String get notesNoCollections =>
       _t('还没有 Collection；先新建一个。', 'No collections yet; create one first.');
@@ -786,6 +975,11 @@ class AppStrings {
   String get notesRemoveAnchor => _t('移除关联', 'Remove link');
   String get notesAnchorRemoved => _t('已移除关联', 'Link removed');
   String get notesAnchorsLabel => _t('关联条目', 'Anchors');
+  String get notesAnchorKindNote => _t('笔记', 'Note');
+  String get notesAnchorKindPdgid => 'PDG';
+  String get notesAnchorKindMeasurement => _t('测量', 'Measurement');
+  String get notesAnchorKindReference => _t('文献', 'Reference');
+  String get notesAnchorKindReview => _t('评述', 'Review');
   String get notesAnchorUnresolved => _t('锚点尚未解析', 'Anchor not resolved');
   String get notesDraft => _t('草稿', 'Draft');
   String get notesSavePending => _t('待保存', 'Unsaved changes');
@@ -824,6 +1018,9 @@ class AppStrings {
   String get notesCopyMarkdown => _t('复制为 Markdown', 'Copy as Markdown');
   String get notesCaptureTitle => _t('添加到笔记', 'Add to note');
   String get notesCaptureNew => _t('新建笔记', 'New note');
+  String get notesCaptureSave => _t('保存', 'Save');
+  String get notesCaptureSaveAndOpen => _t('保存并打开', 'Save & open');
+  String get notesCaptured => _t('已保存到笔记', 'Saved to notes');
   String get notesCaptureSearchHint => _t('搜索已有笔记', 'Search existing notes');
   String get notesCaptureAppendHint => _t(
     '选择已有笔记追加选中的内容，或新建一条：',
@@ -839,7 +1036,25 @@ class AppStrings {
       _t('从 JSON 文件导入…', 'Import from JSON file…');
   String get notesExportFileDone => _t('笔记已导出', 'Notes exported');
   String get notesExportFileFailed => _t('导出失败', 'Export failed');
+  String get notesCopyCiteKeys => _t('复制引用 key…', 'Copy citation keys…');
+  String get notesCopyBibtex => _t('复制 BibTeX…', 'Copy BibTeX…');
+  String notesBibtexCopied(int count) =>
+      _t('已复制 $count 条 BibTeX。', 'Copied $count BibTeX entries.');
+  String get notesNoBibtex =>
+      _t('没有可解析的 BibTeX。', 'No BibTeX could be resolved.');
+  String notesCiteKeysCopied(int count) =>
+      _t('已复制 $count 个 citation key。', 'Copied $count citation keys.');
+  String get notesNoCiteKeys =>
+      _t('没有可解析的 citation key。', 'No citation keys could be resolved.');
+  String get notesCiteKeysFetching =>
+      _t('正在获取 INSPIRE citation key…', 'Fetching INSPIRE citation keys…');
+  String get notesExportScopeMarkdown =>
+      _t('导出当前范围 Markdown', 'Export current scope as Markdown');
   String get notesImportDone => _t('导入完成', 'Import complete');
+  String notesImportRenamed(Iterable<String> names) => _t(
+    '重命名集合：${names.join('、')}',
+    'Renamed collections: ${names.join(', ')}',
+  );
   String notesImportSummary(int added, int skipped, int failed) => _t(
     '新增 $added 条，跳过 $skipped 条，失败 $failed 条',
     'Added $added, skipped $skipped, failed $failed',
@@ -874,6 +1089,23 @@ class AppStrings {
   String get notesYesterday => _t('昨天', 'yesterday');
   String notesUpdated(String time) => _t('更新于 $time', 'Updated $time');
 
+  String localizedRecoveryWarning(String warning) {
+    if (lang == TextLang.zh) return warning;
+    if (warning.contains('无法访问本机用户数据目录')) {
+      return 'Cannot access the local user-data directory. Settings and favorites will not be saved.';
+    }
+    if (warning.contains('从备份恢复用户数据')) {
+      return 'User data was restored from a backup.';
+    }
+    if (warning.contains('用户数据文件无法读取')) {
+      return 'The user-data file could not be read; starting from empty data.';
+    }
+    if (warning.contains('本机用户数据写入失败')) {
+      return 'Writing local user data failed. Settings and favorites may not be saved.';
+    }
+    return warning;
+  }
+
   String get settingsTitle => _t('设置', 'Settings');
   String get helpTitle => _t('使用说明与名词解释', 'Help and glossary');
   String get helpSubtitle =>
@@ -899,6 +1131,10 @@ class AppStrings {
     '删除这条高亮及其笔记？笔记会进入回收站。',
     'Delete this highlight and its note? The note goes to the recycle bin.',
   );
+  String reviewHighlightsPartiallySaved(int saved, int total) => _t(
+    '已保存 $saved/$total 页高亮；其余页面失败，可重新选择。',
+    'Saved $saved/$total page highlights; the remaining pages failed and can be selected again.',
+  );
   String get reviewSelectText =>
       _t('请先在 PDF 中选择文字。', 'Select text in the PDF first.');
   String get reviewAnnotations => _t('批注', 'Annotations');
@@ -909,8 +1145,8 @@ class AppStrings {
   String get reviewHighlightColor => _t('高亮颜色', 'Highlight color');
   String get reviewAdjustRange => _t('调整高亮范围', 'Adjust highlight range');
   String get reviewAdjustRangeHint => _t(
-    '拖动两个圆形把手调整起止位置，然后点右上角勾保存。',
-    'Drag the two round handles to adjust the start and end, then tap the check button to save.',
+    '拖动两个圆形把手调整起止位置；松开后自动保存。',
+    'Drag the two round handles to adjust the start and end; changes save automatically when you release.',
   );
   String get reviewSaveRange => _t('保存高亮范围', 'Save highlight range');
   String reviewHighlightColorName(String color) => switch (color) {
@@ -919,12 +1155,89 @@ class AppStrings {
     'blue' => _t('蓝色', 'Blue'),
     _ => _t('黄色', 'Yellow'),
   };
+  String get reviewFullScreen => _t('全屏阅读', 'Full-screen reading');
+  String get reviewExitFullScreen => _t('退出全屏', 'Exit full screen');
+  String get reviewRegionSelect => _t('框选区域', 'Select region');
+  String get reviewRegionImageStale => _t(
+    '截图待刷新：当前图片对应旧区域。',
+    'Screenshot needs refresh: the image still matches the old region.',
+  );
+  String get reviewRegionRetryImage => _t('重新生成截图', 'Refresh screenshot');
+  String get reviewRegionRetrySucceeded =>
+      _t('区域截图已刷新', 'Region screenshot refreshed');
+  String get reviewRegionRetryFailed =>
+      _t('区域截图刷新失败', 'Could not refresh region screenshot');
+  String get reviewRegionImageRefreshFailed => _t(
+    '区域已移动，但截图刷新失败；当前仍显示旧截图。',
+    'Region moved, but the screenshot could not be refreshed; the old image is still shown.',
+  );
+  String get reviewRegionSelectHint =>
+      _t('拖拽框选图片、公式或任意区域。', 'Drag to select an image, formula, or any region.');
+  String get reviewAnnotationRegion => _t('区域选择', 'Region selection');
+  String get reviewAnnotationsTab => _t('批注', 'Annotations');
+  String get reviewOutlineTab => _t('目录', 'Contents');
+  String get reviewNotesTab => _t('笔记', 'Notes');
+  String get reviewAnnotateMode => _t('批注模式', 'Annotate');
+  String get reviewAnnotateModeExit => _t('退出批注模式', 'Exit annotate mode');
+  String get reviewNotesEmpty => _t(
+    '这个文档还没有笔记。高亮或批注后会出现在这里。',
+    'No notes for this document yet. Highlights and comments appear here.',
+  );
+  String get reviewOutlineEmpty =>
+      _t('此 PDF 没有目录。', 'This PDF has no outline.');
+  String get reviewOutlineLoading => _t('正在读取目录…', 'Loading outline…');
+  String get reviewOutlineOpen => _t('跳转到此目录项', 'Go to this outline item');
+  String get reviewPdfDarkMode => _t('PDF 深色模式', 'PDF dark mode');
+  String get reviewPdfLightMode => _t('PDF 浅色模式', 'PDF light mode');
+  String get notesAnchorsMarkdownHint => _t(
+    '正文中的链接只用于跳转；Evidence 读取上方 anchors，不会因 Markdown 链接改变而自动更新。',
+    'Links in the body are navigation only. Evidence reads the anchors above; editing a Markdown link does not update them.',
+  );
+  String get reviewAddComment => _t('添加评论', 'Add comment');
+  String get reviewNoComment => _t('暂无评论', 'No comment');
+  String get reviewTags => _t('标签', 'Tags');
+  String get reviewAddTag => _t('添加标签', 'Add tag');
+  String get reviewTagHint => _t('输入标签后回车', 'Type a tag and press Enter');
+  String get reviewFilterColor => _t('颜色', 'Color');
+  String get reviewFilterTag => _t('标签', 'Tag');
+  String get reviewFilterAllColors => _t('全部颜色', 'All colors');
+  String get reviewFilterAllTags => _t('全部标签', 'All tags');
+  String get reviewFilterHint => _t('过滤批注…', 'Filter annotations…');
+  String get reviewFilterClear => _t('清除过滤', 'Clear filters');
+  String get reviewFilterCurrentPage => _t('当前页', 'Current page');
+  String get reviewBackToPosition => _t('返回阅读位置', 'Back to reading position');
+  String get reviewSidebar => _t('侧边栏', 'Sidebar');
+  String get reviewSplitNotes => _t('笔记分屏', 'Split notes');
+  String get reviewSearch => _t('搜索 PDF', 'Search PDF');
+  String get reviewSearchHint => _t('输入要查找的文字', 'Search text');
+  String get reviewNoMatches => _t('没有匹配项', 'No matches');
+  String reviewMatchProgress(int found, int page, int total) => _t(
+    '已找到 $found 项，正在搜索第 $page/$total 页',
+    '$found found, searching page $page/$total',
+  );
+  String get reviewPreviousMatch => _t('上一项', 'Previous');
+  String get reviewNextMatch => _t('下一项', 'Next');
+  String get reviewPageNumber => _t('页码', 'Page');
+  String get reviewFitWidth => _t('适宽', 'Fit width');
+  String get reviewFitPage => _t('整页', 'Fit page');
+  String get reviewSaveImage => _t('保存区域图片', 'Save region image');
+  String get reviewExportRegionMarkdown =>
+      _t('导出区域 Markdown + 图片', 'Export region Markdown + image');
+  String get reviewCopyImage => _t('复制区域图片', 'Copy region image');
+  String get reviewImageCopied => _t('区域图片已复制', 'Region image copied');
+  String get reviewImageCopyFailed =>
+      _t('区域图片复制失败', 'Could not copy region image');
+  String get reviewImageSaved => _t('区域图片已保存', 'Region image saved');
+  String get reviewImageSaveFailed =>
+      _t('区域图片保存失败', 'Could not save region image');
+  String get reviewGoToPage => _t('跳转到页面', 'Go to page');
+  String get reviewCancelEdit => _t('取消', 'Cancel');
   String get reviewAnnotationSidebar => _t('批注侧栏', 'Annotation sidebar');
-  String get reviewAnnotationNote => _t('批注备注', 'Annotation note');
-  String get reviewAnnotationNoteHint => _t('可选，写一句提醒…', 'Optional note…');
+  String get reviewAnnotationNote => _t('评论', 'Comment');
+  String get reviewAnnotationNoteHint => _t('添加一句评论…', 'Add a comment…');
   String reviewAnnotationPage(int page) => _t('第 $page 页', 'Page $page');
-  String get reviewAnnotationEdit => _t('编辑备注', 'Edit note');
-  String get reviewOpenNote => _t('打开笔记', 'Open note');
+  String get reviewAnnotationEdit => _t('编辑评论与标签', 'Edit comment and tags');
+  String get reviewOpenNote => _t('打开完整笔记', 'Open full note');
   String get reviewNotCached => _t(
     '该综述尚未缓存，请先在「PDG 综述」中下载。',
     'This review is not cached; download it in PDG reviews.',
@@ -1169,6 +1482,7 @@ class AppStrings {
   String get settingsAppVersion => _t('应用版本', 'App version');
   String settingsVersionValue(String version) =>
       _t('版本 $version', 'Version $version');
+  String settingsBuildValue(String build) => _t('构建 $build', 'Build $build');
   String get settingsSnapshotVersion => _t('快照版本', 'Snapshot version');
   String get settingsSnapshotFile => _t('快照文件', 'Snapshot file');
   String get settingsSchema => _t('schema', 'schema');
@@ -1204,8 +1518,16 @@ class AppStrings {
       _t('完整备份已导入', 'Full backup imported');
   String get settingsFullBackupFailed =>
       _t('完整备份操作失败', 'Full backup operation failed');
-  String settingsFullBackupSummary(int notes, int pdfs) =>
-      _t('$notes 条笔记，$pdfs 个 PDF', '$notes notes, $pdfs PDFs');
+  String settingsFullBackupSummary(int notes, int pdfs, [int regions = 0]) {
+    final regionSuffix = regions == 0
+        ? ''
+        : _t('，$regions 张区域截图', ', $regions region images');
+    return _t(
+      '$notes 条笔记，$pdfs 个 PDF$regionSuffix',
+      '$notes notes, $pdfs PDFs$regionSuffix',
+    );
+  }
+
   String get settingsNotesBackupDone => _t('笔记备份已创建', 'Notes backup created');
   String get settingsNotesBackupFailed => _t('笔记备份失败', 'Notes backup failed');
   String get settingsNotesBackupHint => _t(

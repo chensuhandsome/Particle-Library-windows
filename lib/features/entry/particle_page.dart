@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
@@ -5,6 +7,7 @@ import '../../app/app_strings.dart';
 import '../../app/app_theme.dart';
 import '../../app/navigation.dart';
 import '../../data/pdg_database.dart';
+import '../../data/pdg_notes.dart';
 import '../../domain/aliases.dart';
 import '../../domain/display.dart';
 import '../../domain/labels.dart';
@@ -15,6 +18,7 @@ import '../common/async_view.dart';
 import '../common/context_sidebar.dart';
 import '../common/citation_text.dart';
 import '../common/description_text.dart';
+import '../common/pdg_live_text.dart';
 import '../common/display_value.dart';
 import '../common/favorite_button.dart';
 import '../common/math_text.dart';
@@ -108,12 +112,69 @@ class _ParticleBody extends StatefulWidget {
 
 class _ParticleBodyState extends State<_ParticleBody> {
   int _tab = 0;
+  PdgNote? _pdgNote;
+  Map<String, PdgCitation> _citations = const <String, PdgCitation>{};
   final GlobalKey _overviewKey = GlobalKey();
   final GlobalKey _tabsKey = GlobalKey();
   final GlobalKey _identityKey = GlobalKey();
   final GlobalKey _keyPropertiesKey = GlobalKey();
   final GlobalKey _notesKey = GlobalKey();
   final GlobalKey _textsKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_loadPdgNote());
+    });
+  }
+
+  Future<void> _loadPdgNote() async {
+    final note = await PdgNotes.forPdgid(widget.view.entry.pdgid);
+    if (!mounted || note == null || note.isEmpty) return;
+    var localIds = const <String, int>{};
+    if (note.citations.isNotEmpty) {
+      try {
+        localIds = await AppScope.of(context).database
+            .referenceIdsForCitationKeys(note.citations.keys.toSet());
+      } catch (_) {
+        // Links fall back to INSPIRE.
+      }
+    }
+    final patchReferences = <String, PdgNoteReference>{};
+    for (final label in note.citations.keys) {
+      if (localIds[label] != null) continue;
+      final reference = await PdgNotes.referenceFor(label);
+      if (reference != null) patchReferences[label] = reference;
+    }
+    if (!mounted) return;
+    setState(() {
+      _pdgNote = note;
+      _citations = {
+        for (final entry in note.citations.entries)
+          entry.key: PdgCitation(
+            localId: localIds[entry.key],
+            inspireRecid: entry.value,
+            reference: patchReferences[entry.key],
+          ),
+      };
+    });
+  }
+
+  Future<void> _openRelatedReviews(
+    BuildContext context,
+    CategoryInfo? category,
+  ) async {
+    final related = await PdgNotes.reviewFilesFor(widget.view.entry.pdgid);
+    if (!context.mounted) return;
+    final files = related.isNotEmpty
+        ? related.toSet()
+        : (category == null
+              ? const <String>{}
+              : categoryReviewFiles[category.category]?.toSet() ??
+                    const <String>{});
+    await AppNav.push<void>(context, ReviewsPage(initialFiles: files));
+  }
 
   void _selectTab(int tab) {
     setState(() => _tab = tab);
@@ -260,15 +321,8 @@ class _ParticleBodyState extends State<_ParticleBody> {
                 IconButton(
                   tooltip: strings.reviewsTitle,
                   icon: const Icon(Icons.menu_book_outlined, size: 19),
-                  onPressed: () => AppNav.push<void>(
-                    context,
-                    ReviewsPage(
-                      initialFiles: category == null
-                          ? const <String>{}
-                          : categoryReviewFiles[category.category]?.toSet() ??
-                                const <String>{},
-                    ),
-                  ),
+                  onPressed: () =>
+                      unawaited(_openRelatedReviews(context, category)),
                 ),
                 CopyIconButton(
                   text: _copyParticle(context, view),
@@ -276,6 +330,34 @@ class _ParticleBodyState extends State<_ParticleBody> {
                 ),
               ],
             ),
+            if (_pdgNote?.was case final was?)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  Insets.l,
+                  Insets.s,
+                  Insets.l,
+                  0,
+                ),
+                child: PdgLiveText(
+                  'was $was',
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: palette.textSecondary),
+                ),
+              ),
+            if (_pdgNote?.summary case final summary?)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  Insets.l,
+                  Insets.s,
+                  Insets.l,
+                  0,
+                ),
+                child: PdgLiveText(
+                  summary,
+                  citations: _citations,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
             if (!view.hasIdentity)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Insets.l),
@@ -655,7 +737,6 @@ class _PropertiesTabState extends State<_PropertiesTab> {
   Widget build(BuildContext context) {
     final view = widget.view;
     final strings = AppScope.of(context).strings;
-    final palette = context.palette;
     if (view.properties.isEmpty) {
       return EmptyPanel(
         message: strings.particleNoProperties,
@@ -694,14 +775,6 @@ class _PropertiesTabState extends State<_PropertiesTab> {
               const SizedBox(width: Insets.s),
               MetaChip('${view.properties.length}', tone: BadgeTone.info),
             ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(Insets.l, 0, Insets.l, Insets.s),
-          child: Text(
-            strings.particlePropertyDirectoryHint,
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: palette.textSecondary),
           ),
         ),
         if (filterActive) ...[

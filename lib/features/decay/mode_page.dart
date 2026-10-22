@@ -243,7 +243,7 @@ class _ModeBody extends StatelessWidget {
                   ),
                 if (view.isMultiStage)
                   MetaChip(
-                    strings.decayMultiStageNote,
+                    strings.decayMultiStageBadge,
                     tone: BadgeTone.warning,
                   ),
               ],
@@ -273,19 +273,9 @@ class _ModeBody extends StatelessWidget {
                 icon: Icons.info_outline,
                 tone: BadgeTone.warning,
                 text: strings.decayNoOutgoingNote,
-              )
-            else if (view.isMultiStage)
-              _Notice(
-                icon: Icons.alt_route,
-                tone: BadgeTone.warning,
-                text: strings.decayMultiStageNote,
               ),
             const SizedBox(height: Insets.m),
-            SectionHeading(
-              strings.decayStructure,
-              key: structureKey,
-              subtitle: strings.decayStageNote,
-            ),
+            SectionHeading(strings.decayStructure, key: structureKey),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Insets.l),
               child: _TokenSequence(view: view),
@@ -294,14 +284,14 @@ class _ModeBody extends StatelessWidget {
             SectionHeading(strings.decaySummary, key: summaryKey),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Insets.l),
-              child: SummaryList(selection: view.selection, compact: true),
+              child: SummaryList(
+                selection: view.selection,
+                compact: true,
+                quantityLabel: entry.description,
+              ),
             ),
             const SizedBox(height: Insets.m),
-            SectionHeading(
-              strings.decayRelatedQuantities,
-              key: relatedKey,
-              subtitle: strings.decayRelatedHint,
-            ),
+            SectionHeading(strings.decayRelatedQuantities, key: relatedKey),
             if (view.related.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Insets.l),
@@ -344,11 +334,7 @@ class _ModeBody extends StatelessWidget {
               ),
             if (view.children.isNotEmpty) ...[
               const SizedBox(height: Insets.m),
-              SectionHeading(
-                strings.decayDirectoryChildren,
-                key: childrenKey,
-                subtitle: strings.decayStageNote,
-              ),
+              SectionHeading(strings.decayDirectoryChildren, key: childrenKey),
               for (final child in view.children)
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -372,7 +358,6 @@ class _ModeBody extends StatelessWidget {
             SectionHeading(
               strings.seriesHistory,
               key: historyKey,
-              subtitle: detailed ? strings.seriesHistoryHint : null,
               trailing: TrendChartButton(data: trend, title: entry.description),
             ),
             Padding(
@@ -701,7 +686,11 @@ class _TokenRow extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 3),
                 child: Text(
-                  '经 pdgitem_map 展开：${resolution!.chain.map((item) => '${item.name} [${item.itemType}]').join(' → ')}',
+                  strings.decayExpandedFromPdgItemMap(
+                    resolution!.chain
+                        .map((item) => '${item.name} [${item.itemType}]')
+                        .join(' → '),
+                  ),
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: palette.textSecondary),
                 ),
@@ -777,7 +766,9 @@ class _RelatedQuantityCard extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
-                      '目标条目的真实类型为 ${dataTypeInfo(target.dataType).label(strings.lang)}；不把它改称分支分数。',
+                      strings.decayTrueTypeNotFraction(
+                        dataTypeInfo(target.dataType).label(strings.lang),
+                      ),
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(color: palette.textSecondary),
                     ),
