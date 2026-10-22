@@ -19,10 +19,10 @@ void main() {
   test(
     'a release is not offered to the build that already is that release',
     () {
-      expect(UpdateChecker.compareVersions('0.2.0', appVersion), 0);
-      expect(UpdateChecker.compareVersions('v0.2.0', appVersion), 0);
+      expect(UpdateChecker.compareVersions(appVersion, appVersion), 0);
+      expect(UpdateChecker.compareVersions('v$appVersion', appVersion), 0);
       expect(
-        UpdateChecker.compareVersions('0.2.1', appVersion),
+        UpdateChecker.compareVersions('99.0.0', appVersion),
         greaterThan(0),
       );
     },
