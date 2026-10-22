@@ -201,7 +201,8 @@ class _SettingsPageState extends State<SettingsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${strings.settingsFullBackupImported}: ${strings.settingsFullBackupSummary(result.notes, result.pdfs, result.regions)}',
+            '${strings.settingsFullBackupImported}: ${strings.settingsFullBackupSummary(result.notes, result.pdfs, result.regions)}'
+            '${result.skippedFiles == 0 ? '' : '\n${strings.settingsFullBackupSkippedFiles(result.skippedFiles)}'}',
           ),
         ),
       );

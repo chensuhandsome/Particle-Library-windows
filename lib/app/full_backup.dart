@@ -37,6 +37,10 @@ class FullBackup {
     var pdfs = 0;
     var regions = 0;
     var missingRegions = 0;
+    // The archive is built beside the destination and renamed into place when
+    // it is complete, so a failure can never remove an existing backup that
+    // the user chose to overwrite.
+    final partialPath = '$destinationPath.partial';
     try {
       // Region images are listed before backup.json is written: a note can
       // point at an image that is no longer on this device (it came in from a
@@ -55,6 +59,9 @@ class FullBackup {
           if (entity is! File || !entity.path.toLowerCase().endsWith('.png')) {
             continue;
           }
+          // An empty or truncated file (left by an interrupted write) would
+          // make the backup unrestorable; treat it like a missing image.
+          if (!await _startsWith(entity, _pngSignature)) continue;
           regionFiles.add(entity);
         }
       }
@@ -73,7 +80,7 @@ class FullBackup {
         'user': user.exportData(),
         'notes': notePayload,
       };
-      encoder.create(destinationPath);
+      encoder.create(partialPath);
       final bytes = utf8.encode(
         const JsonEncoder.withIndent('  ').convert(payload),
       );
@@ -101,6 +108,9 @@ class FullBackup {
         regions++;
       }
       await encoder.close();
+      final destination = File(destinationPath);
+      if (await destination.exists()) await destination.delete();
+      await File(partialPath).rename(destinationPath);
       return FullBackupExport(
         notes: notes == null ? 0 : (notePayload['notes'] as List).length,
         pdfs: pdfs,
@@ -112,7 +122,7 @@ class FullBackup {
         await encoder.close();
       } catch (_) {}
       try {
-        final partial = File(destinationPath);
+        final partial = File(partialPath);
         if (await partial.exists()) await partial.delete();
       } catch (_) {}
       rethrow;
@@ -149,9 +159,12 @@ class FullBackup {
     final file = File(sourcePath);
     Map<String, Object?> payload;
     // Archive members are unpacked one at a time into a scratch directory and
-    // checked there, so a backup is judged as a whole before anything in the
-    // user's data is touched and memory never holds more than one member.
+    // checked there, so memory never holds more than one member and nothing
+    // reaches the user's folders unchecked. A member that fails a check is
+    // left out and counted; it never stops the notes and settings in the same
+    // backup from being restored.
     final staged = <_StagedFile>[];
+    var skippedFiles = 0;
     Directory? scratch;
     InputFileStream? input;
     try {
@@ -175,14 +188,14 @@ class FullBackup {
           if (!isPdf && !isRegion) continue;
           final name = entry.name.split('/').last;
           if (!_isSafeFileName(name)) continue;
-          if (++restoredFiles > _maxRestoredFiles) {
-            throw const FormatException('备份中的文件数量异常');
-          }
           final limit = isPdf ? _maxPdfBytes : _maxPngBytes;
-          if (entry.size > limit ||
+          if (restoredFiles >= _maxRestoredFiles ||
+              entry.size > limit ||
               restoredBytes + entry.size > _maxRestoredBytes) {
-            throw FormatException('备份中的文件过大：${entry.name}');
+            skippedFiles++;
+            continue;
           }
+          restoredFiles++;
           scratch ??= await Directory.systemTemp.createTemp(
             'particle-restore-',
           );
@@ -200,9 +213,9 @@ class FullBackup {
                 unpacked,
                 isPdf ? _pdfSignature : _pngSignature,
               )) {
-            throw FormatException(
-              '备份中的文件不是有效的 ${isPdf ? 'PDF' : 'PNG'}：${entry.name}',
-            );
+            await unpacked.delete();
+            skippedFiles++;
+            continue;
           }
           restoredBytes += length;
           staged.add(
@@ -244,19 +257,9 @@ class FullBackup {
         }
         _rewriteRegionPaths(rawNotes, regionPaths);
       }
-      var importedNotes = 0;
-      var renamedCollections = const <String>[];
-      if (rawNotes != null && notes != null) {
-        final result = await notes.importJson(rawNotes);
-        importedNotes = result.added;
-        renamedCollections = result.renamedCollections;
-      }
-      // Import notes first: a malformed notes payload must not overwrite the
-      // user's settings before it is rejected.
-      final rawUser = payload['user'];
-      if (isFull && rawUser is Map) {
-        await user.importData(Map<String, Object?>.from(rawUser));
-      }
+      // Files go into place first: a full disk or an unusable name then stops
+      // the restore before any note or setting has been changed, and files
+      // already placed are simply kept on a retry.
       var restoredPdfs = 0;
       var restoredRegions = 0;
       if (staged.isNotEmpty) {
@@ -284,12 +287,26 @@ class FullBackup {
           }
         }
       }
+      var importedNotes = 0;
+      var renamedCollections = const <String>[];
+      if (rawNotes != null && notes != null) {
+        final result = await notes.importJson(rawNotes);
+        importedNotes = result.added;
+        renamedCollections = result.renamedCollections;
+      }
+      // Import notes before settings: a malformed notes payload must not
+      // overwrite the user's settings before it is rejected.
+      final rawUser = payload['user'];
+      if (isFull && rawUser is Map) {
+        await user.importData(Map<String, Object?>.from(rawUser));
+      }
       return FullBackupImport(
         full: isFull,
         notes: importedNotes,
         pdfs: restoredPdfs,
         regions: restoredRegions,
         renamedCollections: renamedCollections,
+        skippedFiles: skippedFiles,
       );
     } finally {
       try {
@@ -329,6 +346,7 @@ class FullBackup {
   /// app never writes a name starting with a dot or holding a separator.
   static bool _isSafeFileName(String name) =>
       name.isNotEmpty &&
+      name.length <= 128 &&
       !name.startsWith('.') &&
       !name.contains('..') &&
       !RegExp(r'[\\\x00-\x1f]').hasMatch(name);
@@ -338,8 +356,19 @@ class FullBackup {
     try {
       await from.rename(to.path);
     } on FileSystemException {
-      // The scratch directory can sit on another volume.
-      await from.copy(to.path);
+      // The scratch directory can sit on another volume. Copy beside the
+      // target and rename, so a copy cut short never leaves a partial file
+      // under the real name (the never-overwrite rule would keep it).
+      final partial = File('${to.path}.partial');
+      try {
+        await from.copy(partial.path);
+        await partial.rename(to.path);
+      } catch (_) {
+        try {
+          if (await partial.exists()) await partial.delete();
+        } catch (_) {}
+        rethrow;
+      }
     }
   }
 
@@ -463,6 +492,7 @@ class FullBackupImport {
     required this.pdfs,
     this.regions = 0,
     this.renamedCollections = const <String>[],
+    this.skippedFiles = 0,
   });
 
   final bool full;
@@ -470,4 +500,8 @@ class FullBackupImport {
   final int pdfs;
   final int regions;
   final List<String> renamedCollections;
+
+  /// Archive members that were left out because they were not a valid PDF or
+  /// PNG, were too large, or had an unusable name.
+  final int skippedFiles;
 }

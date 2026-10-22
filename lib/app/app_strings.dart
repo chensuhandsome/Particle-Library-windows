@@ -1525,6 +1525,10 @@ class AppStrings {
     '$count region screenshots are not on this device; those annotations are '
         'saved as needing a refresh and can be regenerated in the reader.',
   );
+  String settingsFullBackupSkippedFiles(int count) => _t(
+    '$count 个文件不是有效的 PDF/PNG 或过大，已跳过。',
+    '$count files were not valid PDFs/PNGs or were too large and were skipped.',
+  );
   String settingsFullBackupSummary(int notes, int pdfs, [int regions = 0]) {
     final regionSuffix = regions == 0
         ? ''

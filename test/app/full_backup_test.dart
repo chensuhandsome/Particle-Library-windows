@@ -308,6 +308,120 @@ void main() {
     await sourceNotes.close();
     await targetNotes.close();
   });
+  group('exporting a backup', () {
+    test('a failed export leaves an existing backup in place', () async {
+      final dir = await Directory.systemTemp.createTemp('particle-export-');
+      addTearDown(() => dir.delete(recursive: true));
+      final user = await UserStore.open(overridePath: '${dir.path}/user.json');
+      final notes = await NotesStore.open(overridePath: '${dir.path}/notes.db');
+      addTearDown(notes.close);
+      final destination = File('${dir.path}/backup.zip');
+      await destination.writeAsString('the previous backup');
+      // The archive is built in "<destination>.partial"; a directory in the
+      // way makes that fail before anything is written.
+      await Directory('${destination.path}.partial').create();
+
+      await expectLater(
+        FullBackup.export(
+          user: user,
+          notes: notes,
+          destinationPath: destination.path,
+          reviewRegionsDirectory: Directory('${dir.path}/regions'),
+        ),
+        throwsA(anything),
+      );
+      expect(await destination.readAsString(), 'the previous backup');
+    });
+
+    test(
+      'an export replaces an existing backup only when it is complete',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('particle-export-');
+        addTearDown(() => dir.delete(recursive: true));
+        final user = await UserStore.open(
+          overridePath: '${dir.path}/user.json',
+        );
+        final notes = await NotesStore.open(
+          overridePath: '${dir.path}/notes.db',
+        );
+        addTearDown(notes.close);
+        await notes.create(title: 'kept', bodyMarkdown: 'x');
+        final destination = File('${dir.path}/backup.zip');
+        await destination.writeAsString('the previous backup');
+
+        final result = await FullBackup.export(
+          user: user,
+          notes: notes,
+          destinationPath: destination.path,
+          reviewRegionsDirectory: Directory('${dir.path}/regions'),
+        );
+        expect(result.notes, 1);
+        expect(File('${destination.path}.partial').existsSync(), isFalse);
+        final entries = ZipDecoder().decodeBytes(
+          await destination.readAsBytes(),
+        );
+        expect(entries.files.map((f) => f.name), contains('backup.json'));
+      },
+    );
+
+    test(
+      'an empty or truncated screenshot does not make the backup unrestorable',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('particle-export-');
+        addTearDown(() => dir.delete(recursive: true));
+        final user = await UserStore.open(
+          overridePath: '${dir.path}/user.json',
+        );
+        final notes = await NotesStore.open(
+          overridePath: '${dir.path}/notes.db',
+        );
+        addTearDown(notes.close);
+        final regions = Directory('${dir.path}/regions')..createSync();
+        File('${regions.path}/region-1-1.png').writeAsBytesSync(<int>[]);
+        File('${regions.path}/region-2-1.png').writeAsBytesSync(_pngBytes);
+        await notes.create(
+          title: 'with image',
+          anchors: [
+            NoteAnchorInput.review(
+              '2026/review.pdf',
+              context: {
+                'schema': 1,
+                'kind': 'pdf_annotation',
+                'pageNumber': 1,
+                'imagePath': '${regions.path}/region-1-1.png',
+                'rects': [
+                  [0.1, 0.1, 0.2, 0.2],
+                ],
+              },
+            ),
+          ],
+        );
+        final archive = '${dir.path}/backup.zip';
+        final result = await FullBackup.export(
+          user: user,
+          notes: notes,
+          destinationPath: archive,
+          reviewRegionsDirectory: regions,
+        );
+        expect(result.regions, 1);
+        expect(result.missingRegions, 1);
+
+        final target = await NotesStore.open(
+          overridePath: '${dir.path}/target-notes.db',
+        );
+        addTearDown(target.close);
+        final imported = await FullBackup.import(
+          user: await UserStore.open(overridePath: '${dir.path}/tu.json'),
+          notes: target,
+          sourcePath: archive,
+          reviewRegionsDirectory: Directory('${dir.path}/restored-regions'),
+        );
+        expect(imported.skippedFiles, 0);
+        expect(imported.notes, 1);
+      },
+    );
+  });
+
   group('restoring an untrusted backup', () {
     late Directory dir;
     late UserStore user;
@@ -400,24 +514,49 @@ void main() {
       );
     });
 
-    test('a member that is not a PDF rejects the whole backup', () async {
-      final path = await writeBackup({
-        'reviews/rpp2026-rev-a.pdf': pdfBytes,
-        'reviews/rpp2026-rev-b.pdf': utf8.encode('<html>not a pdf</html>'),
-      });
-      await expectLater(restore(path), throwsA(isA<FormatException>()));
-      // Nothing was written: not the notes, not the genuine PDF.
-      expect(await notes.allForExport(includeDeleted: true), isEmpty);
-      expect(await filesIn(cache), isEmpty);
-    });
+    test(
+      'a member that is not a PDF is skipped, the rest is restored',
+      () async {
+        final path = await writeBackup({
+          'reviews/rpp2026-rev-a.pdf': pdfBytes,
+          'reviews/rpp2026-rev-b.pdf': utf8.encode('<html>not a pdf</html>'),
+        });
+        final result = await restore(path);
+        expect(result.skippedFiles, 1);
+        expect(result.pdfs, 1);
+        // The genuine PDF and the notes in the same backup are restored.
+        expect(await filesIn(cache), ['rpp2026-rev-a.pdf']);
+        expect(await notes.allForExport(includeDeleted: true), hasLength(1));
+      },
+    );
 
-    test('a member that is not a PNG rejects the whole backup', () async {
-      final path = await writeBackup({
-        'regions/region-1-1.png': utf8.encode('%PDF-1.7 pretending'),
-      });
-      await expectLater(restore(path), throwsA(isA<FormatException>()));
-      expect(await notes.allForExport(includeDeleted: true), isEmpty);
-      expect(await filesIn(regions), isEmpty);
+    test(
+      'a member that is not a PNG is skipped, the notes still come in',
+      () async {
+        final path = await writeBackup({
+          'regions/region-1-1.png': utf8.encode('%PDF-1.7 pretending'),
+          'regions/region-2-1.png': <int>[],
+          'regions/region-3-1.png': _pngBytes,
+        });
+        final result = await restore(path);
+        expect(result.skippedFiles, 2);
+        expect(result.regions, 1);
+        expect(await filesIn(regions), ['region-3-1.png']);
+        expect(await notes.allForExport(includeDeleted: true), hasLength(1));
+      },
+    );
+
+    test('a name too long for the file system is left out', () async {
+      final longName = '${'a' * 200}.png';
+      final result = await restore(
+        await writeBackup({
+          'regions/$longName': _pngBytes,
+          'regions/region-1-1.png': _pngBytes,
+        }),
+      );
+      expect(result.regions, 1);
+      expect(await filesIn(regions), ['region-1-1.png']);
+      expect(await notes.allForExport(includeDeleted: true), hasLength(1));
     });
 
     test('a cached review or screenshot is never replaced', () async {
