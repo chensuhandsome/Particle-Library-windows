@@ -250,11 +250,21 @@ class _Version {
   }
 }
 
+/// Whether [url] may be opened from the update dialog: an https address with a
+/// host. The manifest comes from a CDN or a mirror and is not signed, so a
+/// plain-http or host-less link is never offered.
+bool isSafeUpdateUrl(String url) {
+  final uri = Uri.tryParse(url);
+  return uri != null && uri.scheme == 'https' && uri.host.isNotEmpty;
+}
+
 Future<void> showUpdateAvailableDialog(
   BuildContext context,
   AppStrings strings,
   UpdateInfo info,
 ) async {
+  final safeUrl = isSafeUpdateUrl(info.url);
+  final host = Uri.tryParse(info.url)?.host ?? '';
   final open = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
@@ -263,9 +273,13 @@ Future<void> showUpdateAvailableDialog(
         constraints: const BoxConstraints(maxWidth: 480, maxHeight: 320),
         child: SingleChildScrollView(
           child: Text(
-            info.notes.isEmpty
-                ? strings.updateAvailableMessage
-                : '${strings.updateAvailableMessage}\n\n${info.notes}',
+            // The page the button opens is shown, so a manifest that points
+            // somewhere unexpected is visible before it is followed.
+            [
+              strings.updateAvailableMessage,
+              if (info.notes.isNotEmpty) info.notes,
+              if (host.isNotEmpty) host,
+            ].join('\n\n'),
           ),
         ),
       ),
@@ -275,7 +289,7 @@ Future<void> showUpdateAvailableDialog(
           child: Text(strings.updateLater),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
+          onPressed: safeUrl ? () => Navigator.of(context).pop(true) : null,
           child: Text(strings.updateOpen),
         ),
       ],
@@ -283,7 +297,7 @@ Future<void> showUpdateAvailableDialog(
   );
   if (open != true) return;
   final uri = Uri.tryParse(info.url);
-  if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+  if (uri != null && isSafeUpdateUrl(info.url)) {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
