@@ -73,7 +73,9 @@ class _ResizableContextSidebarState extends State<ResizableContextSidebar> {
         final next = (width - delta).clamp(_minWidth, _maxWidth);
         // Pulling the rail all the way to its minimum collapses it, and the
         // app-bar toggle can bring it back.
-        if (delta < 0 && next <= _minWidth + 2) {
+        // The handle is on the panel's left edge, so dragging right (delta > 0)
+        // narrows it: that is the direction that collapses.
+        if (delta > 0 && next <= _minWidth + 2) {
           _contextSidebarOverride = null;
           unawaited(AppScope.of(context).settings.setSidebarMode('off'));
           return;
