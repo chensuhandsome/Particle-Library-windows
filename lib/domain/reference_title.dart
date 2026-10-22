@@ -12,7 +12,9 @@ String cleanReferenceTitle(String source) {
   final fragment = html.parseFragment(_protectLiteralAngles(source));
   var text = _renderNodes(fragment.nodes);
   text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-  return text.replaceAll('+-', '±');
+  // "+-" is the ASCII plus-minus, except before an arrow: in "mu+->e+gamma" it
+  // is a charge sign followed by "->".
+  return text.replaceAll(RegExp(r'\+-(?!>)'), '±');
 }
 
 String _renderNodes(Iterable<Node> nodes) => nodes.map(_renderNode).join();
@@ -55,8 +57,11 @@ String _renderNode(Node node) {
   if (node is Text) return node.data;
   if (node is! Element) return '';
   final tag = (node.localName ?? '').split(':').last;
-  final children = _renderNodes(node.nodes);
-  final mathChildren = _renderMathNodes(node.nodes);
+  // Rendered on first use, and each at most once. Rendering both for every
+  // element made the cost double with each level of nesting: a title with 30
+  // nested tags took minutes.
+  late final children = _renderNodes(node.nodes);
+  late final mathChildren = _renderMathNodes(node.nodes);
   switch (tag) {
     case 'script':
     case 'style':

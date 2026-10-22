@@ -54,12 +54,9 @@ String? _quantumValue(String source) {
       : null;
   if (baseLatex == null) return null;
   if (suffix.isEmpty || suffix == '?') return '$baseLatex$suffix';
-  final suffixLatex = switch (suffix) {
-    '+-' => r'\pm',
-    '-+' => r'\mp',
-    _ => suffix,
-  };
-  return '$baseLatex^{$suffixLatex}';
+  // The signs of J^{PC} (and of I^G) are parities: "-+" is P = -, C = +, not
+  // a minus-plus sign, so they are written as they are.
+  return '$baseLatex^{$suffix}';
 }
 
 String? particleNameToLatex(String source) {
@@ -101,7 +98,11 @@ String? particleNameToLatex(String source) {
   }
   charge ??= caretCharge;
 
-  // Empty mass placeholders such as `B_s()0` and `D_s^*()+`.
+  // Empty mass placeholders such as `B_s()0` and `D_s^*()+`, or inside a mass
+  // label (`m(D^*()+)`). A "()" followed by a letter is PDG's separator between
+  // two things (`mu^2()A`: a square, then a separate A), not a placeholder, and
+  // dropping it would fuse them into one script.
+  if (RegExp(r'\(\)[A-Za-z]').hasMatch(name)) return null;
   name = name.replaceAll('()', '');
 
   // Mass label in parentheses.
@@ -142,6 +143,15 @@ String? particleNameToLatex(String source) {
   }
   final sub = subParts.isEmpty ? null : subParts;
   final sup = supParts.isEmpty ? null : supParts.join();
+  // A script made of primes and stars is a mark on the symbol; one that also
+  // holds letters or digits after a prime (`x^'2`, `V(t^'b)`) is ambiguous, so
+  // the raw text is kept rather than a rendering that drops those characters.
+  if (sup != null &&
+      RegExp(r"['\u2032]").hasMatch(sup) &&
+      RegExp(r'[A-Za-z0-9]').hasMatch(sup) &&
+      !RegExp(r"^[*'\u2032]*['\u2032]\d+$").hasMatch(sup)) {
+    return null;
+  }
 
   if (name.isEmpty) return null;
   if (name.contains(RegExp(r'[^A-Za-z/]'))) return null;
@@ -255,7 +265,9 @@ String _subPartsLatex(List<String> parts) {
 }
 
 String _supPartLatex(String part) {
-  if (part.contains("'")) return r"\prime";
+  // Primes keep whatever stands beside them: `'2` (x'^2) is a prime and an
+  // exponent in one script, not a prime alone.
+  if (part.contains("'")) return part.replaceAll("'", r'\prime ').trimRight();
   if (part == '+-') return r'\pm';
   if (part == '-+') return r'\mp';
   return part;
@@ -509,6 +521,10 @@ String? textTokenToLatex(String token) {
   final simplified = normalized.replaceAll(RegExp(r'[{}]'), '');
   final particle = particleNameToLatex(simplified);
   if (particle != null) return particle;
+  // A year with capital letters ("2019AT") is the end of a reference label
+  // ("SIRUNYAN 2019AT"), not an expression: converting it changed the case and
+  // split the label so it could no longer be recognised as a citation.
+  if (RegExp(r'^(?:19|20)\d{2}[A-Z]{1,3}$').hasMatch(trimmed)) return null;
   if (RegExp(r'^[0-9]+[A-Za-z]').hasMatch(trimmed)) {
     final expression = convertPdgExpression(trimmed);
     if (expression != null) return expression;
@@ -635,6 +651,15 @@ List<PdgTextSegment> _segmentPdgTextUncached(String original) {
     (match) => '${match.group(1)}${match.group(2)}',
   );
   source = source.replaceAll(RegExp(r'\\mathit\s+'), r'\mathit');
+  // `allowbreak` is a TeX line-break hint that survived into the text; it is no
+  // part of the physics (`(rho pi)^-allowbreak nu_tau`).
+  source = source.replaceAll('allowbreak', '');
+  // `lambda_{{333}}^'()not=0`: "not=" is text after the symbol, not part of its
+  // script; separate it so the symbol converts on its own.
+  source = source.replaceAllMapped(
+    RegExp(r"(['\u2032)])not="),
+    (match) => '${match.group(1)} not=',
+  );
 
   final segments = <PdgTextSegment>[];
   var plainStart = 0;
@@ -669,6 +694,14 @@ List<PdgTextSegment> _segmentPdgTextUncached(String original) {
         plainStart = index;
         continue;
       }
+    }
+    // A reference label ("ABLIKIM 2014C", "AUBERT,B 2006B") is prose. Read as
+    // an expression, its letters became symbols ("1994G" -> 1994Γ, "2019N" ->
+    // 2019 followed by an N), and the label could no longer be recognised.
+    final labelEnd = _referenceLabelEnd(source, index);
+    if (labelEnd > index) {
+      index = labelEnd;
+      continue;
     }
     final arrowLength = _arrowLength(source, index);
     if (arrowLength > 0) {
@@ -735,6 +768,21 @@ List<PdgTextSegment> _segmentPdgTextUncached(String original) {
   return _withMeasurements(segments);
 }
 
+/// An author name followed by a year and capital-letter suffix, as in PDG
+/// reference labels: `ABLIKIM 2014C`, `DEL-AMO-SANCHEZ 2011K`, `AUBERT,B 2006B`.
+final RegExp _referenceLabel = RegExp(
+  r"[A-Z][A-Z'\-]+(?:,[A-Z]{1,3})?\s+(?:19|20)\d{2}[A-Z]{0,3}(?![A-Za-z0-9_^({*])",
+);
+
+/// End of the reference label that starts at [index], or [index] when none does.
+int _referenceLabelEnd(String source, int index) {
+  if (index > 0 && RegExp(r'[A-Za-z0-9]').hasMatch(source[index - 1])) {
+    return index;
+  }
+  final match = _referenceLabel.matchAsPrefix(source, index);
+  return match == null ? index : match.end;
+}
+
 /// Measurement values such as `185.54+-0.06` and `-0.71+-0.96+-0.19` are
 /// written with ASCII `+-` in the database. Typesetting them as `\pm` keeps
 /// the uncertainty readable instead of leaving an operator that looks like a
@@ -770,10 +818,9 @@ List<PdgTextSegment> _withMeasurements(List<PdgTextSegment> segments) {
 }
 
 String _measurementLatex(String source) {
-  final normalized = source.replaceAll('±', '+-').replaceAll(
-    RegExp(r'\s+'),
-    '',
-  );
+  final normalized = source
+      .replaceAll('±', '+-')
+      .replaceAll(RegExp(r'\s+'), '');
   final parts = normalized.split('+-');
   final buffer = StringBuffer(parts.first);
   for (var i = 1; i < parts.length; i++) {
