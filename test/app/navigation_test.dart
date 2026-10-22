@@ -303,4 +303,69 @@ void main() {
     expect(controller.topIsImmersive, isTrue);
     expect(hub.tabChromeHidden, isTrue);
   });
+  testWidgets('forward can be repeated through several pages', (tester) async {
+    final hub = NavigationHub();
+    final controller = NavigationController(
+      hub: hub,
+      rootBuilder: (_) => const Text('root'),
+    );
+    // As in the app, the controller is registered with the hub, which is what
+    // clears forward history when a page is pushed.
+    hub.registerTab('search', controller);
+    addTearDown(() {
+      controller.dispose();
+      hub.dispose();
+    });
+    await tester.pumpWidget(MaterialApp(home: _navigator(controller)));
+
+    controller.push<void>(const Text('one'));
+    await tester.pumpAndSettle();
+    controller.push<void>(const Text('two'));
+    await tester.pumpAndSettle();
+
+    controller.back();
+    await tester.pumpAndSettle();
+    controller.back();
+    await tester.pumpAndSettle();
+    expect(find.text('root'), findsOneWidget);
+    expect(controller.canGoForward, isTrue);
+
+    controller.forward();
+    await tester.pumpAndSettle();
+    expect(find.text('one'), findsOneWidget);
+    // The second page is still waiting to be replayed.
+    expect(controller.canGoForward, isTrue);
+
+    controller.forward();
+    await tester.pumpAndSettle();
+    expect(find.text('two'), findsOneWidget);
+    expect(controller.canGoForward, isFalse);
+    expect(hub.canGoForward, isFalse);
+  });
+
+  testWidgets('a new page after going back still discards the forward history', (
+    tester,
+  ) async {
+    final hub = NavigationHub();
+    final controller = NavigationController(
+      hub: hub,
+      rootBuilder: (_) => const Text('root'),
+    );
+    hub.registerTab('search', controller);
+    addTearDown(() {
+      controller.dispose();
+      hub.dispose();
+    });
+    await tester.pumpWidget(MaterialApp(home: _navigator(controller)));
+
+    controller.push<void>(const Text('one'));
+    await tester.pumpAndSettle();
+    controller.back();
+    await tester.pumpAndSettle();
+    expect(controller.canGoForward, isTrue);
+
+    controller.push<void>(const Text('other'));
+    await tester.pumpAndSettle();
+    expect(controller.canGoForward, isFalse);
+  });
 }

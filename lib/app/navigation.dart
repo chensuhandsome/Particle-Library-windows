@@ -32,6 +32,12 @@ class NavigationController extends NavigatorObserver with ChangeNotifier {
   final List<_NavEntry> _entries;
   final List<_NavEntry> _forward = <_NavEntry>[];
   bool _suppressForward = false;
+
+  /// True while [forward] pushes a page from the forward stack. The push is
+  /// reported to [didPush] like any other, and a new push clears the forward
+  /// history, which would remove the entries that are still waiting to be
+  /// replayed (Back, Back, Forward, Forward).
+  bool _replayingForward = false;
   VoidCallback? _rootBack;
 
   /// Optional action used when the stack is already at its root (for example
@@ -93,7 +99,12 @@ class NavigationController extends NavigatorObserver with ChangeNotifier {
     entry.route = route;
     _entries.add(entry);
     hub.notifyHistoryChanged();
-    navigator.push(route);
+    _replayingForward = true;
+    try {
+      navigator.push(route);
+    } finally {
+      _replayingForward = false;
+    }
   }
 
   /// Clear this stack back to its root page. Used by the Home action and by
@@ -133,6 +144,10 @@ class NavigationController extends NavigatorObserver with ChangeNotifier {
         // Flutter's license page). It can still be popped, but it cannot be
         // replayed from the forward stack.
         _entries.add(_NavEntry(null, route: route));
+      }
+      if (_replayingForward) {
+        hub.notifyHistoryChanged();
+        return;
       }
       hub.notePushed(this);
       return;
