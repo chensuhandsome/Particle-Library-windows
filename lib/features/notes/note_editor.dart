@@ -1235,11 +1235,12 @@ class _NoteEditorState extends State<NoteEditor> with WidgetsBindingObserver {
 
   void _toggleFloatingLookup(AppServices scope, Size size) {
     if (_lookupOverlay != null) {
-      if (_lookupOverlay!.mounted) {
+      // Open (shown or hidden behind a dialog): this press closes it. A panel
+      // that was closed from outside is no longer registered.
+      if (FloatingPanelHost.isOpen(_lookupOverlay!)) {
         _closeFloatingLookup();
         return;
       }
-      FloatingPanelHost.unregister(_lookupOverlay!);
       _lookupOverlay = null;
     }
     final overlay = Overlay.of(context, rootOverlay: true);

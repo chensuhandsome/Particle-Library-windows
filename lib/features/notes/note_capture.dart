@@ -110,8 +110,14 @@ Future<void> captureTextToNote(
         ].join('\n\n');
   final NoteRecord record;
   try {
-    if (choice.existing != null) {
-      final note = choice.existing!;
+    // The dialog worked from a snapshot taken before it opened. Append to the
+    // note as it is now: an autosave while the dialog was open would otherwise
+    // make the update conflict and drop the captured text. A note that has
+    // been deleted meanwhile gets a new note instead of losing the text.
+    final picked = choice.existing;
+    final target = picked == null ? null : await store.noteById(picked.id);
+    if (target != null) {
+      final note = target;
       final body = note.bodyMarkdown.trim().isEmpty
           ? quote
           : '${note.bodyMarkdown.trim()}\n\n$quote';
@@ -164,7 +170,7 @@ Future<void> captureTextToNote(
     }
     if (const bool.fromEnvironment('PDG_REVIEW_TRACE')) {
       debugPrint(
-        'NOTE capture existing=${choice.existing?.id} saved=${record.id} '
+        'NOTE capture existing=${target?.id} saved=${record.id} '
         'bodyLen=${record.bodyMarkdown.length} rev=${record.revision} '
         'anchors=${record.anchors.length}',
       );

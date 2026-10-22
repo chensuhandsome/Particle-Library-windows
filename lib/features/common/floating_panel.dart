@@ -2,39 +2,56 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Non-modal, draggable and resizable panel rendered in an [Overlay].
-///
-/// Unlike a dialog it has no barrier: the page below stays interactive, which
-/// is what the notes editor needs for a PDG lookup window that can sit next to
-/// the text while the user keeps typing.
+class _HostedPanel {
+  _HostedPanel(this.entry, this.overlay);
+
+  final OverlayEntry entry;
+  final OverlayState overlay;
+
+  /// Whether [entry] is currently inserted in [overlay]. Tracked here because
+  /// `OverlayEntry.mounted` only says whether the entry's widget has been
+  /// built: it is false for a frame after `insert` and still true for a frame
+  /// after `remove`, so it cannot decide whether `remove` is safe.
+  bool inserted = true;
+}
+
 /// Tracks the floating panels currently inserted in overlays so a modal
 /// dialog can hide them (they sit above route overlays) and restore them.
 class FloatingPanelHost {
-  static final List<({OverlayEntry entry, OverlayState overlay})> _active = [];
+  static final List<_HostedPanel> _active = [];
 
+  /// Registers [entry]; call it immediately before inserting it in [overlay].
   static void register(OverlayEntry entry, OverlayState overlay) {
-    _active.add((entry: entry, overlay: overlay));
+    _active.add(_HostedPanel(entry, overlay));
   }
 
   static void unregister(OverlayEntry entry) {
-    _active.removeWhere((item) => identical(item.entry, entry));
+    _active.removeWhere((panel) => identical(panel.entry, entry));
   }
 
+  /// Whether [entry] is still registered (shown, or hidden by [suspendAll]).
+  static bool isOpen(OverlayEntry entry) =>
+      _active.any((panel) => identical(panel.entry, entry));
+
   static void suspendAll() {
-    for (final item in List.of(_active)) {
-      if (item.entry.mounted) item.entry.remove();
+    for (final panel in List.of(_active)) {
+      if (!panel.inserted) continue;
+      panel.entry.remove();
+      panel.inserted = false;
     }
   }
 
   static void resumeAll() {
-    for (final item in List.of(_active)) {
-      if (!item.entry.mounted) item.overlay.insert(item.entry);
+    for (final panel in List.of(_active)) {
+      if (panel.inserted || !panel.overlay.mounted) continue;
+      panel.overlay.insert(panel.entry);
+      panel.inserted = true;
     }
   }
 
   static void closeAll() {
-    for (final item in List.of(_active)) {
-      if (item.entry.mounted) item.entry.remove();
+    for (final panel in List.of(_active)) {
+      if (panel.inserted) panel.entry.remove();
     }
     _active.clear();
   }
@@ -46,11 +63,19 @@ class FloatingPanelHost {
   /// of the overlay. Removing such an entry again throws, which in a `dispose`
   /// would skip everything after it.
   static void dismiss(OverlayEntry entry) {
-    unregister(entry);
-    if (entry.mounted) entry.remove();
+    for (final panel in List.of(_active)) {
+      if (!identical(panel.entry, entry)) continue;
+      if (panel.inserted) entry.remove();
+      _active.remove(panel);
+    }
   }
 }
 
+/// Non-modal, draggable and resizable panel rendered in an [Overlay].
+///
+/// Unlike a dialog it has no barrier: the page below stays interactive, which
+/// is what the notes editor needs for a PDG lookup window that can sit next to
+/// the text while the user keeps typing.
 class FloatingPanel extends StatefulWidget {
   const FloatingPanel({
     super.key,

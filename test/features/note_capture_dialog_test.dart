@@ -212,4 +212,43 @@ void main() {
     expect(alpha.bodyMarkdown, 'alpha body');
     expect(await everything(), hasLength(3));
   });
+  testWidgets('Save appends to the note as it is now, not as listed', (
+    tester,
+  ) async {
+    final target = await makeNote('Target note', 'old body');
+    await openCapture(tester);
+
+    await tester.tap(find.text('Target note'));
+    await tester.pumpAndSettle();
+    // An autosave from an open editor changes the note while the dialog is up.
+    await notes.update(
+      target.id,
+      bodyMarkdown: 'typed while the dialog was open',
+      expectedRevision: target.revision,
+    );
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final body = (await notes.noteById(target.id))!.bodyMarkdown;
+    expect(body, contains('typed while the dialog was open'));
+    expect(body, contains('1870.0'));
+    expect(find.text('Saved to notes'), findsOneWidget);
+  });
+
+  testWidgets('a note deleted while the dialog was open gets a new note', (
+    tester,
+  ) async {
+    final target = await makeNote('Doomed note', 'body');
+    await openCapture(tester);
+
+    await tester.tap(find.text('Doomed note'));
+    await tester.pumpAndSettle();
+    await notes.delete(target.id);
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final all = await everything();
+    expect(all, hasLength(1));
+    expect(all.single.bodyMarkdown, contains('1870.0'));
+  });
 }

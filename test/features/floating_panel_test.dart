@@ -96,6 +96,50 @@ void main() {
       expect(() => FloatingPanelHost.dismiss(entry), returnsNormally);
     });
 
+    testWidgets('dismissing in the same frame as closeAll is safe', (
+      tester,
+    ) async {
+      final overlay = await pumpOverlay(tester);
+      final entry = panelEntry();
+      FloatingPanelHost.register(entry, overlay);
+      overlay.insert(entry);
+      await tester.pump();
+
+      // No frame between the two calls: the entry's widget is still built
+      // although it has been removed, which is what OverlayEntry.mounted sees.
+      FloatingPanelHost.closeAll();
+      expect(() => FloatingPanelHost.dismiss(entry), returnsNormally);
+      await tester.pump();
+      expect(find.text('panel'), findsNothing);
+    });
+
+    testWidgets('dismissing before the first frame still removes the panel', (
+      tester,
+    ) async {
+      final overlay = await pumpOverlay(tester);
+      final entry = panelEntry();
+      FloatingPanelHost.register(entry, overlay);
+      overlay.insert(entry);
+      // Inserted but not yet built.
+      FloatingPanelHost.dismiss(entry);
+      await tester.pump();
+      expect(find.text('panel'), findsNothing);
+      expect(FloatingPanelHost.isOpen(entry), isFalse);
+    });
+
+    testWidgets('isOpen follows register, suspend, close', (tester) async {
+      final overlay = await pumpOverlay(tester);
+      final entry = panelEntry();
+      FloatingPanelHost.register(entry, overlay);
+      overlay.insert(entry);
+      await tester.pump();
+      expect(FloatingPanelHost.isOpen(entry), isTrue);
+      FloatingPanelHost.suspendAll();
+      expect(FloatingPanelHost.isOpen(entry), isTrue);
+      FloatingPanelHost.closeAll();
+      expect(FloatingPanelHost.isOpen(entry), isFalse);
+    });
+
     testWidgets('an owner can dismiss an entry that is suspended', (
       tester,
     ) async {
