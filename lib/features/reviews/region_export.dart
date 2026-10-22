@@ -2,23 +2,26 @@ import 'dart:io';
 
 /// Where "Export Markdown" writes the note text and its region screenshot.
 ///
-/// [chosenPath] is what the save dialog returned. The extension is matched
-/// without regard to case (a dialog can hand back `X.MD`), and an existing
-/// image beside the chosen file is never overwritten: the screenshot gets the
-/// next free `-N` suffix instead.
+/// [chosenPath] is what the save dialog returned. It is the Markdown file as
+/// chosen (the extension is matched without regard to case, so `X.MD` stays
+/// `X.MD` and is not turned into a different file name); a name without the
+/// extension gains `.md`. The image goes beside it with the extension `.png`,
+/// and an existing image is never overwritten: the screenshot gets the next
+/// free `-N` suffix instead.
 ({String markdown, String image}) regionExportPaths(
   String chosenPath, {
   bool Function(String path)? exists,
 }) {
   final taken = exists ?? (path) => File(path).existsSync();
-  final stem = chosenPath.toLowerCase().endsWith('.md')
+  final hasExtension = chosenPath.toLowerCase().endsWith('.md');
+  final stem = hasExtension
       ? chosenPath.substring(0, chosenPath.length - 3)
       : chosenPath;
   var image = '$stem.png';
   for (var n = 1; taken(image); n++) {
     image = '$stem-$n.png';
   }
-  return (markdown: '$stem.md', image: image);
+  return (markdown: hasExtension ? chosenPath : '$chosenPath.md', image: image);
 }
 
 /// The Markdown body for an exported region: the screenshot, then the comment.

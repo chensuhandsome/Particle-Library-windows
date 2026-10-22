@@ -11,7 +11,8 @@ void main() {
 
     test('an upper-case extension never makes the image share the file', () {
       final paths = regionExportPaths('/tmp/NOTE.MD', exists: (_) => false);
-      expect(paths.markdown, '/tmp/NOTE.md');
+      // The file the user confirmed in the dialog is the one written.
+      expect(paths.markdown, '/tmp/NOTE.MD');
       expect(paths.image, '/tmp/NOTE.png');
       expect(paths.image, isNot(paths.markdown));
     });
