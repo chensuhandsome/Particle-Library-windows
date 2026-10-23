@@ -71,6 +71,7 @@ class AppStrings {
   String get searchScopeTitles => _t('性质 / 专题', 'Properties / topics');
   String get searchScopeDecays => _t('衰变', 'Decays');
   String get searchScopeReferences => _t('文献', 'References');
+  String get searchScopeReviews => _t('综述', 'Reviews');
   String get searchScopeNotes => _t('笔记', 'Notes');
   String get searchKindIdentifier => _t('标识符', 'Identifier');
   String get searchKindParticle => _t('粒子', 'Particles');
@@ -78,7 +79,29 @@ class AppStrings {
   String get searchKindDecay => _t('衰变模式', 'Decay modes');
   String get searchKindReference => _t('文献', 'References');
   String get searchKindText => _t('说明文本', 'Section text');
+  String get searchKindReview => _t('综述', 'Reviews');
   String get searchKindNote => _t('笔记', 'Notes');
+  String searchReviewPage(int page) => _t('PDF 第 $page 页', 'PDF page $page');
+  String searchReviewMore(int count) =>
+      _t('另有 $count 页匹配', '$count more matching pages');
+  String get searchReviewIndexUnavailable => _t(
+    '综述全文索引不可用，仅按标题搜索',
+    'Review text index unavailable; title search only',
+  );
+  String get searchReviewDownloading => _t('正在下载综述…', 'Downloading review…');
+  String get searchReviewPreparing => _t('正在连接…', 'Connecting…');
+  String searchReviewReceived(String bytes) =>
+      _t('已下载 $bytes', '$bytes downloaded');
+  String get searchReviewDownloadHint =>
+      _t('下载完成后自动打开', 'Opens automatically when the download finishes');
+  String get searchReviewDownloadFailed =>
+      _t('综述下载失败。', 'Review download failed.');
+  String get searchReviewOpenFailed =>
+      _t('无法打开综述。', 'Could not open the review.');
+  String get searchReviewPdfMismatch => _t(
+    'PDF 与检索版本不同，已改为打开首页；命中页可能偏移。',
+    'This PDF differs from the indexed version; opening page 1 instead. The matching page may have moved.',
+  );
 
   String get bootLoading =>
       _t('正在打开离线 PDG 数据…', 'Opening the offline PDG data…');
@@ -1324,12 +1347,11 @@ class AppStrings {
     '按下新的组合键；需要至少一个修饰键。Esc 取消。',
     'Press a new key combination. At least one modifier is required; Esc cancels.',
   );
-  String get settingsShortcutNeedsModifier =>
-      _t(
-        '请使用 ⌘/Ctrl；Alt 或 Shift 只能配合方向键、功能键等不输入字符的按键。',
-        'Use ⌘/Ctrl. Alt or Shift only work with keys that type nothing, '
-            'such as arrows and function keys.',
-      );
+  String get settingsShortcutNeedsModifier => _t(
+    '请使用 ⌘/Ctrl；Alt 或 Shift 只能配合方向键、功能键等不输入字符的按键。',
+    'Use ⌘/Ctrl. Alt or Shift only work with keys that type nothing, '
+        'such as arrows and function keys.',
+  );
   String settingsShortcutConflict(String command) => _t(
     '该组合键已被“$command”使用。',
     'That combination is already used by “$command”.',
@@ -1579,6 +1601,10 @@ class AppStrings {
       'mcNumber' => _t('MC 编号', 'MC number'),
       'titleMatch' => _t('标题命中', 'Title match'),
       'textMatch' => _t('说明文本命中', 'Section-text match'),
+      'reviewTitle' => _t('综述标题命中', 'Review title match'),
+      'reviewHeading' => _t('节标题命中', 'Section heading match'),
+      'reviewBody' => _t('正文命中', 'Body match'),
+      'reviewCaption' => _t('图表说明命中', 'Caption match'),
       'decayText' => _t('衰变原文命中', 'Decay-text match'),
       'referenceIdentifier' => _t('文献标识符', 'Reference identifier'),
       'referenceTitle' => _t('文献题目', 'Reference title'),
