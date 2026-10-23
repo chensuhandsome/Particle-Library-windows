@@ -22,6 +22,7 @@ import '../../data/zotero_inspire_api.dart';
 import '../../data/pdg_database.dart';
 import '../../domain/labels.dart';
 import '../common/export_file.dart';
+import '../common/import_types.dart';
 import '../common/page.dart';
 import '../common/raw_fields.dart';
 import '../common/ui.dart';
@@ -161,35 +162,30 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_fullBackupBusy) return;
     final scope = AppScope.of(context);
     final strings = scope.strings;
-    final file = await openFile(
-      acceptedTypeGroups: const [
-        XTypeGroup(
-          label: 'Particle Library backup',
-          extensions: ['zip', 'json'],
-        ),
-      ],
-    );
-    if (file == null || !mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(strings.settingsFullBackupImport),
-        content: Text(strings.settingsFullBackupConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(strings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(strings.commonConfirm),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
     setState(() => _fullBackupBusy = true);
     try {
+      final file = await openFile(
+        acceptedTypeGroups: const [fullBackupImportType],
+      );
+      if (file == null || !mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(strings.settingsFullBackupImport),
+          content: Text(strings.settingsFullBackupConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(strings.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(strings.commonConfirm),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
       final result = await FullBackup.import(
         user: scope.store,
         notes: scope.notes,

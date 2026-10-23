@@ -9,7 +9,7 @@ a GitHub **Release** when one is available; they do not need Flutter or Xcode.
 |---|---|---|
 | macOS 12+, universal | **Verified** | Release `.app` built and used for UI testing on macOS 15.6 arm64. |
 | iPhone/iPad | **Simulator and development-signed Release install verified** | A free Personal Team signed and launched both Debug and Release builds on an iPhone; TestFlight/App Store still needs a paid team. |
-| Android | **Scaffolded; signed preview APK** | arm64 smoke-tested on Android 15/API 35; API 24 and 32-bit APKs are built but not device-tested. |
+| Android | **Scaffolded; signed preview APK** | arm64-v8a only (no 32-bit); smoke-tested on Android 15/API 35, not on API 24. |
 | Windows | **Not generated** | Needs a Windows host/MSVC and a `windows/` scaffold. |
 | Linux | **Not generated** | Needs a Linux host/GTK and a `linux/` scaffold. |
 

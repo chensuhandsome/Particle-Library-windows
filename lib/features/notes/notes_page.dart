@@ -15,6 +15,7 @@ import '../../notes/notes.dart';
 import '../../notes/note_evidence.dart';
 import '../common/async_view.dart';
 import '../common/export_file.dart';
+import '../common/import_types.dart';
 import '../common/resize_handle.dart';
 import '../common/snack_bars.dart';
 import '../common/ui.dart';
@@ -1001,10 +1002,7 @@ class _NotesWorkspaceState extends State<NotesWorkspace> {
     );
   }
 
-  Future<XTypeGroup> _jsonType() async => const XTypeGroup(
-    label: 'Particle Library notes',
-    extensions: <String>['json'],
-  );
+  Future<XTypeGroup> _jsonType() async => notesJsonImportType;
 
   Future<void> _exportJsonFile() async {
     final store = widget.store;

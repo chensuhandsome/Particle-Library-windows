@@ -40,8 +40,7 @@ Prepare local release assets with:
 tool/release_assets.sh
 ```
 
-The script builds/checks all four assets (DMG, ZIP, arm64 APK, armeabi-v7a
-APK) and writes `SHA256SUMS.txt`. It does not publish or notarize. Android
+The script builds/checks all three assets (DMG, ZIP, arm64 APK) and writes `SHA256SUMS.txt`. It does not publish or notarize. Android
 builds need `JAVA_HOME` and the Android SDK configured as in
 [ANDROID.md](ANDROID.md).
 
@@ -50,6 +49,11 @@ builds need `JAVA_HOME` and the Android SDK configured as in
 0.1.x previews are published ad-hoc signed with an explicit Gatekeeper warning
 in the README. Production builds require a Developer ID Application certificate,
 Hardened Runtime, `notarytool` and `stapler`, verified with `spctl`.
+
+Android APKs are signed with the release key described in
+[ANDROID.md](ANDROID.md#signing). `tool/release_assets.sh` stops when the key is
+missing and prints each APK's signer digest, which must equal the digest
+recorded there. Never delete or regenerate that key.
 
 ## Update channel
 
@@ -79,4 +83,5 @@ announcing.
 - [ ] preview clearly labelled ad-hoc/un-notarized (production requires notarization)
 - [ ] iOS physical install and trust checked; TestFlight only with a paid team
 - [ ] README/requirements and update channel consistent
-- [ ] release notes and four-entry checksums attached
+- [ ] Android signer digest equals the one recorded in ANDROID.md; the key folder is backed up
+- [ ] release notes and three-entry checksums attached

@@ -20,8 +20,12 @@ fi
 
 flutter analyze
 flutter test
+# Android first: it stops at once when the signing key is missing (see
+# docs/development/ANDROID.md), before the slower macOS build.
+# arm64-v8a only; 32-bit devices are not supported. --split-per-abi is kept so the
+# build number stays above the 0.1.x arm64 APKs (it adds 2000 to the version code).
+flutter build apk --release --split-per-abi --target-platform android-arm64
 flutter build macos --release
-flutter build apk --release --split-per-abi
 
 APP="build/macos/Build/Products/Release/Particle Library.app"
 # Re-signing replaces the signature, and without --preserve-metadata the
@@ -48,8 +52,18 @@ ditto -c -k --sequesterRsrc --keepParent \
   "$OUT/Particle-Library-${VERSION}-macOS-universal.zip"
 cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
   "$OUT/Particle-Library-${VERSION}-Android-arm64-v8a.apk"
-cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
-  "$OUT/Particle-Library-${VERSION}-Android-armeabi-v7a.apk"
+
+# Show who signed the APKs; the digest must equal the one recorded in
+# docs/development/ANDROID.md, or installed copies cannot be updated.
+APKSIGNER="$(ls -d "${ANDROID_HOME:-$HOME/Library/Android/sdk}"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)"
+if [[ -n "$APKSIGNER" ]]; then
+  for apk in "$OUT"/*.apk; do
+    echo "$(basename "$apk"):"
+    "$APKSIGNER" verify --print-certs "$apk" | grep 'certificate SHA-256 digest'
+  done
+else
+  echo "apksigner not found; check the APK signer by hand before publishing." >&2
+fi
 
 (
   cd "$OUT"
