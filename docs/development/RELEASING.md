@@ -74,6 +74,22 @@ then the GitHub Releases API; a tag alone is not enough because the static
 manifest is checked first. Validate the manual check on a release build before
 announcing.
 
+## iOS / TestFlight
+
+1. Bump the build number (`version: 0.2.0+16`); every TestFlight upload needs a
+   new build number for the same marketing version.
+2. `flutter build ipa --release` (Xcode automatic signing with the paid team).
+3. The pdfrx PDFium xcframework ships without a dSYM, which makes App Store
+   Connect warn about `PDFium.framework`. Add one to the archive:
+   `tool/ios_pdfium_dsym.sh`
+4. Upload the **archive** from Xcode Organizer (Window → Organizer → Distribute
+   App → App Store Connect). Transporter uploads only the `.ipa` and cannot
+   carry the dSYMs.
+5. App Store Connect → TestFlight: wait for processing, answer export
+   compliance, add the build to the external group and submit the first build
+   of a new marketing version for Beta App Review. Internal testers need no
+   review.
+
 ## Checklist
 
 - [ ] bundle identifier unchanged and documented
