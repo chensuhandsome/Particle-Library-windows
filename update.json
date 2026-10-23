@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
-  "url": "https://github.com/fkguo/Particle-Library/releases/tag/v0.2.0",
-  "notes": "Particle Library 0.2.0 — saved reading position, sidebar notes with a split view, floating PDG lookup, related reviews, INSPIRE search history and help, and corrected PDG value display."
+  "version": "0.2.1",
+  "url": "https://github.com/fkguo/Particle-Library/releases/tag/v0.2.1",
+  "notes": "Particle Library 0.2.1 — offline full-text search across all 121 PDG Review PDFs, a persistent review download progress dialog, and a single-source app version."
 }
