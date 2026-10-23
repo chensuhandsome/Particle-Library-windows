@@ -164,8 +164,17 @@ docs/           设计与开发文档
 
 ## 引用
 
-如果在学术工作中使用 Particle Library，请引用归档的软件版本。Concept DOI
-始终指向最新归档版本：
+如果在学术工作中使用 Particle Library，请引用 Particle Data Group 最新版的
+*Review of Particle Physics*：
+
+```text
+F. Takahashi et al. (Particle Data Group),
+Review of Particle Physics,
+Int. J. Mod. Phys. A 41, 2630011 (2026).
+https://doi.org/10.1142/S0217751X26300115
+```
+
+本应用也有一个始终指向最新归档版本的 DOI：
 
 ```text
 Guo, Feng-Kun. Particle Library.

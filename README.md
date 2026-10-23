@@ -215,8 +215,17 @@ docs/           build, release and user documentation
 
 ## Citation
 
-If you use Particle Library in academic work, cite the archived software release.
-The concept DOI always resolves to the latest archived version:
+If you use Particle Library in academic work, please cite the latest version of
+the Review of Particle Physics by the Particle Data Group:
+
+```text
+F. Takahashi et al. (Particle Data Group),
+Review of Particle Physics,
+Int. J. Mod. Phys. A 41, 2630011 (2026).
+https://doi.org/10.1142/S0217751X26300115
+```
+
+This app also has a DOI which always resolves to the latest archived version:
 
 ```text
 Guo, Feng-Kun. Particle Library.
