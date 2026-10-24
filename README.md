@@ -172,9 +172,6 @@ The 209 references are those cited by the pdgLive notes. The official
 database's other references are not duplicated in this sidecar; their
 BibTeX/cite keys are fetched from INSPIRE on demand when needed.
 
-The app uses `io.github.fkguo.particlelibrary` as its bundle identifier.
-See [RELEASING.md](docs/development/RELEASING.md).
-
 ## Build from source
 
 - [Building Particle Library](docs/development/BUILDING.md)
