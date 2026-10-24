@@ -172,10 +172,6 @@ The 209 references are those cited by the pdgLive notes. The official
 database's other references are not duplicated in this sidecar; their
 BibTeX/cite keys are fetched from INSPIRE on demand when needed.
 
-These are companion assets, not patches to `pdgall-2026.0.sqlite`; they do not
-change its contents or checksum. Their generators, source manifests and query
-rules live in `tool/` and `assets/`.
-
 The app uses `io.github.fkguo.particlelibrary` as its bundle identifier.
 See [RELEASING.md](docs/development/RELEASING.md).
 

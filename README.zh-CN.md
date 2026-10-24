@@ -129,9 +129,6 @@ macOS 版已内置 PDG 快照，普通用户不需要 Flutter、Xcode 或源码�
 这 209 条是 pdgLive 注释实际引用的文献；官方数据库的其余文献不在这份 sidecar 中，
 需要 BibTeX/cite key 时按需向 INSPIRE 查询。
 
-它们是配套资产，**不是对 `pdgall-2026.0.sqlite` 打 patch**，不会改变官方库内容或校验和。
-生成脚本、来源清单和查询规则在 `tool/` 与 `assets/` 中。
-
 应用 Bundle ID 为 `io.github.fkguo.particlelibrary`。详见
 [RELEASING.md](docs/development/RELEASING.md)。
 
