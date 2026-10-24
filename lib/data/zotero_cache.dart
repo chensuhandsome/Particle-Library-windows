@@ -1,8 +1,8 @@
+import '../core/app_paths.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
-import 'package:path_provider/path_provider.dart';
 
 import 'zotero_bridge.dart';
 
@@ -74,7 +74,7 @@ class ZoteroCacheIndex {
   }
 
   static Future<File> defaultFile() async {
-    final support = await getApplicationSupportDirectory();
+    final support = await appSupportDirectory();
     return File('${support.path}/ParticleDesk/zotero_index.json');
   }
 
@@ -165,7 +165,12 @@ class ZoteroCacheBuilder {
         final totalHeader = response.headers.value('total-results');
         final total = int.tryParse(totalHeader ?? '');
         if (total != null && total > 0) sourceItems = total;
-        final body = await response.transform(utf8.decoder).join();
+        // A listener on the port that accepts the connection and then stalls
+        // must not leave the index update (and every later one) waiting.
+        final body = await response
+            .transform(utf8.decoder)
+            .join()
+            .timeout(const Duration(seconds: 30));
         final decoded = jsonDecode(body);
         if (decoded is! List) {
           throw const ZoteroCacheException('Zotero 返回了无法识别的数据');

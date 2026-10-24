@@ -51,4 +51,45 @@ void main() {
     expect(defaults.first.keyId, LogicalKeyboardKey.comma.keyId);
     expect(defaults.last.keyId, LogicalKeyboardKey.digit4.keyId);
   });
+  group('combinations that would take typing away', () {
+    final z = LogicalKeyboardKey.keyZ.keyId;
+    final left = LogicalKeyboardKey.arrowLeft.keyId;
+    final f5 = LogicalKeyboardKey.f5.keyId;
+
+    test('Shift or Alt with a letter is not usable', () {
+      expect(AppShortcutBinding(keyId: z, shift: true).isUsable, isFalse);
+      expect(AppShortcutBinding(keyId: z, alt: true).isUsable, isFalse);
+      expect(AppShortcutBinding(keyId: z).isUsable, isFalse);
+    });
+
+    test('Command or Control with a letter is usable', () {
+      expect(AppShortcutBinding(keyId: z, meta: true).isUsable, isTrue);
+      expect(AppShortcutBinding(keyId: z, control: true).isUsable, isTrue);
+      expect(
+        AppShortcutBinding(keyId: z, control: true, shift: true).isUsable,
+        isTrue,
+      );
+    });
+
+    test('Alt or Shift with an arrow or function key is usable', () {
+      expect(AppShortcutBinding(keyId: left, alt: true).isUsable, isTrue);
+      expect(AppShortcutBinding(keyId: f5, shift: true).isUsable, isTrue);
+    });
+
+    test('the defaults are all usable', () {
+      for (final command in AppShortcutCommand.values) {
+        for (final binding in AppShortcuts.defaultsFor(command)) {
+          expect(binding.isUsable, isTrue, reason: '$command ${binding.label()}');
+        }
+      }
+    });
+
+    test('a stored binding that would swallow typing is ignored', () {
+      expect(AppShortcutBinding.decode('shift.$z'), isNull);
+      expect(AppShortcutBinding.decode('shift+$z'), isNull);
+      expect(AppShortcutBinding.decode('alt+$z'), isNull);
+      expect(AppShortcutBinding.decode('alt+$left'), isNotNull);
+      expect(AppShortcutBinding.decode('meta+$z'), isNotNull);
+    });
+  });
 }

@@ -49,6 +49,17 @@ class AppShortcutBinding {
 
   bool get hasModifier => meta || control || alt || shift;
 
+  /// Whether the combination may be bound to an app command.
+  ///
+  /// Command/Control always may. With only Alt or Shift, a printable key would
+  /// be taken away from every text field (Shift+Z is a capital Z, Option+key
+  /// types a symbol), so only keys that print nothing (arrows, function keys;
+  /// their ids lie above the Unicode range) qualify.
+  bool get isUsable =>
+      meta || control || ((alt || shift) && keyId > _lastUnicodeKeyId);
+
+  static const int _lastUnicodeKeyId = 0x10ffff;
+
   SingleActivator get activator => SingleActivator(
     LogicalKeyboardKey(keyId),
     meta: meta,
@@ -77,13 +88,16 @@ class AppShortcutBinding {
     )) {
       return null;
     }
-    return AppShortcutBinding(
+    final binding = AppShortcutBinding(
       keyId: keyId,
       meta: modifiers.contains('meta'),
       control: modifiers.contains('control'),
       alt: modifiers.contains('alt'),
       shift: modifiers.contains('shift'),
     );
+    // A stored binding that would swallow typing (a settings file or backup
+    // from elsewhere) is ignored, and the default applies.
+    return binding.isUsable ? binding : null;
   }
 
   bool sameAs(AppShortcutBinding other) => encode() == other.encode();

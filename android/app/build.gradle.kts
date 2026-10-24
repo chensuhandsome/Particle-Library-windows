@@ -7,10 +7,45 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Release signing details are never in version control. The first of these
+// that applies is used:
+//   1. the file named by PARTICLE_LIBRARY_KEY_PROPERTIES (which must exist),
+//   2. android/key.properties,
+//   3. ~/.android-keys/particle-library/key.properties, which
+//      tool/create_android_key.sh writes next to the keystore it creates.
+val keyPropertiesOverride = System.getenv("PARTICLE_LIBRARY_KEY_PROPERTIES")
+    ?.takeIf { it.isNotBlank() }
+    ?.let { File(it) }
+val keystorePropertiesFile: File? = keyPropertiesOverride
+    ?: listOf(
+        rootProject.file("key.properties"),
+        File(System.getProperty("user.home"), ".android-keys/particle-library/key.properties"),
+    ).firstOrNull { it.isFile }
+
 val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("key.properties")
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+// Why a release build cannot be signed, or null when it can. Without a key
+// Android would build an unsigned APK that no device installs, and one signed
+// with the wrong key cannot update an installed copy, so release builds stop
+// instead of producing either.
+val signingProblem: String? = run {
+    if (keystorePropertiesFile == null || !keystorePropertiesFile.isFile) {
+        return@run "Release signing key not found" +
+            (keyPropertiesOverride?.let { " (PARTICLE_LIBRARY_KEY_PROPERTIES=${it.path})" } ?: "") +
+            ". Create one with tool/create_android_key.sh, or point " +
+            "PARTICLE_LIBRARY_KEY_PROPERTIES at an existing key.properties. " +
+            "See docs/development/ANDROID.md."
+    }
+    FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
+    val missing = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+        .filter { keystoreProperties.getProperty(it).isNullOrBlank() }
+    if (missing.isNotEmpty()) {
+        return@run "${keystorePropertiesFile.path} lacks: ${missing.joinToString(", ")}."
+    }
+    val storeFile = file(keystoreProperties.getProperty("storeFile"))
+    if (!storeFile.isFile) {
+        return@run "The keystore named in ${keystorePropertiesFile.path} does not exist: ${storeFile.path}."
+    }
+    null
 }
 
 android {
@@ -40,11 +75,11 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
+            if (signingProblem == null) {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
             }
         }
     }
@@ -53,6 +88,16 @@ android {
         release {
             signingConfig = signingConfigs.getByName("release")
         }
+    }
+}
+
+gradle.taskGraph.whenReady {
+    val packagesRelease = allTasks.any { task ->
+        task.project == project &&
+            Regex("^(assemble|bundle|package)\\w*Release\\w*$").matches(task.name)
+    }
+    if (packagesRelease && signingProblem != null) {
+        throw GradleException(signingProblem)
     }
 }
 

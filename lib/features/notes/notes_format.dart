@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../app/app_strings.dart';
+import '../../notes/note_evidence.dart';
 import '../../notes/notes.dart';
 
 /// Visible title for a note: the title, else the first body line, else a
@@ -126,6 +127,107 @@ bool noteMatchesQuery(NoteRecord note, String query) {
   return note.collections.any((c) => matches(c.name));
 }
 
+/// A reference anchor resolved enough to ask INSPIRE for a citation key.
+class ReferenceAnchorTarget {
+  const ReferenceAnchorTarget({this.doi, this.documentId});
+
+  final String? doi;
+  final String? documentId;
+}
+
+/// Unique reference targets in [notes], DOI first.
+List<ReferenceAnchorTarget> referenceTargetsForCiteKeys(
+  Iterable<NoteRecord> notes,
+) {
+  final seen = <String>{};
+  final result = <ReferenceAnchorTarget>[];
+  for (final note in notes) {
+    for (final anchor in note.anchors) {
+      if (anchor.targetKind != NoteTargetKinds.reference) continue;
+      final key = anchor.targetKey.trim();
+      String? doi;
+      String? documentId;
+      if (key.toLowerCase().startsWith('doi:')) {
+        doi = key.substring(4).trim();
+      } else if (key.toLowerCase().startsWith('doc:')) {
+        documentId = key.substring(4).trim();
+      }
+      if ((doi == null || doi.isEmpty) &&
+          (documentId == null || documentId.isEmpty)) {
+        continue;
+      }
+      final identity = 'doi:${doi ?? ''}|doc:${documentId ?? ''}';
+      if (seen.add(identity)) {
+        result.add(
+          ReferenceAnchorTarget(
+            doi: doi?.isEmpty ?? true ? null : doi,
+            documentId: documentId?.isEmpty ?? true ? null : documentId,
+          ),
+        );
+      }
+    }
+  }
+  return result;
+}
+
+/// Markdown archive for one Notes scope: front matter, notes and Evidence.
+String scopeMarkdown({
+  required String scope,
+  required List<NoteRecord> notes,
+  required List<NoteEvidenceRow> evidence,
+  required String untitled,
+  DateTime? exportedAt,
+}) {
+  final stamp = (exportedAt ?? DateTime.now().toUtc())
+      .toUtc()
+      .toIso8601String();
+  final buffer = StringBuffer()
+    ..writeln('---')
+    ..writeln('scope: ${_yaml(scope)}')
+    ..writeln('exported_at: $stamp')
+    ..writeln('notes: ${notes.length}')
+    ..writeln('evidence_rows: ${evidence.length}')
+    ..writeln('---')
+    ..writeln()
+    ..writeln('# $scope')
+    ..writeln();
+  for (final note in notes) {
+    buffer
+      ..writeln('---')
+      ..writeln()
+      ..writeln(noteAsMarkdown(note, untitled: untitled))
+      ..writeln();
+  }
+  if (evidence.isNotEmpty) {
+    buffer
+      ..writeln('## Evidence')
+      ..writeln()
+      ..writeln('| Quantity | Type | Captured | PDG current | Status | Notes |')
+      ..writeln('| --- | --- | --- | --- | --- | --- |');
+    for (final row in evidence) {
+      buffer.writeln(
+        '| ${_mdCell(row.title)} | ${_typeLabel(row.type)} | '
+        '${_mdCell(row.capturedValue)} | ${_mdCell(row.currentValue)} | '
+        '${row.displayStatus.name} | ${row.noteCount} |',
+      );
+    }
+    buffer.writeln();
+  }
+  return buffer.toString();
+}
+
+String _mdCell(String value) =>
+    value.replaceAll('\r', ' ').replaceAll('\n', ' ').replaceAll('|', '\\|');
+
+String _yaml(String value) =>
+    '"${value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"';
+
+String _typeLabel(NoteEvidenceType type) => switch (type) {
+  NoteEvidenceType.measurement => 'Measurement',
+  NoteEvidenceType.pdgSummary => 'PDG summary',
+  NoteEvidenceType.reference => 'Reference',
+};
+
 /// Markdown representation used by the editor's copy action.
 String noteAsMarkdown(NoteRecord note, {String untitled = 'Untitled note'}) {
   final buffer = StringBuffer();
@@ -140,6 +242,11 @@ String noteAsMarkdown(NoteRecord note, {String untitled = 'Untitled note'}) {
   final tags = note.tagNames;
   if (tags.isNotEmpty) {
     buffer.writeln('Tags: ${tags.join(', ')}');
+    buffer.writeln();
+  }
+  final collections = note.collectionNames;
+  if (collections.isNotEmpty) {
+    buffer.writeln('Collections: ${collections.join(', ')}');
     buffer.writeln();
   }
   if (note.anchors.isNotEmpty) {
@@ -159,12 +266,24 @@ String noteAsMarkdown(NoteRecord note, {String untitled = 'Untitled note'}) {
 }
 
 /// Versioned JSON backup copied from the Notes page.
-String notesExportJson(Iterable<NoteRecord> notes, {DateTime? exportedAt}) {
+///
+/// The top-level registry preserves empty collections and collection
+/// timestamps; notes also keep their embedded collection objects so older
+/// importers can still recover referenced collections by name.
+String notesExportJson(
+  Iterable<NoteRecord> notes, {
+  DateTime? exportedAt,
+  Iterable<NoteCollection> collections = const <NoteCollection>[],
+}) {
   final records = notes.toList(growable: false);
+  final collectionList = collections.toList(growable: false);
   final payload = <String, Object?>{
-    'schema': 'particle-library.notes.v1',
+    'schema': 'particle-library.notes.v2',
     'exportedAt': (exportedAt ?? DateTime.now()).toUtc().toIso8601String(),
     'count': records.length,
+    'collections': [
+      for (final collection in collectionList) collection.toJson(),
+    ],
     'notes': [for (final note in records) note.toJson()],
   };
   return const JsonEncoder.withIndent('  ').convert(payload);

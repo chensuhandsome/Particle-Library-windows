@@ -138,7 +138,7 @@ class NotesMarkdownPreview extends StatelessWidget {
     final style = baseStyle ?? Theme.of(context).textTheme.bodyLarge;
     final spans = <InlineSpan>[];
     final pattern = RegExp(
-      r'(\$[^$\n]+\$|\*\*[^*]+\*\*|\*[^*]+\*|__[^_]+__|_[^_]+_|`[^`]+`|\[[^\]]+\]\([^)]*\))',
+      r'(\$[^$\n]+\$|\*\*[^*]+\*\*|\*[^*]+\*|__[^_]+__|_[^_]+_|`[^`]+`|\[[^\[\]]+\]\((?:[^()]|\([^()]*\))*\))',
     );
     var index = 0;
     for (final match in pattern.allMatches(text)) {
@@ -199,7 +199,8 @@ class NotesMarkdownPreview extends StatelessWidget {
           ),
         );
       } else {
-        final link = RegExp(r'^\[([^\]]+)\]\(([^)]*)\)$').firstMatch(token);
+        final link = RegExp(r'^\[([^\[\]]+)\]\(((?:[^()]|\([^()]*\))*)\)$')
+            .firstMatch(token);
         if (link != null) {
           final label = link.group(1) ?? '';
           final target = link.group(2) ?? '';

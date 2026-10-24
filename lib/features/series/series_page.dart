@@ -270,13 +270,16 @@ class _SeriesBody extends StatelessWidget {
             if (view.definitionTexts.isNotEmpty)
               SectionCard(
                 title: strings.seriesDefinition,
-                subtitle: detailed ? strings.seriesDefinitionTextHint : null,
                 child: _TextBlocks(texts: view.definitionTexts),
               ),
             const SizedBox(height: Insets.m),
             Padding(
               padding: const EdgeInsets.fromLTRB(Insets.l, 0, Insets.l, 0),
-              child: SummaryList(selection: view.selection, compact: true),
+              child: SummaryList(
+                selection: view.selection,
+                compact: true,
+                quantityLabel: entry.description,
+              ),
             ),
             const SizedBox(height: Insets.m),
             SectionHeading(
@@ -295,7 +298,6 @@ class _SeriesBody extends StatelessWidget {
             SectionHeading(
               strings.seriesHistory,
               key: _historyKey,
-              subtitle: detailed ? strings.seriesHistoryHint : null,
               trailing: TrendChartButton(data: trend, title: entry.description),
             ),
             Padding(

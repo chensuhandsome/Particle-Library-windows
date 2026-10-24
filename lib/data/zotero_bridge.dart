@@ -8,9 +8,10 @@ import 'dart:io';
 /// existing item by its INSPIRE recid; it never creates or mutates Zotero data.
 /// If no item is found, the caller can copy BibTeX for a manual Zotero import.
 class ZoteroBridge {
-  const ZoteroBridge();
+  /// [baseUrl] is Zotero's local API; tests point it at a local server.
+  const ZoteroBridge({this.baseUrl = 'http://127.0.0.1:23119'});
 
-  static const String _base = 'http://127.0.0.1:23119';
+  final String baseUrl;
 
   /// Zotero's local API only exists on a desktop where Zotero is running.
   /// On mobile, 127.0.0.1 is the phone itself, so the UI is hidden for now.
@@ -19,9 +20,11 @@ class ZoteroBridge {
   /// Quick check that Zotero's local API is reachable.
   Future<bool> isAvailable() async {
     try {
-      final response = await _get(Uri.parse('$_base/api/users/0/items?limit=1'))
-          .timeout(const Duration(seconds: 2));
-      return response != null && response.statusCode == 200;
+      final response = await _fetch(
+        Uri.parse('$baseUrl/api/users/0/items?limit=1'),
+        const Duration(seconds: 2),
+      );
+      return response != null && response.status == 200;
     } catch (_) {
       return false;
     }
@@ -74,15 +77,14 @@ class ZoteroBridge {
 
   Future<List<_ZoteroItem>> _itemsFor(String query) async {
     final uri = Uri.parse(
-      '$_base/api/users/0/items?q=${Uri.encodeQueryComponent(query)}'
+      '$baseUrl/api/users/0/items?q=${Uri.encodeQueryComponent(query)}'
       '&limit=25&format=json&qmode=everything',
     );
-    final response = await _get(uri).timeout(const Duration(seconds: 10));
-    if (response == null || response.statusCode != 200) {
+    final response = await _fetch(uri, const Duration(seconds: 10));
+    if (response == null || response.status != 200) {
       return const <_ZoteroItem>[];
     }
-    final body = await response.transform(utf8.decoder).join();
-    final decoded = jsonDecode(body);
+    final decoded = jsonDecode(response.body);
     if (decoded is! List) return const <_ZoteroItem>[];
     final result = <_ZoteroItem>[];
     for (final raw in decoded) {
@@ -181,21 +183,34 @@ class ZoteroBridge {
     return fromCallNumber?.group(1);
   }
 
-  Future<HttpClientResponse?> _get(Uri uri) async {
+  /// One GET to Zotero's local API, read to the end within [timeout] and then
+  /// closed. The client used to be left open after a successful call, and a
+  /// response with a status other than 200 was never read, so a Zotero whose
+  /// local API is switched off leaked a socket on every probe.
+  Future<({int status, String body})?> _fetch(
+    Uri uri,
+    Duration timeout,
+  ) async {
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 2)
       ..idleTimeout = const Duration(seconds: 2);
     try {
-      final request = await client.getUrl(uri);
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      request.headers.set(
-        HttpHeaders.userAgentHeader,
-        'Particle Library/0.1 (local Zotero lookup)',
-      );
-      return await request.close();
+      return await () async {
+        final request = await client.getUrl(uri);
+        request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+        request.headers.set(
+          HttpHeaders.userAgentHeader,
+          'Particle Library/0.1 (local Zotero lookup)',
+        );
+        final response = await request.close();
+        final body = await response.transform(utf8.decoder).join();
+        return (status: response.statusCode, body: body);
+      }().timeout(timeout);
     } catch (_) {
-      client.close(force: true);
+      // Zotero is not running, answered with garbage, or stalled.
       return null;
+    } finally {
+      client.close(force: true);
     }
   }
 }

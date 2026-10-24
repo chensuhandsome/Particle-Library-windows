@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdgapp/app/app_strings.dart';
 import 'package:pdgapp/domain/labels.dart';
 import 'package:pdgapp/features/notes/notes_format.dart';
+import 'package:pdgapp/notes/note_evidence.dart';
 import 'package:pdgapp/notes/notes.dart';
 
 NoteAnchor _anchor({
@@ -176,12 +177,67 @@ void main() {
     expect(markdown, contains('Updated: 2026-10-18T09:00:00.000Z'));
   });
 
+  test('scope Markdown has front matter and an Evidence table', () {
+    final markdown = scopeMarkdown(
+      scope: 'Project',
+      notes: [_note()],
+      evidence: [
+        NoteEvidenceRow(
+          type: NoteEvidenceType.measurement,
+          key: 'm1',
+          title: 'D0 MASS | selected',
+          sourceTargetId: 'measurement:S032M:42',
+          noteIds: {'note-1'},
+          status: NoteEvidenceStatus.uncompared,
+        ),
+      ],
+      untitled: 'Untitled note',
+      exportedAt: DateTime.utc(2026, 10, 21, 1),
+    );
+    expect(markdown, startsWith('---\nscope: "Project"'));
+    expect(markdown, contains('exported_at: 2026-10-21T01:00:00.000Z'));
+    expect(markdown, contains('## Evidence'));
+    expect(markdown, contains('| D0 MASS \\| selected | Measurement |'));
+    final escaped = scopeMarkdown(
+      scope: 'A "quoted" \\ path',
+      notes: [_note()],
+      evidence: const [],
+      untitled: 'Untitled note',
+    );
+    final slash = String.fromCharCode(92);
+    expect(
+      escaped,
+      contains('scope: "A $slash"quoted$slash" $slash$slash path"'),
+    );
+  });
+
+  test('reference anchors deduplicate into citation-key targets', () {
+    final note = _note(
+      anchors: [
+        _anchor(
+          targetKind: NoteTargetKinds.reference,
+          targetKey: 'doi:10.1000/ABC',
+          label: 'Paper',
+        ),
+        _anchor(
+          targetKind: NoteTargetKinds.reference,
+          targetKey: 'doc:42',
+          label: 'Paper',
+        ),
+      ],
+    );
+    final targets = referenceTargetsForCiteKeys([note, note]);
+    expect(targets, hasLength(2));
+    expect(targets.first.doi, '10.1000/ABC');
+    expect(targets.last.documentId, '42');
+  });
+
   test('JSON export is versioned and includes anchors and tags', () {
     final json = notesExportJson([
       _note(anchors: [_anchor()], tags: ['lifetime']),
     ], exportedAt: DateTime.utc(2026, 10, 18, 12));
     final decoded = jsonDecode(json) as Map<String, Object?>;
-    expect(decoded['schema'], 'particle-library.notes.v1');
+    expect(decoded['schema'], 'particle-library.notes.v2');
     expect(decoded['exportedAt'], '2026-10-18T12:00:00.000Z');
     expect(decoded['count'], 1);
     final notes = decoded['notes'] as List<Object?>;

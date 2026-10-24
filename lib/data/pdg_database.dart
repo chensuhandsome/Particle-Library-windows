@@ -233,7 +233,12 @@ class PdgDatabase {
     final rows = await executor.select('''
       SELECT r.*,
              (SELECT COUNT(*) FROM pdgid c WHERE c.parent_id = r.id) AS child_count,
-             (SELECT COUNT(*) FROM pdgparticle p WHERE p.pdgid_id = r.id) AS particle_count
+             (SELECT COUNT(*) FROM pdgparticle p WHERE p.pdgid_id = r.id) AS particle_count,
+             (EXISTS (SELECT 1 FROM pdgid c WHERE c.parent_id = r.id)
+               OR EXISTS (SELECT 1 FROM pdgparticle p WHERE p.pdgid_id = r.id)
+               OR EXISTS (SELECT 1 FROM pdgtext t WHERE t.pdgid_id = r.id)
+               OR EXISTS (SELECT 1 FROM pdgmeasurement m WHERE m.pdgid_id = r.id)
+               OR EXISTS (SELECT 1 FROM pdgdecay d WHERE d.pdgid_id = r.id)) AS has_content
         FROM pdgid r
        WHERE r.parent_id IS NULL
        ORDER BY r.sort, r.id
@@ -244,6 +249,7 @@ class PdgDatabase {
           Entry(row),
           asInt(row['child_count']) ?? 0,
           asInt(row['particle_count']) ?? 0,
+          hasContent: (asInt(row['has_content']) ?? 0) != 0,
         ),
     ];
   }
@@ -532,6 +538,106 @@ class PdgDatabase {
     sql += ' ORDER BY edition DESC, sort, id';
     final rows = await executor.select(sql, params);
     return [for (final row in rows) Summary(row)];
+  }
+
+  /// Returns the human-readable property description for a PDG identifier.
+  Future<String?> descriptionForPdgid(String pdgid) async {
+    final rows = await executor.select(
+      'SELECT description FROM pdgid WHERE pdgid = ? LIMIT 1',
+      [pdgid],
+    );
+    if (rows.isEmpty) return null;
+    final value = rows.first['description']?.toString().trim() ?? '';
+    return value.isEmpty ? null : value;
+  }
+
+  Future<Summary?> summaryById(int id) async {
+    final rows = await executor.select('SELECT * FROM pdgdata WHERE id = ?', [
+      id,
+    ]);
+    return rows.isEmpty ? null : Summary(rows.first);
+  }
+
+  /// Resolves the current-edition counterpart of a captured summary row.
+  ///
+  /// A captured row may belong to an older edition, so its row id is not used
+  /// blindly: the current edition is queried by pdgid + value_type. Exactly
+  /// one match is authoritative; multiple matches are ambiguous and return
+  /// null (the caller reports missing/fuzzy rather than guessing).
+  Future<List<Summary>> currentSummaryCandidatesForCapture({
+    required String pdgid,
+    required String valueType,
+    required int capturedRowId,
+  }) async {
+    final current = await summaryById(capturedRowId);
+    if (current != null &&
+        current.edition == currentEdition &&
+        current.pdgid == pdgid &&
+        current.valueType == valueType) {
+      return [current];
+    }
+    final rows = await executor.select(
+      'SELECT * FROM pdgdata WHERE pdgid = ? AND edition = ? AND value_type = ? '
+      'ORDER BY sort, id',
+      [pdgid, currentEdition, valueType],
+    );
+    return [for (final row in rows) Summary(row)];
+  }
+
+  Future<Summary?> currentSummaryForCapture({
+    required String pdgid,
+    required String valueType,
+    required int capturedRowId,
+  }) async {
+    final rows = await currentSummaryCandidatesForCapture(
+      pdgid: pdgid,
+      valueType: valueType,
+      capturedRowId: capturedRowId,
+    );
+    return rows.length == 1 ? rows.first : null;
+  }
+
+  /// Finds measurements by the identity fingerprint used when a stored id is
+  /// no longer stable. Values/errors are deliberately not part of the key.
+  Future<List<Measurement>> measurementCandidatesForFingerprint({
+    required String pdgid,
+    String? quantityLabel,
+    String? technique,
+    String? referenceDoi,
+    String? referenceDocumentId,
+  }) async {
+    final params = <Object?>[pdgid];
+    var sql =
+        'SELECT m.* FROM pdgmeasurement m '
+        'JOIN pdgid i ON i.pdgid = m.pdgid '
+        'WHERE m.pdgid = ?';
+    final label = quantityLabel?.trim() ?? '';
+    if (label.isNotEmpty) {
+      sql += ' AND i.description = ?';
+      params.add(label);
+    }
+    final method = technique?.trim() ?? '';
+    if (method.isNotEmpty) {
+      sql += ' AND m.technique = ?';
+      params.add(method);
+    }
+    final doi = referenceDoi?.trim() ?? '';
+    if (doi.isNotEmpty) {
+      sql +=
+          ' AND EXISTS (SELECT 1 FROM pdgreference r '
+          'WHERE r.id = m.pdgreference_id AND r.doi = ? COLLATE NOCASE)';
+      params.add(doi);
+    }
+    final documentId = referenceDocumentId?.trim() ?? '';
+    if (documentId.isNotEmpty) {
+      sql +=
+          ' AND EXISTS (SELECT 1 FROM pdgreference r '
+          'WHERE r.id = m.pdgreference_id AND r.document_id = ?)';
+      params.add(documentId);
+    }
+    sql += ' ORDER BY m.sort, m.id';
+    final rows = await executor.select(sql, params);
+    return [for (final row in rows) Measurement(row)];
   }
 
   Future<List<Summary>> currentSummariesForEntries(List<int> entryIds) async {
@@ -1142,10 +1248,14 @@ class PdgDatabase {
     int? year,
   }) async {
     final like = '%${_escapeLike(term)}%';
-    final params = <Object?>[term, term, term, term, like, like];
+    // An author name alone ("AAIJ") matches that author's reference labels
+    // ("AAIJ 2012C"): the exact label ranks first, the rest follow.
+    final prefix = '${_escapeLike(term)}%';
+    final params = <Object?>[term, prefix, term, term, term, like, like];
     var sql = '''
       SELECT *, COUNT(*) OVER() AS __total FROM pdgreference
        WHERE (TRIM(document_id) = ? COLLATE NOCASE
+              OR TRIM(document_id) LIKE ? ESCAPE '\\'
               OR TRIM(doi) = ? COLLATE NOCASE
               OR TRIM(inspire_id) = ? COLLATE NOCASE
               OR TRIM(title) = ? COLLATE NOCASE
@@ -1186,10 +1296,14 @@ class PdgDatabase {
     int? year,
   }) async {
     final like = '%${_escapeLike(term)}%';
-    final params = <Object?>[term, term, term, term, like, like];
+    // An author name alone ("AAIJ") matches that author's reference labels
+    // ("AAIJ 2012C"): the exact label ranks first, the rest follow.
+    final prefix = '${_escapeLike(term)}%';
+    final params = <Object?>[term, prefix, term, term, term, like, like];
     var sql = '''
       SELECT * FROM pdgreference
        WHERE (TRIM(document_id) = ? COLLATE NOCASE
+              OR TRIM(document_id) LIKE ? ESCAPE '\\'
               OR TRIM(doi) = ? COLLATE NOCASE
               OR TRIM(inspire_id) = ? COLLATE NOCASE
               OR TRIM(title) = ? COLLATE NOCASE
@@ -1215,10 +1329,12 @@ class PdgDatabase {
 
   Future<int> countSearchReferences(String term, {int? year}) async {
     final like = '%${_escapeLike(term)}%';
-    final params = <Object?>[term, term, term, like, like];
+    final prefix = '${_escapeLike(term)}%';
+    final params = <Object?>[term, prefix, term, term, like, like];
     var sql = '''
       SELECT COUNT(*) AS n FROM pdgreference
        WHERE (TRIM(document_id) = ? COLLATE NOCASE
+              OR TRIM(document_id) LIKE ? ESCAPE '\\'
               OR TRIM(doi) = ? COLLATE NOCASE
               OR TRIM(inspire_id) = ? COLLATE NOCASE
               OR title LIKE ? ESCAPE '\\'
@@ -1410,11 +1526,21 @@ class PdgDatabase {
 }
 
 class CatalogRoot {
-  const CatalogRoot(this.entry, this.childCount, this.particleCount);
+  const CatalogRoot(
+    this.entry,
+    this.childCount,
+    this.particleCount, {
+    this.hasContent = true,
+  });
 
   final Entry entry;
   final int childCount;
   final int particleCount;
+
+  /// False for PDG section rows that carry nothing at all (no children,
+  /// particles, texts, measurements or decays). The catalog hides those
+  /// instead of showing a tile that opens an empty page.
+  final bool hasContent;
 }
 
 class ReferenceWithCount {

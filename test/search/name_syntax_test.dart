@@ -73,4 +73,42 @@ void main() {
     expect(looksLikePdgIdentifier('pi0'), isFalse);
     expect(looksLikePdgIdentifier('proton'), isFalse);
   });
+  group('typographic spellings of PDG names', () {
+    test('prime marks equal the ASCII apostrophe', () {
+      final ascii = normalizeName("eta'(958)").toLowerCase();
+      expect(normalizeName('η′(958)').toLowerCase(), ascii);
+      expect(normalizeName('eta\u2032(958)').toLowerCase(), ascii);
+      expect(normalizeName('eta\u2019(958)').toLowerCase(), ascii);
+      expect(
+        normalizeName('f2\u2032(1525)').toLowerCase(),
+        normalizeName("f2'(1525)").toLowerCase(),
+      );
+    });
+
+    test('a double prime is two apostrophes', () {
+      expect(
+        normalizeName('rho\u2033(1700)').toLowerCase(),
+        normalizeName("rho''(1700)").toLowerCase(),
+      );
+    });
+
+    test('Upsilon with hook equals Upsilon', () {
+      expect(
+        normalizeName('ϒ(1S)').toLowerCase(),
+        normalizeName('Upsilon(1S)').toLowerCase(),
+      );
+      expect(
+        normalizeName('Υ(1S)').toLowerCase(),
+        normalizeName('Upsilon(1S)').toLowerCase(),
+      );
+    });
+  });
+
+  test('identifiers that end in charge signs are recognised', () {
+    expect(looksLikePdgIdentifier('B033M++'), isTrue);
+    expect(looksLikePdgIdentifier('B043D-0'), isTrue);
+    expect(looksLikePdgIdentifier('B033M'), isTrue);
+    expect(looksLikePdgIdentifier('e+e-'), isFalse);
+    expect(looksLikePdgIdentifier('K0S'), isFalse);
+  });
 }

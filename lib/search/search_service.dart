@@ -1,13 +1,15 @@
 import 'package:flutter/foundation.dart';
 
+import '../app/app_strings.dart';
 import '../data/pdg_database.dart';
 import '../domain/labels.dart';
 import '../domain/models.dart';
 import '../domain/reference_title.dart';
 import '../notes/notes.dart';
 import 'name_syntax.dart';
+import 'review_search_service.dart';
 
-enum SearchScope { all, particles, titles, decays, references, notes }
+enum SearchScope { all, particles, titles, decays, references, reviews, notes }
 
 enum SearchGroupKind {
   identifier,
@@ -16,6 +18,7 @@ enum SearchGroupKind {
   decay,
   reference,
   text,
+  review,
   note,
 }
 
@@ -28,6 +31,10 @@ enum SearchReason {
   mcNumber,
   titleMatch,
   textMatch,
+  reviewTitle,
+  reviewHeading,
+  reviewBody,
+  reviewCaption,
   decayText,
   referenceIdentifier,
   referenceTitle,
@@ -46,6 +53,12 @@ class SearchHit {
     this.reason = SearchReason.titleMatch,
     this.snippet,
     this.note,
+    this.reviewFile,
+    this.reviewPage,
+    this.reviewHeading,
+    this.reviewCaption,
+    this.reviewMatchCount = 0,
+    this.reviewSha256,
   });
 
   final SearchGroupKind kind;
@@ -59,6 +72,15 @@ class SearchHit {
   final SearchReason reason;
   final String? snippet;
   final NoteRecord? note;
+
+  /// Set when [kind] is [SearchGroupKind.review].  [reviewFile] is the PDG
+  /// file name, [reviewPage] is a 1-based physical PDF page.
+  final String? reviewFile;
+  final int? reviewPage;
+  final String? reviewHeading;
+  final String? reviewCaption;
+  final int reviewMatchCount;
+  final String? reviewSha256;
 
   String get openPdgid => pdgid ?? entry?.pdgid ?? '';
 }
@@ -80,10 +102,13 @@ class SearchGroup {
 }
 
 class SearchResults {
-  const SearchResults({required this.query, required this.groups});
+  const SearchResults({required this.query, required this.groups, this.notice});
 
   final String query;
   final List<SearchGroup> groups;
+
+  /// Non-fatal status shown above the groups, even when there are no hits.
+  final String? notice;
 
   bool get isEmpty => groups.every((group) => group.hits.isEmpty);
   int get total => groups.fold(0, (sum, group) => sum + group.total);
@@ -293,11 +318,28 @@ class NameIndex {
 }
 
 class SearchService {
-  SearchService(this.db, {this.notes, this.notesChanges})
-    : names = NameIndex(db);
+  SearchService(
+    this.db, {
+    this.notes,
+    this.notesChanges,
+    this.reviewSearch,
+    this.language = TextLang.zh,
+  }) : names = NameIndex(db);
 
   final NotesStore? notes;
+  final ReviewSearchService? reviewSearch;
   final ValueListenable<int>? notesChanges;
+  TextLang language;
+
+  TextLang get lang => language;
+
+  set lang(TextLang value) {
+    if (language == value) return;
+    language = value;
+    _cache.clear();
+  }
+
+  AppStrings get _strings => AppStrings(language);
 
   final PdgDatabase db;
   final NameIndex names;
@@ -313,14 +355,27 @@ class SearchService {
     String rawQuery,
     SearchScope scope, {
     int limit = 25,
+    bool includeReviews = true,
   }) async {
+    final reviewState = reviewSearch == null
+        ? 'none'
+        : '${reviewSearch!.isReady}:${reviewSearch!.revision}';
     final key =
-        '${scope.name}|$limit|${notesChanges?.value ?? 0}|${rawQuery.trim()}';
+        '${scope.name}|$limit|$includeReviews|${notesChanges?.value ?? 0}|$reviewState|${rawQuery.trim()}';
     final cached = _cache[key];
     if (cached != null) return cached;
-    final result = await _searchUncached(rawQuery, scope, limit: limit);
-    if (_cache.length >= _cacheLimit) _cache.remove(_cache.keys.first);
-    _cache[key] = result;
+    final result = await _searchUncached(
+      rawQuery,
+      scope,
+      limit: limit,
+      includeReviews: includeReviews,
+    );
+    // A degraded/unavailable review result must be retried on the next
+    // submit; caching it under the same key would bypass the lazy loader.
+    if (isCacheable(result)) {
+      if (_cache.length >= _cacheLimit) _cache.remove(_cache.keys.first);
+      _cache[key] = result;
+    }
     return result;
   }
 
@@ -328,6 +383,7 @@ class SearchService {
     String rawQuery,
     SearchScope scope, {
     int limit = 25,
+    bool includeReviews = true,
   }) async {
     final query = rawQuery.trim();
     if (query.isEmpty) return SearchResults(query: query, groups: const []);
@@ -338,6 +394,10 @@ class SearchService {
     final runReferences =
         scope == SearchScope.all || scope == SearchScope.references;
     final runNotes = scope == SearchScope.all || scope == SearchScope.notes;
+    final runReviews =
+        includeReviews &&
+        (scope == SearchScope.all || scope == SearchScope.reviews);
+    String? notice;
     // Loading the in-memory name index costs ~80 ms and is only needed for
     // particle-name lookups. A references-only search must not pay for it.
     if (runNames) await names.ensureLoaded();
@@ -355,7 +415,7 @@ class SearchService {
                 kind: SearchGroupKind.identifier,
                 title: entry.description,
                 subtitle:
-                    '${entry.pdgid} · ${dataTypeInfo(entry.dataType).label(TextLang.zh)}',
+                    '${entry.pdgid} · ${dataTypeInfo(entry.dataType).label(lang)}',
                 pdgid: entry.pdgid,
                 entry: entry,
                 reason: SearchReason.exactPdgid,
@@ -423,7 +483,67 @@ class SearchService {
       final textGroup = await _textHits(query, limit);
       if (textGroup != null) groups.add(textGroup);
     }
-    return SearchResults(query: query, groups: groups);
+    if (runReviews && reviewSearch != null) {
+      try {
+        final result = await reviewSearch!.search(query, limit: limit);
+        notice = result.notice;
+        if (result.hits.isNotEmpty) {
+          groups.add(
+            SearchGroup(
+              kind: SearchGroupKind.review,
+              total: result.hits.length,
+              hits: [
+                for (final hit in result.hits)
+                  SearchHit(
+                    kind: SearchGroupKind.review,
+                    title: hit.title,
+                    subtitle: [
+                      _strings.searchReviewPage(hit.page),
+                      if (hit.heading.trim().isNotEmpty) hit.heading,
+                    ].join(' · '),
+                    reviewFile: hit.file,
+                    reviewPage: hit.page,
+                    reviewHeading: hit.heading,
+                    reviewCaption: hit.caption,
+                    reviewMatchCount: hit.matchCount,
+                    reviewSha256: hit.sha256,
+                    snippet: _reviewSnippet(switch (hit.matchField) {
+                      'title' => hit.title,
+                      'heading' => hit.heading,
+                      _ => hit.caption,
+                    }),
+                    reason: _reviewReason(hit.matchField),
+                  ),
+              ],
+            ),
+          );
+        }
+      } catch (_) {
+        // A broken review index must never drop the other search groups.
+        notice ??= 'degraded';
+      }
+    }
+    return SearchResults(query: query, groups: groups, notice: notice);
+  }
+
+  @visibleForTesting
+  static bool isCacheable(SearchResults result) {
+    return result.notice != 'unavailable' && result.notice != 'degraded';
+  }
+
+  static String? _reviewSnippet(String caption) {
+    final text = caption.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (text.isEmpty) return null;
+    return text.length > 240 ? '${text.substring(0, 240)}…' : text;
+  }
+
+  static SearchReason _reviewReason(String field) {
+    return switch (field) {
+      'caption' => SearchReason.reviewCaption,
+      'heading' => SearchReason.reviewHeading,
+      'title' => SearchReason.reviewTitle,
+      _ => SearchReason.reviewBody,
+    };
   }
 
   Future<SearchGroup?> _nameHits(String query, int limit) async {
@@ -463,12 +583,12 @@ class SearchService {
           .join(' / ');
       final preferred = listing?.description ?? entry.key;
       final kind = data.item.itemType == 'G' || data.item.itemType == 'L'
-          ? '通用名称'
+          ? _strings.searchKindCommonName
           : data.item.itemType == 'A' ||
                 data.item.itemType == 'W' ||
                 data.item.itemType == 'S'
-          ? 'PDG 别名'
-          : '粒子名称';
+          ? _strings.searchKindPdgAlias
+          : _strings.searchKindParticleName;
       hits.add(
         SearchHit(
           kind: SearchGroupKind.particle,
@@ -485,12 +605,15 @@ class SearchService {
       kind: SearchGroupKind.particle,
       total: total,
       hits: hits,
-      note: total > hits.length ? '仅显示前 ${hits.length} 项' : null,
+      note: total > hits.length
+          ? _strings.searchShowingFirstCount(hits.length)
+          : null,
     );
   }
 
   Future<SearchGroup?> _mcidHits(String query, int limit) async {
-    if (!RegExp(r'^\d+$').hasMatch(query)) return null;
+    // PDG Monte Carlo ids include negative values (antiparticles).
+    if (!RegExp(r'^-?\d+$').hasMatch(query)) return null;
     final mcid = int.tryParse(query);
     if (mcid == null) return null;
     final particles = await db.particlesByMcid(mcid);
@@ -518,7 +641,9 @@ class SearchService {
       kind: SearchGroupKind.particle,
       total: byListing.length,
       hits: hits,
-      note: byListing.length > hits.length ? '仅显示前 ${hits.length} 项' : null,
+      note: byListing.length > hits.length
+          ? _strings.searchShowingFirstCount(hits.length)
+          : null,
     );
   }
 
@@ -553,7 +678,7 @@ class SearchService {
             kind: decaysOnly ? SearchGroupKind.decay : SearchGroupKind.topic,
             title: entry.description,
             subtitle:
-                '${entry.pdgid} · ${dataTypeInfo(entry.dataType).label(TextLang.zh)}',
+                '${entry.pdgid} · ${dataTypeInfo(entry.dataType).label(lang)}',
             pdgid: entry.pdgid,
             entry: entry,
             reason: decaysOnly
@@ -561,7 +686,9 @@ class SearchService {
                 : SearchReason.titleMatch,
           ),
       ],
-      note: total > entries.length ? '仅显示前 ${entries.length} 项' : null,
+      note: total > entries.length
+          ? _strings.searchShowingFirstCount(entries.length)
+          : null,
     );
   }
 
@@ -586,7 +713,9 @@ class SearchService {
                 : hit.text,
           ),
       ],
-      note: total > hits.length ? '仅显示前 ${hits.length} 项' : null,
+      note: total > hits.length
+          ? _strings.searchShowingFirstCount(hits.length)
+          : null,
     );
   }
 
@@ -604,12 +733,12 @@ class SearchService {
             kind: SearchGroupKind.note,
             title: note.title.trim().isEmpty
                 ? (note.bodyPlain.trim().isEmpty
-                      ? 'Untitled note'
+                      ? _strings.notesUntitled
                       : note.bodyPlain.trim())
                 : note.title,
             subtitle: note.anchors.isEmpty
-                ? 'Note · ${note.updatedAt.toLocal().toString().split('.').first}'
-                : 'Note · ${note.anchors.first.targetLabel.trim().isEmpty ? note.anchors.first.targetId : note.anchors.first.targetLabel}',
+                ? '${_strings.notesTitle} · ${note.updatedAt.toLocal().toString().split('.').first}'
+                : '${_strings.notesTitle} · ${note.anchors.first.targetLabel.trim().isEmpty ? note.anchors.first.targetId : note.anchors.first.targetLabel}',
             snippet: note.bodyPlain,
             note: note,
             reason: SearchReason.textMatch,
@@ -664,7 +793,9 @@ class SearchService {
             reason: SearchReason.referenceTitle,
           ),
       ],
-      note: total > refs.length ? '仅显示前 ${refs.length} 项' : null,
+      note: total > refs.length
+          ? _strings.searchShowingFirstCount(refs.length)
+          : null,
     );
   }
 }

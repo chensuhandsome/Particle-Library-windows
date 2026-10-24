@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# The jobs only read the repository.
+permissions:
+  contents: read
+
 jobs:
   analyze:
     runs-on: macos-latest
@@ -17,17 +21,51 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      - name: Check generated app version
+        run: python3 tool/generate_app_version.py --check
       - name: Analyze (snapshot intentionally absent)
         run: |
-          # The analyzer needs the declared asset path to exist.
-          # This empty file is never used for a runtime build.
+          # pubspec declares the runtime snapshot as an asset. The analyzer
+          # only needs the path to exist; the test job fetches the real data.
           mkdir -p assets
           : > assets/pdgall-2026.0.sqlite
           flutter analyze
 
+  review-index:
+    # The review index is committed (~15 MB) and must stay independent of the
+    # 64 MB PDG snapshot variable; these tests never open the main snapshot.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify the review index contract and U1-U3
+        run: |
+          python3 -m pip install -r tool/requirements-review-index.txt
+          python3 tool/build_review_index.py verify \
+            --db assets/review_index_2026.sqlite \
+            --contract lib/core/review_index_contract.dart \
+            --rules assets/review_search_rules_v1.json \
+            --manifest assets/review_sources_2026.json
+      - name: Review search tests (no PDG snapshot required)
+        run: |
+          # pubspec lists the main snapshot as an asset; these tests do not
+          # open it, so a zero-byte placeholder keeps the bundle build happy.
+          mkdir -p assets
+          : > assets/pdgall-2026.0.sqlite
+          flutter test test/search test/data/review_index_live_test.dart
+
   test:
     runs-on: macos-latest
-    # The real CC BY snapshot is supplied through the repository variable.
+    # The PDG snapshot is not committed (CC BY data, 64 MB). Configure the
+    # repository variable PDG_SNAPSHOT_URL to the official PDG API URL.
     if: ${{ vars.PDG_SNAPSHOT_URL != '' }}
     steps:
       - uses: actions/checkout@v4
@@ -42,9 +80,10 @@ jobs:
           PDG_SNAPSHOT_URL: ${{ vars.PDG_SNAPSHOT_URL }}
         run: |
           mkdir -p assets
-          curl --fail --location --retry 3 $PDG_SNAPSHOT_URL -o assets/pdgall-2026.0.sqlite
-          expected='c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a'
-          printf '%s  %s\n' $expected assets/pdgall-2026.0.sqlite | shasum -a 256 -c -
+          curl --fail --location --retry 3 \
+            "$PDG_SNAPSHOT_URL" -o assets/pdgall-2026.0.sqlite
+          echo "c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a  assets/pdgall-2026.0.sqlite" \
+            | shasum -a 256 -c -
       - run: flutter test
 
   windows:
@@ -56,30 +95,52 @@ jobs:
           flutter-version: '3.47.7'
           channel: stable
           cache: true
-      - run: flutter pub get
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: flutter pub get --enforce-lockfile
+      - name: Check generated version and committed review assets
+        shell: pwsh
+        run: |
+          python -X utf8 tool/generate_app_version.py --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./tool/windows/verify_assets.ps1 -SkipSnapshot
+          python -m pip install -r tool/requirements-review-index.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -X utf8 tool/build_review_index.py verify --db assets/review_index_2026.sqlite --contract lib/core/review_index_contract.dart --rules assets/review_search_rules_v1.json --manifest assets/review_sources_2026.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Fetch and verify the PDG snapshot
         if: ${{ vars.PDG_SNAPSHOT_URL != '' }}
         shell: pwsh
         env:
           PDG_SNAPSHOT_URL: ${{ vars.PDG_SNAPSHOT_URL }}
         run: |
-          New-Item -ItemType Directory -Force assets | Out-Null
           Invoke-WebRequest -Uri $env:PDG_SNAPSHOT_URL -OutFile assets/pdgall-2026.0.sqlite
-          $actual = (Get-FileHash assets/pdgall-2026.0.sqlite -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($actual -ne 'c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a') { throw 'PDG snapshot SHA-256 mismatch.' }
-      - name: Create compile-only placeholder asset
+          ./tool/windows/verify_assets.ps1
+      - name: Create placeholder for compile and isolated review-index tests only
         if: ${{ vars.PDG_SNAPSHOT_URL == '' }}
         shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force assets | Out-Null
-          New-Item -ItemType File -Force assets/pdgall-2026.0.sqlite | Out-Null
-      - run: flutter analyze
-      - name: Run tests with verified snapshot
+        run: New-Item -ItemType File -Force assets/pdgall-2026.0.sqlite | Out-Null
+      - run: flutter analyze --no-pub
+      - name: Review search with native Windows SQLite (no main snapshot required)
+        run: flutter test --no-pub test/search test/data/review_index_live_test.dart
+      - name: Windows release-tool regression tests
+        shell: pwsh
+        run: ./tool/windows/test_release_tools.ps1
+      - name: Full suite with verified snapshot
         if: ${{ vars.PDG_SNAPSHOT_URL != '' }}
-        run: flutter test
-      - run: flutter build windows --release
+        run: flutter test --no-pub
+      - name: Native reader interactions
+        if: ${{ vars.PDG_SNAPSHOT_URL != '' }}
+        run: flutter test integration_test/pdf_hybrid_app_test.dart -d windows --no-pub
+      - name: Native review-search and PDF-page smoke test
+        if: ${{ vars.PDG_SNAPSHOT_URL != '' }}
+        run: flutter test integration_test/windows_smoke_test.dart -d windows --no-pub
+      - name: Windows release build (compile-only if the snapshot is unavailable)
+        run: flutter build windows --release --no-pub --dart-define=UPDATE_MANIFEST_URL=https://api.github.com/repos/chensuhandsome/Particle-Library-windows/releases/latest
 
   windows-package:
+    needs: windows
     if: ${{ vars.PDG_SNAPSHOT_URL != '' }}
     runs-on: windows-latest
     steps:
@@ -89,16 +150,21 @@ jobs:
           flutter-version: '3.47.7'
           channel: stable
           cache: true
-      - uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Inno Setup compiler
+        shell: pwsh
+        run: |
+          choco install innosetup --version=6.7.1 --yes --no-progress --allow-downgrade
+          if ($LASTEXITCODE -notin @(0, 3010)) { exit $LASTEXITCODE }
       - name: Fetch and verify the PDG snapshot
         shell: pwsh
         env:
           PDG_SNAPSHOT_URL: ${{ vars.PDG_SNAPSHOT_URL }}
         run: |
-          New-Item -ItemType Directory -Force assets | Out-Null
           Invoke-WebRequest -Uri $env:PDG_SNAPSHOT_URL -OutFile assets/pdgall-2026.0.sqlite
-          $actual = (Get-FileHash assets/pdgall-2026.0.sqlite -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($actual -ne 'c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a') { throw 'PDG snapshot SHA-256 mismatch.' }
+          ./tool/windows/verify_assets.ps1
       - name: Build and package Windows release
         shell: pwsh
         run: ./tool/windows_release.ps1

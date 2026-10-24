@@ -389,11 +389,18 @@ class ZoteroInspireApi {
     required String token,
     Duration timeout = _requestTimeout,
   }) async {
+    final uri = Uri.parse('$baseUrl$path');
+    // The write token authorises changes to the Zotero library. It is only ever
+    // sent to this machine: a base address that is not loopback is refused
+    // before anything is sent.
+    if (!_isLoopbackHost(uri.host)) {
+      throw const ZoteroInspireException(
+        'The Zotero address must be on this computer.',
+      );
+    }
     final client = HttpClient()..connectionTimeout = timeout;
     try {
-      final request = await client
-          .postUrl(Uri.parse('$baseUrl$path'))
-          .timeout(timeout);
+      final request = await client.postUrl(uri).timeout(timeout);
       request.headers.contentType = ContentType.json;
       request.headers.set('x-zinspire-token', token);
       request.headers.set('zotero-allowed-request', 'true');
@@ -426,6 +433,9 @@ class ZoteroInspireApi {
       client.close(force: true);
     }
   }
+
+  static bool _isLoopbackHost(String host) =>
+      host == '127.0.0.1' || host == 'localhost' || host == '::1' || host == '[::1]';
 
   static ZoteroSaveTarget _targetFrom(Map<String, Object?> body) {
     final libraryID = _positiveInt(body['libraryID']);

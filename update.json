@@ -1,5 +1,5 @@
 {
-  "version": "0.1.3",
-  "url": "https://github.com/fkguo/Particle-Library/releases/tag/v0.1.3",
-  "notes": "Particle Library 0.1.3 — persistent compact mobile navigation, immersive PDF and Notes layouts, concise PDG summary labels, Zotero integration, and broader PDG math/title rendering."
+  "version": "0.2.1",
+  "url": "https://github.com/fkguo/Particle-Library/releases/tag/v0.2.1",
+  "notes": "Particle Library 0.2.1 — offline full-text search across all 121 PDG Review PDFs, a persistent review download progress dialog, and a single-source app version."
 }

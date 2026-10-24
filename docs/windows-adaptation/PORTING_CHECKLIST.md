@@ -2,6 +2,9 @@
 
 ## Status
 
+The 0.2.1 integration and automated Windows 11 results are recorded in
+[VERIFICATION_0.2.1.md](VERIFICATION_0.2.1.md). Upstream Markdown is unchanged.
+
 The standard Flutter Windows runner is present and named for Particle Library.
 The Windows 10/11 x64 release bundle and packaging path are implemented. The
 full native smoke-test matrix still needs sign-off before describing Windows
@@ -44,9 +47,9 @@ folder. Do not distribute `ParticleLibrary.exe` alone.
 
 - [ ] Windows 10 x64 release build succeeds with Flutter 3.47.7 and MSVC/CMake.
 - [ ] Windows 11 x64 release build succeeds, or CI's current Windows runner is recorded as the target OS.
-- [ ] `flutter analyze` succeeds.
-- [ ] `flutter test` succeeds with the real snapshot and matching SHA-256.
-- [ ] PDFium native assets are present in the built release bundle and a review PDF renders.
+- [x] `flutter analyze` succeeds (0.2.1).
+- [x] `flutter test` succeeds with the real snapshot and matching SHA-256 (538 tests).
+- [x] PDFium native assets are present in the built release bundle and official review PDFs render (native tests and fresh release DLL checks).
 - [ ] CI passes on `windows-latest`; compile-only runs without the snapshot are not treated as app verification.
 
 ## Manual Smoke Test
@@ -64,10 +67,10 @@ folder. Do not distribute `ParticleLibrary.exe` alone.
 
 Fill this section only after testing an actual Windows build.
 
-- OS edition/build and architecture: **Pending**
-- Flutter/Dart version: **Pending**
-- Visual Studio/MSVC and CMake versions: **Pending**
-- Snapshot SHA-256: **Pending**
-- Build/analyze/test results: **Pending**
-- Smoke-test notes and conditional Zotero result: **Pending**
-- Tester and date: **Pending**
+- OS edition/build and architecture: **Windows 11 25H2, 10.0.26200.8246, x64**
+- Flutter/Dart version: **3.47.7 / 3.13.5**
+- Visual Studio/MSVC and CMake versions: **VS Community 2026 18.11.0; MSVC 19.51.36260.0; CMake 4.3.1-msvc1; SDK 10.0.26100.0**
+- Snapshot SHA-256: **c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a**
+- Build/analyze/test results: **Release build and packaging passed; analysis passed; 538 unit/widget tests and both native integration tests passed.**
+- Smoke-test notes and conditional Zotero result: **Native PDF/search and isolated fresh-install/upgrade tests passed; manual UI/Zotero checks pending.**
+- Tester and date: **Automated Codex validation, 2026-10-24 (Asia/Shanghai).**

@@ -6,6 +6,7 @@ import 'package:pdgapp/core/errors.dart';
 import 'package:pdgapp/data/pdg_database.dart';
 import 'package:pdgapp/data/pdg_repository.dart';
 import 'package:pdgapp/data/sql_executor.dart';
+import 'package:pdgapp/features/notes/note_evidence_resolver.dart';
 import 'package:pdgapp/domain/display.dart';
 import 'package:pdgapp/domain/filters.dart';
 import 'package:pdgapp/domain/labels.dart';
@@ -31,6 +32,12 @@ void main() {
 
   tearDownAll(() async {
     await executor.dispose();
+  });
+
+  test('negative Monte Carlo ids resolve the antiparticle', () async {
+    final particles = await db.particlesByMcid(-211);
+    expect(particles, isNotEmpty);
+    expect(particles.first.name, contains('pi'));
   });
 
   test('snapshot metadata and schema are the verified baseline', () async {
@@ -59,6 +66,76 @@ void main() {
       descendants.where((row) => isDecayType(row.dataType)).length,
       greaterThan(100),
     );
+  });
+
+  test('property descriptions are available for Evidence display', () async {
+    expect(await db.descriptionForPdgid('S032M'), 'D0 MASS');
+    expect(await db.descriptionForPdgid('not-a-pdgid'), isNull);
+  });
+
+  test(
+    'measurement fingerprint finds candidates and flags ambiguity',
+    () async {
+      final description = await db.descriptionForPdgid('M176M');
+      expect(description, isNotNull);
+      final candidates = await db.measurementCandidatesForFingerprint(
+        pdgid: 'M176M',
+        quantityLabel: description,
+      );
+      expect(candidates.length, greaterThan(1));
+
+      final resolver = PdgEvidenceResolver(db);
+      final current = await resolver.resolveMeasurement(
+        'M176M',
+        -1,
+        technique: candidates.first.technique,
+      );
+      expect(current, isNotNull);
+      expect(current!.ambiguous, isTrue);
+    },
+  );
+
+  test(
+    'measurement Evidence compares against the current PDG summary',
+    () async {
+      final rows = await executor.select(
+        'SELECT id FROM pdgmeasurement WHERE pdgid = ? LIMIT 1',
+        ['S032M'],
+      );
+      expect(rows, isNotEmpty);
+      final current = await PdgEvidenceResolver(db)
+          .resolveMeasurement('S032M', rows.first['id']! as int);
+      expect(current, isNotNull);
+      expect(current!.edition, '2026');
+      expect(current.quantityLabel, 'D0 MASS');
+      expect(current.value, isNotNull);
+    },
+  );
+
+  test('captured summary resolves its current-edition counterpart', () async {
+    final entry = await db.requireEntryByPdgid('S032M');
+    final all = await db.summariesForEntry(entry.id);
+    final current = all.where((row) => row.edition == '2026').toList();
+    final old = all.where((row) => row.edition != '2026').toList();
+    expect(current, isNotEmpty);
+    expect(old, isNotEmpty);
+    Summary? resolved;
+    for (final candidate in old) {
+      final peers = current
+          .where((row) => row.valueType == candidate.valueType)
+          .toList();
+      if (peers.length != 1) continue;
+      resolved = await db.currentSummaryForCapture(
+        pdgid: candidate.pdgid,
+        valueType: candidate.valueType,
+        capturedRowId: candidate.id,
+      );
+      expect(resolved, isNotNull, reason: 'valueType ${candidate.valueType}');
+      expect(resolved!.edition, '2026');
+      expect(resolved.id, peers.single.id);
+      break;
+    }
+    expect(resolved, isNotNull, reason: 'no historical summary candidate');
   });
 
   test('D0 mass has two candidates with a unique summary-table fit', () async {
@@ -215,6 +292,15 @@ void main() {
       expect(m169, isNotEmpty);
       expect(m169.single.entry.dataType, 'PART');
       expect(m169.single.particleCount, 0);
+      // S067 has children, so it is still shown; the eleven PDG section rows
+      // with no children, particles, texts, measurements or decays are not.
+      expect(s067.single.hasContent, isTrue);
+      final empty = roots.where((root) => !root.hasContent).toList();
+      expect(empty.length, 11);
+      expect(
+        empty.map((root) => root.entry.pdgid),
+        containsAll(['M826', 'S841', 'S842', 'B801']),
+      );
     },
   );
 

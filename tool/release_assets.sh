@@ -20,28 +20,50 @@ fi
 
 flutter analyze
 flutter test
+# Android first: it stops at once when the signing key is missing (see
+# docs/development/ANDROID.md), before the slower macOS build.
+# arm64-v8a only; 32-bit devices are not supported. --split-per-abi is kept so the
+# build number stays above the 0.1.x arm64 APKs (it adds 2000 to the version code).
+flutter build apk --release --split-per-abi --target-platform android-arm64
 flutter build macos --release
-flutter build apk --release --split-per-abi
 
-codesign --force --deep --sign - --timestamp=none \
-  "build/macos/Build/Products/Release/Particle Library.app"
+APP="build/macos/Build/Products/Release/Particle Library.app"
+# Re-signing replaces the signature, and without --preserve-metadata the
+# entitlements flutter embedded (App Sandbox, network, file access) are dropped:
+# the shipped app would run unsandboxed and keep its data in a different folder
+# from the sandboxed builds.
+codesign --force --deep --sign - --preserve-metadata=entitlements \
+  --timestamp=none "$APP"
+if ! codesign -d --entitlements - "$APP" 2>&1 | grep -q 'com.apple.security.app-sandbox'; then
+  echo "the signed app lost its App Sandbox entitlement" >&2
+  exit 1
+fi
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
-ditto "build/macos/Build/Products/Release/Particle Library.app" \
-  "$STAGE/Particle Library.app"
+ditto "$APP" "$STAGE/Particle Library.app"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create -volname "Particle Library" -srcfolder "$STAGE" -ov -format UDZO \
   "$OUT/Particle-Library-${VERSION}-macOS-universal.dmg" >/dev/null
 ditto -c -k --sequesterRsrc --keepParent \
-  "build/macos/Build/Products/Release/Particle Library.app" \
+  "$APP" \
   "$OUT/Particle-Library-${VERSION}-macOS-universal.zip"
 cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
   "$OUT/Particle-Library-${VERSION}-Android-arm64-v8a.apk"
-cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
-  "$OUT/Particle-Library-${VERSION}-Android-armeabi-v7a.apk"
+
+# Show who signed the APKs; the digest must equal the one recorded in
+# docs/development/ANDROID.md, or installed copies cannot be updated.
+APKSIGNER="$(ls -d "${ANDROID_HOME:-$HOME/Library/Android/sdk}"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)"
+if [[ -n "$APKSIGNER" ]]; then
+  for apk in "$OUT"/*.apk; do
+    echo "$(basename "$apk"):"
+    "$APKSIGNER" verify --print-certs "$apk" | grep 'certificate SHA-256 digest'
+  done
+else
+  echo "apksigner not found; check the APK signer by hand before publishing." >&2
+fi
 
 (
   cd "$OUT"

@@ -691,8 +691,25 @@ class _ExpressionParser {
       final sign = current;
       index++;
       if (atEnd) return sign;
+      // `2**+-state`: the "+" is the script, and "-state" is a hyphenated word
+      // after it, not a second sign.
+      if ((current == '+' || current == '-') &&
+          index + 1 < text.length &&
+          RegExp(r'[A-Za-z]').hasMatch(text[index + 1])) {
+        return sign;
+      }
+      final afterSign = index;
       final atom = _parseScriptAtom(includeNested: includeNested);
-      if (atom == null) return sign;
+      if (atom == null) {
+        // A word after the sign that is not a symbol (`+inf`) cannot be read as
+        // part of the script. Reading it moved the position past it, so it
+        // would be lost without trace; the expression is left as raw text.
+        final startsWithLetter =
+            afterSign < text.length &&
+            RegExp(r'[A-Za-z]').hasMatch(text[afterSign]);
+        index = afterSign;
+        return startsWithLetter ? null : sign;
+      }
       return '$sign$atom';
     }
     if (RegExp(r'[0-9]').hasMatch(current)) {

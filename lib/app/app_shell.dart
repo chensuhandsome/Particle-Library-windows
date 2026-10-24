@@ -25,7 +25,7 @@ import '../features/help/help_page.dart';
 import '../features/reference/inspire_search_page.dart';
 import '../features/reviews/reviews_page.dart';
 
-/// Primary destinations plus Settings, available from app navigation UI.
+/// Primary destinations plus Settings, which is opened from the macOS app menu.
 ///
 /// Keeping the enum order authoritative means the IndexedStack, tabs and
 /// shortcuts stay aligned. Settings deliberately has no tab of its own.
@@ -132,7 +132,14 @@ class _AppShellState extends State<AppShell> {
   void _select(int index) {
     if (!mounted) return;
     if (index < 0 || index >= AppTab.values.length) return;
-    if (index == _index) return;
+    if (index == _index) {
+      // Tapping the already-selected tab is the standard "return to root"
+      // gesture. Notes can have a measurement/editor route pushed on top of
+      // its tab navigator, so a no-op here would leave the user stuck on that
+      // detail page.
+      _navHub.tabController(AppTab.values[index].name)?.resetToRoot();
+      return;
+    }
     if (index == AppTab.settings.index) {
       _settingsReturnIndex = _index;
       _navHub.tabController(AppTab.settings.name)?.rootBack = _leaveSettings;
@@ -292,34 +299,34 @@ class _AppShellState extends State<AppShell> {
                         (constraints.maxWidth < searchSplitBreakpoint &&
                             _navHub.detailChromeHidden));
                 final hideBottomNav = compact && (hideChrome || keyboardOpen);
-                return SelectionArea(
-                  child: Scaffold(
-                    backgroundColor: palette.background,
-                    body: Column(
-                      children: [
-                        ExcludeFocus(
-                          excluding: hideChrome,
-                          child: Offstage(
-                            offstage: hideChrome,
-                            child: Material(
-                              color: palette.surface,
-                              child: SafeArea(
-                                bottom: false,
-                                child: Container(
-                                  height: compact ? 48 : 64,
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: compact ? 10 : 20,
+                final shell = Scaffold(
+                  backgroundColor: palette.background,
+                  body: Column(
+                    children: [
+                      ExcludeFocus(
+                        excluding: hideChrome,
+                        child: Offstage(
+                          offstage: hideChrome,
+                          child: Material(
+                            color: palette.surface,
+                            child: SafeArea(
+                              bottom: false,
+                              left: false,
+                              right: false,
+                              child: Container(
+                                height: compact ? 48 : 64,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: compact ? 10 : 20,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(color: palette.divider),
                                   ),
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      bottom: BorderSide(
-                                        color: palette.divider,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Stack(
-                                    children: [
-                                      Padding(
+                                ),
+                                child: Stack(
+                                  children: [
+                                    Positioned.fill(
+                                      child: Padding(
                                         padding: EdgeInsets.only(
                                           right: compact ? 48 : 0,
                                         ),
@@ -474,69 +481,76 @@ class _AppShellState extends State<AppShell> {
                                           ],
                                         ),
                                       ),
-                                      if (compact)
-                                        Positioned(
-                                          right: 0,
-                                          top: 0,
-                                          bottom: 0,
-                                          child: _compactTopMenu(strings),
-                                        ),
-                                    ],
-                                  ),
+                                    ),
+                                    if (compact)
+                                      Positioned(
+                                        right: 0,
+                                        top: 0,
+                                        bottom: 0,
+                                        child: _compactTopMenu(strings),
+                                      ),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        Expanded(
-                          child: SafeArea(
-                            top: false,
-                            bottom: false,
-                            child: MediaQuery.removePadding(
-                              context: context,
-                              removeTop: !hideChrome,
-                              removeBottom: compact && !hideBottomNav,
-                              child: ChromeVisibilityScope(
-                                hidden: hideChrome,
-                                child: ActiveTabScope(
-                                  activeTabKey: AppTab.values[_index].name,
-                                  child: IndexedStack(
-                                    index: _index,
-                                    children: <Widget>[
-                                      for (final tab in AppTab.values)
-                                        if (_built[tab.index])
-                                          _TabNavigator(
-                                            controller: _navHub.tabController(
-                                              tab.name,
-                                            )!,
-                                            active: _index == tab.index,
-                                          )
-                                        else
-                                          const SizedBox.shrink(),
-                                    ],
-                                  ),
+                      ),
+                      Expanded(
+                        child: SafeArea(
+                          top: false,
+                          bottom: false,
+                          left: false,
+                          right: false,
+                          child: MediaQuery.removePadding(
+                            context: context,
+                            removeTop: !hideChrome,
+                            removeBottom: compact && !hideBottomNav,
+                            child: ChromeVisibilityScope(
+                              hidden: hideChrome,
+                              child: ActiveTabScope(
+                                activeTabKey: AppTab.values[_index].name,
+                                child: IndexedStack(
+                                  index: _index,
+                                  children: <Widget>[
+                                    for (final tab in AppTab.values)
+                                      if (_built[tab.index])
+                                        _TabNavigator(
+                                          controller: _navHub.tabController(
+                                            tab.name,
+                                          )!,
+                                          active: _index == tab.index,
+                                        )
+                                      else
+                                        const SizedBox.shrink(),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        if (compact)
-                          ExcludeFocus(
-                            excluding: hideBottomNav,
-                            child: Offstage(
-                              offstage: hideBottomNav,
-                              child: _CompactNavigationBar(
-                                selectedIndex: _index,
-                                onSelected: _select,
-                                specs: specs,
-                                settingsLabel: strings.navSettings,
-                              ),
+                      ),
+                      if (compact)
+                        ExcludeFocus(
+                          excluding: hideBottomNav,
+                          child: Offstage(
+                            offstage: hideBottomNav,
+                            child: _CompactNavigationBar(
+                              selectedIndex: _index,
+                              onSelected: _select,
+                              specs: specs,
+                              settingsLabel: strings.navSettings,
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 );
+                // Pages that need selectable text provide their own
+                // SelectionArea (PageScaffold). Keeping a global SelectionArea
+                // around the PDF route makes it fight pdfrx's selection
+                // lifecycle and can corrupt the widget tree on iOS.
+                return shell;
               },
             );
           },
@@ -581,6 +595,8 @@ class _CompactNavigationBar extends StatelessWidget {
       color: palette.surface,
       child: SafeArea(
         top: false,
+        left: false,
+        right: false,
         child: Container(
           height: barHeight,
           decoration: BoxDecoration(

@@ -215,6 +215,11 @@ class AppTheme {
           : null,
       textTheme: textTheme,
       extensions: [palette],
+      textSelectionTheme: TextSelectionThemeData(
+        selectionColor: palette.primary.withValues(alpha: 0.32),
+        selectionHandleColor: palette.primary,
+        cursorColor: palette.primary,
+      ),
       splashFactory: InkSparkle.splashFactory,
       visualDensity: VisualDensity.standard,
       appBarTheme: AppBarTheme(

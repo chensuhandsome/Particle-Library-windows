@@ -197,7 +197,13 @@ class _PageScaffoldState extends State<PageScaffold> {
           bottom: bottom,
         ),
         floatingActionButton: floatingActionButton,
+        // Use the whole screen width, including the landscape notch/rounded
+        // corner bands: page chrome already runs edge to edge and the user has
+        // asked for no reserved side gutters. Vertical safe areas still clear
+        // the status bar and the home indicator.
         body: SafeArea(
+          left: false,
+          right: false,
           child: Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxWidth),
@@ -433,7 +439,7 @@ class DataField extends StatelessWidget {
                 SelectableText(
                   value.isEmpty ? '—' : value,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontFamily: monospace ? 'Menlo' : null,
+                    fontFamily: monospace ? AppFonts.monospaceFamily : null,
                     fontSize: monospace ? 12 : null,
                     color: warning ? palette.warning : palette.textPrimary,
                   ),

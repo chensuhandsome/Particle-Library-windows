@@ -40,37 +40,20 @@ Prepare local release assets with:
 tool/release_assets.sh
 ```
 
-The script builds/checks all four existing assets (DMG, ZIP, arm64 APK,
-armeabi-v7a APK) and writes `SHA256SUMS.txt`. It does not publish or notarize.
-Android builds need `JAVA_HOME` and the Android SDK configured as in
+The script builds/checks all three assets (DMG, ZIP, arm64 APK) and writes `SHA256SUMS.txt`. It does not publish or notarize. Android
+builds need `JAVA_HOME` and the Android SDK configured as in
 [ANDROID.md](ANDROID.md).
-
-## Windows artifacts
-
-Windows releases are distributed in two forms because `ParticleLibrary.exe`
-cannot run by itself. The complete Flutter bundle includes native DLLs and the
-`data/` directory.
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tool\windows_release.ps1
-```
-
-The script requires the verified PDG snapshot, passing `flutter analyze` and
-`flutter test`, a successful Windows release build, and Inno Setup 6. It writes
-these files to `dist/release/`:
-
-- `Particle-Library-<version>-Windows-x64-Setup.exe`
-- `Particle-Library-<version>-Windows-x64-Portable.zip`
-- `SHA256SUMS.txt`
-
-See [README-windows.md](../../README-windows.md) for build and installation
-details. Never publish only the EXE.
 
 ## Signing and notarization
 
 0.1.x previews are published ad-hoc signed with an explicit Gatekeeper warning
 in the README. Production builds require a Developer ID Application certificate,
 Hardened Runtime, `notarytool` and `stapler`, verified with `spctl`.
+
+Android APKs are signed with the release key described in
+[ANDROID.md](ANDROID.md#signing). `tool/release_assets.sh` stops when the key is
+missing and prints each APK's signer digest, which must equal the digest
+recorded there. Never delete or regenerate that key.
 
 ## Update channel
 
@@ -91,6 +74,22 @@ then the GitHub Releases API; a tag alone is not enough because the static
 manifest is checked first. Validate the manual check on a release build before
 announcing.
 
+## iOS / TestFlight
+
+1. Bump the build number (`version: 0.2.0+16`); every TestFlight upload needs a
+   new build number for the same marketing version.
+2. `flutter build ipa --release` (Xcode automatic signing with the paid team).
+3. The pdfrx PDFium xcframework ships without a dSYM, which makes App Store
+   Connect warn about `PDFium.framework`. Add one to the archive:
+   `tool/ios_pdfium_dsym.sh`
+4. Upload the **archive** from Xcode Organizer (Window → Organizer → Distribute
+   App → App Store Connect). Transporter uploads only the `.ipa` and cannot
+   carry the dSYMs.
+5. App Store Connect → TestFlight: wait for processing, answer export
+   compliance, add the build to the external group and submit the first build
+   of a new marketing version for Beta App Review. Internal testers need no
+   review.
+
 ## Checklist
 
 - [ ] bundle identifier unchanged and documented
@@ -100,6 +99,5 @@ announcing.
 - [ ] preview clearly labelled ad-hoc/un-notarized (production requires notarization)
 - [ ] iOS physical install and trust checked; TestFlight only with a paid team
 - [ ] README/requirements and update channel consistent
-- [ ] release notes and four-entry checksums attached
-- [ ] Windows installer and portable ZIP built from the verified snapshot
-- [ ] Windows smoke test completed; installer and ZIP checksums verified
+- [ ] Android signer digest equals the one recorded in ANDROID.md; the key folder is backed up
+- [ ] release notes and three-entry checksums attached

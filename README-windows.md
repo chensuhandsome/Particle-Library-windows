@@ -14,6 +14,8 @@ is announced until the native smoke-test checklist passes. Never separate
 - Visual Studio 2022 or newer with **Desktop development with C++**, MSVC,
   CMake tools for Windows, and a Windows 10/11 SDK. VS Code alone is not
   sufficient.
+- Python 3 for the generated-version check and review-index validation.
+- Inno Setup 6 for the installer.
 - Network access for Flutter packages and the PDFium Windows DLL downloaded
   by `pdfium_dart` during the first native build.
 - Windows uses Segoe UI with `Microsoft YaHei UI` and `Microsoft YaHei` as
@@ -43,6 +45,16 @@ if ($actual -ne $expected) { throw 'Snapshot hash mismatch.' }
 Do not substitute an empty placeholder for the real snapshot when running the
 app or its tests. The app checks the snapshot identity and schema at startup.
 
+The 0.2.1 source also includes four derived assets: the PDG notes sidecar,
+the review text index, its source manifest and its search rules. Keep these
+files exactly as supplied by upstream; a Windows build does not regenerate them.
+Validate all five data assets before building:
+
+```powershell
+.\tool\windows\verify_assets.ps1
+python -X utf8 tool/generate_app_version.py --check
+```
+
 ## Smoke Test
 
 On a Windows 10/11 x64 machine, record the OS build, Flutter version, Visual
@@ -58,16 +70,26 @@ platform is not supported until the release build and these checks pass.
 From the repository root:
 
 ```powershell
-flutter pub get
+flutter pub get --enforce-lockfile
 flutter analyze
 flutter test
 flutter run -d windows
 ```
 
+The native regression tests isolate their data from your installed app. The
+Windows smoke test downloads two official review PDFs and checks the three
+review-search results against their physical pages:
+
+```powershell
+flutter test integration_test/pdf_hybrid_app_test.dart -d windows
+flutter test integration_test/windows_smoke_test.dart -d windows
+```
+
 Build a release executable bundle with:
 
 ```powershell
-flutter build windows --release
+flutter build windows --release `
+  --dart-define=UPDATE_MANIFEST_URL=https://api.github.com/repos/chensuhandsome/Particle-Library-windows/releases/latest
 
 # Validate and package the installer plus portable ZIP:
 powershell -ExecutionPolicy Bypass -File .\tool\windows_release.ps1
@@ -83,3 +105,10 @@ artifacts are written to `dist/release/`:
 The installer is a per-user, portable-style installation with Start Menu and
 desktop shortcuts and no uninstaller entry. The portable ZIP must be extracted
 as a complete directory. Do not distribute only `ParticleLibrary.exe`.
+
+The packaging script validates the generated version, the native-asset manifest,
+and all bundled data files. It preserves older release files and uses this
+Windows fork's update endpoint. The installer keeps the existing per-user
+identity and defaults to creating a desktop shortcut; it can be disabled in
+Setup. Image clipboard copying remains macOS-only; Windows supports PNG save
+and Markdown/image export.

@@ -17,6 +17,40 @@ void main() {
     await dir.delete(recursive: true);
   });
 
+  test('per-PDF reading state survives a reopen', () async {
+    final dir = await Directory.systemTemp.createTemp('pdgapp-reading-');
+    final path = '${dir.path}/user_store.json';
+    final store = await UserStore.open(overridePath: path);
+    await store.setReviewState('review.pdf', {
+      'page': 7,
+      'sidebarWidth': 380.0,
+      'dark': true,
+    });
+    final reopened = await UserStore.open(overridePath: path);
+    final state = reopened.reviewState('review.pdf');
+    expect(state?['page'], 7);
+    expect(state?['sidebarWidth'], 380.0);
+    expect(state?['dark'], isTrue);
+    await dir.delete(recursive: true);
+  });
+
+  test('recent searches are kept per scope', () async {
+    final dir = await Directory.systemTemp.createTemp('pdgapp-store-');
+    final path = '${dir.path}/user_store.json';
+    final store = await UserStore.open(overridePath: path);
+    await store.addRecent('ea "Jia, Jiangyong"', 'inspire');
+    await store.addRecent('D0 lifetime', 'all');
+    await store.addRecent('ea "Jia, Jiangyong"', 'inspire');
+    expect(
+      store.recents
+          .where((item) => item.scope == 'inspire')
+          .map((item) => item.query),
+      ['ea "Jia, Jiangyong"'],
+    );
+    expect(store.recents.first.query, 'ea "Jia, Jiangyong"');
+    await dir.delete(recursive: true);
+  });
+
   test('individual recent searches can be removed', () async {
     final dir = await Directory.systemTemp.createTemp('pdgapp-store-');
     final path = '${dir.path}/user_store.json';
@@ -101,4 +135,157 @@ void main() {
       await dir.delete(recursive: true);
     },
   );
+  group('reading state from untrusted JSON', () {
+    test('non-finite and out-of-range numbers are dropped on read', () async {
+      final dir = await Directory.systemTemp.createTemp('pdgapp-state-');
+      addTearDown(() => dir.delete(recursive: true));
+      final path = '${dir.path}/user_store.json';
+      // 1e999 decodes to infinity; write it the way a hand-edited or hostile
+      // file would carry it.
+      await File(path).writeAsString(
+        '{"reviewStates": {"bad.pdf": {"page": 1e999, "sidebarTab": 1e999, '
+        '"zoom": 1e999, "scroll": [1e999, 3], "dark": true, '
+        '"future": "kept"}, "ok.pdf": {"page": 7, "zoom": 1.5, '
+        '"scroll": [10.0, 200.5], "sidebarWidth": 380}}}',
+      );
+      final store = await UserStore.open(overridePath: path);
+
+      final bad = store.reviewState('bad.pdf')!;
+      expect(bad.containsKey('page'), isFalse);
+      expect(bad.containsKey('sidebarTab'), isFalse);
+      expect(bad.containsKey('zoom'), isFalse);
+      expect(bad.containsKey('scroll'), isFalse);
+      expect(bad['dark'], isTrue);
+      expect(bad['future'], 'kept');
+
+      final ok = store.reviewState('ok.pdf')!;
+      expect(ok['page'], 7);
+      expect(ok['zoom'], 1.5);
+      expect(ok['scroll'], [10.0, 200.5]);
+      expect(ok['sidebarWidth'], 380);
+    });
+
+    test('a zoom far outside the reader range is clamped', () {
+      final clean = UserStore.sanitizeReviewState({'zoom': 500.0, 'page': 0});
+      expect(clean, {'zoom': 8.0});
+    });
+
+    test('restoring a backup does not carry unusable numbers in', () async {
+      final dir = await Directory.systemTemp.createTemp('pdgapp-state-');
+      addTearDown(() => dir.delete(recursive: true));
+      final store = await UserStore.open(
+        overridePath: '${dir.path}/user_store.json',
+      );
+      await store.importData({
+        'reviewStates': {
+          'x.pdf': {'page': double.infinity, 'dark': true},
+        },
+      });
+      final state = store.reviewState('x.pdf')!;
+      expect(state.containsKey('page'), isFalse);
+      expect(state['dark'], isTrue);
+    });
+  });
+  group('backup round trip of the user store', () {
+    Future<UserStore> open(Directory dir, String name) =>
+        UserStore.open(overridePath: '${dir.path}/$name.json');
+
+    test('favorites survive export and import', () async {
+      final dir = await Directory.systemTemp.createTemp('pdgapp-fav-');
+      addTearDown(() => dir.delete(recursive: true));
+      final source = await open(dir, 'source');
+      await source.toggleFavorite(
+        Favorite(
+          kind: FavoriteKind.entry,
+          title: 'D0 mass',
+          subtitle: 'S032M',
+          snapshotHash: 'abc',
+          createdAt: DateTime.utc(2026, 1, 2),
+          pdgid: 'S032M',
+        ),
+      );
+      await source.toggleFavorite(
+        Favorite(
+          kind: FavoriteKind.reference,
+          title: 'A paper',
+          subtitle: 'doc',
+          snapshotHash: 'abc',
+          createdAt: DateTime.utc(2026, 1, 3),
+          referenceId: 42,
+        ),
+      );
+
+      final target = await open(dir, 'target');
+      await target.importData(source.exportData());
+      expect(target.favorites.map((f) => f.key).toSet(), {
+        'entry|S032M',
+        'reference|42',
+      });
+      expect(
+        target.favorites.firstWhere((f) => f.pdgid == 'S032M').title,
+        'D0 mass',
+      );
+
+      // Importing again does not duplicate them.
+      await target.importData(source.exportData());
+      expect(target.favorites, hasLength(2));
+    });
+
+    test('a favorite without an identifying field is not imported', () async {
+      final dir = await Directory.systemTemp.createTemp('pdgapp-fav-');
+      addTearDown(() => dir.delete(recursive: true));
+      final store = await open(dir, 'store');
+      await store.importData({
+        'favorites': [
+          {'kind': 'entry', 'title': 'no pdgid'},
+          {'kind': 'reference', 'title': 'no id'},
+        ],
+      });
+      expect(store.favorites, isEmpty);
+    });
+
+    test('infinity in a file or backup cannot stop later saves', () async {
+      final dir = await Directory.systemTemp.createTemp('pdgapp-inf-');
+      addTearDown(() => dir.delete(recursive: true));
+      final path = '${dir.path}/user_store.json';
+      await File(path).writeAsString(
+        '{"recents": [{"query": "x", "scope": "all", "weight": 1e999}], '
+        '"reviewStates": {"a.pdf": {"page": 2, "scroll": [1e999, 2]}}}',
+      );
+      final store = await UserStore.open(overridePath: path);
+      // Loading dropped the unusable numbers, so saving works.
+      await store.setSettings(store.settings.copyWith(textScale: 1.1));
+      await store.importData({
+        'recents': [
+          {'query': 'y', 'scope': 'all', 'weight': double.infinity},
+        ],
+      });
+      final reopened = await UserStore.open(overridePath: path);
+      expect(reopened.settings.textScale, 1.1);
+      expect(reopened.reviewState('a.pdf')!['page'], 2);
+      expect(File(path).readAsStringSync(), isNot(contains('Infinity')));
+    });
+
+    test('setReviewState drops non-finite numbers before saving', () async {
+      final dir = await Directory.systemTemp.createTemp('pdgapp-inf-');
+      addTearDown(() => dir.delete(recursive: true));
+      final path = '${dir.path}/user_store.json';
+      final store = await UserStore.open(overridePath: path);
+      await store.setReviewState('a.pdf', {
+        'page': 3,
+        'scroll': [double.nan, 5.0],
+        'zoom': double.infinity,
+      });
+      await store.setSettings(store.settings.copyWith(textScale: 1.1));
+      final reopened = await UserStore.open(overridePath: path);
+      expect(reopened.settings.textScale, 1.1);
+      expect(reopened.reviewState('a.pdf')!['page'], 3);
+    });
+
+    test('a zoom a hair above the limit is clamped, not dropped', () {
+      final clean = UserStore.sanitizeReviewState({'zoom': 8.000000000000002});
+      expect(clean['zoom'], 8.0);
+      expect(UserStore.sanitizeReviewState({'zoom': 0.0}), isEmpty);
+    });
+  });
 }

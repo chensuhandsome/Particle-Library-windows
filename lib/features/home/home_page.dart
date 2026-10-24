@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/app_scope.dart';
@@ -9,6 +11,7 @@ import '../../app/app_strings.dart';
 import '../../app/navigation.dart';
 import '../../app/app_theme.dart';
 import '../../data/pdg_database.dart';
+import '../../data/review_cache.dart';
 import '../../search/search_service.dart';
 import '../catalog/catalog_page.dart';
 import '../common/async_view.dart';
@@ -22,6 +25,9 @@ import '../notes/note_editor.dart';
 import '../notes/notes_format.dart';
 import '../reference/inspire_search_page.dart';
 import '../reference/reference_page.dart';
+import '../reviews/review_download_dialog.dart';
+import '../reviews/review_index.dart';
+import '../reviews/review_viewer_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -107,6 +113,8 @@ class _HomePageState extends State<HomePage> {
     _debounce?.cancel();
     _detailController?.resetToRoot();
     _controller.clear();
+    // A search still running must not fill the emptied page when it returns.
+    _generation++;
     _results.value = null;
     setState(() {
       _scope = SearchScope.all;
@@ -138,6 +146,9 @@ class _HomePageState extends State<HomePage> {
     _debounce?.cancel();
     final text = _controller.text.trim();
     if (text.isEmpty) {
+      // Cleared while a search was running: its answer no longer belongs here.
+      _generation++;
+      _inFlightKey = null;
       setState(() {
         _results.value = null;
         _error = null;
@@ -218,6 +229,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openHit(SearchHit hit, {required bool wide}) {
+    if (hit.kind == SearchGroupKind.review) {
+      unawaited(
+        AppScope.of(context).store.addRecent(_controller.text, _scope.name),
+      );
+      unawaited(_openReviewHit(hit));
+      return;
+    }
     final Widget page;
     if (hit.kind == SearchGroupKind.note && hit.note != null) {
       page = NoteEditorPage(note: hit.note!);
@@ -235,6 +253,92 @@ class _HomePageState extends State<HomePage> {
     } else {
       unawaited(AppNav.push<void>(context, page));
     }
+  }
+
+  Future<void> _openReviewHit(SearchHit hit) async {
+    final file = hit.reviewFile;
+    if (file == null) return;
+    final entry = reviewEntryForFile(file);
+    final title = entry?.title ?? hit.title;
+    final url = entry?.url ?? 'https://pdg.lbl.gov/2026/reviews/$file';
+    final strings = AppScope.of(context).strings;
+    try {
+      final cache = await ReviewCache.open();
+      var local = cache.fileFor(file);
+      if (!await local.exists()) {
+        if (!mounted) return;
+        final progress = ValueNotifier<ReviewDownloadProgress>(
+          const ReviewDownloadProgress(received: 0),
+        );
+        final navigator = Navigator.of(context, rootNavigator: true);
+        var dialogOpen = true;
+        unawaited(
+          showDialog<void>(
+            context: context,
+            useRootNavigator: true,
+            barrierDismissible: false,
+            builder: (_) => ReviewDownloadDialog(
+              title: title,
+              progress: progress,
+              strings: strings,
+            ),
+          ).then((_) => dialogOpen = false),
+        );
+        try {
+          local = await cache.download(
+            fileName: file,
+            url: url,
+            onProgress: (received, total) {
+              progress.value = ReviewDownloadProgress(
+                received: received,
+                total: total,
+              );
+            },
+          );
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(strings.searchReviewDownloadFailed)),
+          );
+          return;
+        } finally {
+          if (dialogOpen && navigator.mounted) navigator.pop();
+        }
+      }
+      var page = hit.reviewPage;
+      final expected = hit.reviewSha256;
+      if (expected != null && expected.isNotEmpty) {
+        final actual = await _sha256Of(local);
+        if (actual != expected) {
+          page = 1;
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(strings.searchReviewPdfMismatch)),
+            );
+          }
+        }
+      }
+      if (!mounted) return;
+      await AppNav.push<void>(
+        context,
+        ReviewViewerPage(
+          title: title,
+          path: local.path,
+          officialUrl: url,
+          initialPage: page,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(strings.searchReviewOpenFailed)));
+    }
+  }
+
+  Future<String> _sha256Of(File file) async {
+    final digest = await sha256.bind(file.openRead()).first;
+    return digest.toString();
   }
 
   @override
@@ -285,7 +389,7 @@ class _HomePageState extends State<HomePage> {
                 CollapsibleSidebar(
                   expanded: _searchPanelOpen,
                   width: resultsWidth,
-                  tooltip: '拖拽调整搜索栏宽度；拉到最窄可收起，双击恢复默认',
+                  tooltip: AppScope.of(context).strings.searchResizeTooltip,
                   railIcon: Icons.search,
                   railTooltip: AppScope.of(context).strings.sidebarShow,
                   onExpand: () => setState(() => _searchPanelOpen = true),
@@ -475,6 +579,7 @@ class _SearchPanel extends StatelessWidget {
               SearchScope.titles: 'searchScopeTitles',
               SearchScope.decays: 'searchScopeDecays',
               SearchScope.references: 'searchScopeReferences',
+              SearchScope.reviews: 'searchScopeReviews',
               SearchScope.notes: 'searchScopeNotes',
             }.entries)
               ChoiceChip(
@@ -484,6 +589,7 @@ class _SearchPanel extends StatelessWidget {
                   SearchScope.titles => strings.searchScopeTitles,
                   SearchScope.decays => strings.searchScopeDecays,
                   SearchScope.references => strings.searchScopeReferences,
+                  SearchScope.reviews => strings.searchScopeReviews,
                   SearchScope.notes => strings.searchScopeNotes,
                 }),
                 selected: scope == entry.key,
@@ -495,17 +601,16 @@ class _SearchPanel extends StatelessWidget {
           const SizedBox(height: Insets.s),
           Align(
             alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: () => onSearchInspire(''),
-              icon: const Icon(Icons.travel_explore, size: 17),
-              label: Text(strings.inspireSearchAction),
+            // The offline/online scope note moved to a tooltip and the help
+            // page; it no longer costs a line under the button.
+            child: Tooltip(
+              message: strings.inspireSearchEntryHint,
+              child: OutlinedButton.icon(
+                onPressed: () => onSearchInspire(''),
+                icon: const Icon(Icons.travel_explore, size: 17),
+                label: Text(strings.inspireSearchAction),
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            strings.inspireSearchEntryHint,
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: palette.textSecondary),
           ),
         ],
         const SizedBox(height: 2),
@@ -547,19 +652,47 @@ class _SearchPanel extends StatelessWidget {
           valueListenable: results,
           builder: (context, value, _) {
             if (value != null) {
+              final notice = switch (value.notice) {
+                'unavailable' ||
+                'degraded' => strings.searchReviewIndexUnavailable,
+                _ => null,
+              };
               if (value.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: Insets.m),
-                  child: EmptyPanel(
-                    message: strings.searchNoResults,
-                    icon: Icons.search_off,
-                  ),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (notice != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: Insets.s),
+                        child: Text(
+                          notice,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: context.palette.textSecondary),
+                        ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: Insets.m),
+                      child: EmptyPanel(
+                        message: strings.searchNoResults,
+                        icon: Icons.search_off,
+                      ),
+                    ),
+                  ],
                 );
               }
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: Insets.s),
+                  if (notice != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: Insets.s),
+                      child: Text(
+                        notice,
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: context.palette.textSecondary),
+                      ),
+                    ),
                   for (final group in value.groups)
                     _ResultGroup(
                       group: group,
@@ -709,6 +842,8 @@ class _IdleContent extends StatelessWidget {
                       'titles' => strings.searchScopeTitles,
                       'decays' => strings.searchScopeDecays,
                       'references' => strings.searchScopeReferences,
+                      'reviews' => strings.searchScopeReviews,
+                      'notes' => strings.searchScopeNotes,
                       _ => strings.searchScopeAll,
                     }),
                     onTap: () => onUseRecent(recent.query, recent.scope),
@@ -779,6 +914,7 @@ class _ResultGroup extends StatelessWidget {
       SearchGroupKind.decay => strings.searchKindDecay,
       SearchGroupKind.reference => strings.searchKindReference,
       SearchGroupKind.text => strings.searchKindText,
+      SearchGroupKind.review => strings.searchKindReview,
       SearchGroupKind.note => strings.searchKindNote,
     };
     final icon = switch (group.kind) {
@@ -788,6 +924,7 @@ class _ResultGroup extends StatelessWidget {
       SearchGroupKind.decay => Icons.call_split,
       SearchGroupKind.reference => Icons.menu_book_outlined,
       SearchGroupKind.text => Icons.notes,
+      SearchGroupKind.review => Icons.picture_as_pdf_outlined,
       SearchGroupKind.note => Icons.sticky_note_2_outlined,
     };
     return Column(

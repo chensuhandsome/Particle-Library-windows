@@ -7,7 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/error_text.dart';
 import '../../app/app_strings.dart';
+import '../../app/build_info.dart';
 import '../../app/full_backup.dart';
 import '../../app/settings_controller.dart';
 import '../../app/update_checker.dart';
@@ -20,6 +22,7 @@ import '../../data/zotero_inspire_api.dart';
 import '../../data/pdg_database.dart';
 import '../../domain/labels.dart';
 import '../common/export_file.dart';
+import '../common/import_types.dart';
 import '../common/page.dart';
 import '../common/raw_fields.dart';
 import '../common/ui.dart';
@@ -94,11 +97,11 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } on UpdateCheckException catch (error) {
       if (!mounted) return;
-      debugPrint('Update check failed: $error');
+      debugPrint('Update check failed: ${errorText(error, strings)}');
       setState(() => _updateStatus = strings.settingsUpdateUnavailable);
     } catch (error) {
       if (!mounted) return;
-      debugPrint('Update check failed: $error');
+      debugPrint('Update check failed: ${errorText(error, strings)}');
       setState(() => _updateStatus = strings.settingsUpdateUnavailable);
     } finally {
       if (mounted) setState(() => _checkingUpdate = false);
@@ -136,14 +139,19 @@ class _SettingsPageState extends State<SettingsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${strings.settingsFullBackupDone}: ${strings.settingsFullBackupSummary(result.notes, result.pdfs)}',
+            '${strings.settingsFullBackupDone}: ${strings.settingsFullBackupSummary(result.notes, result.pdfs, result.regions)}'
+            '${result.missingRegions == 0 ? '' : '\n${strings.settingsFullBackupMissingRegions(result.missingRegions)}'}',
           ),
         ),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${strings.settingsFullBackupFailed}: $error')),
+        SnackBar(
+          content: Text(
+            '${strings.settingsFullBackupFailed}: ${errorText(error, strings)}',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _fullBackupBusy = false);
@@ -154,35 +162,30 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_fullBackupBusy) return;
     final scope = AppScope.of(context);
     final strings = scope.strings;
-    final file = await openFile(
-      acceptedTypeGroups: const [
-        XTypeGroup(
-          label: 'Particle Library backup',
-          extensions: ['zip', 'json'],
-        ),
-      ],
-    );
-    if (file == null || !mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(strings.settingsFullBackupImport),
-        content: Text(strings.settingsFullBackupConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(strings.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(strings.commonConfirm),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
     setState(() => _fullBackupBusy = true);
     try {
+      final file = await openFile(
+        acceptedTypeGroups: const [fullBackupImportType],
+      );
+      if (file == null || !mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(strings.settingsFullBackupImport),
+          content: Text(strings.settingsFullBackupConfirm),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(strings.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: Text(strings.commonConfirm),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
       final result = await FullBackup.import(
         user: scope.store,
         notes: scope.notes,
@@ -194,14 +197,19 @@ class _SettingsPageState extends State<SettingsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${strings.settingsFullBackupImported}: ${strings.settingsFullBackupSummary(result.notes, result.pdfs)}',
+            '${strings.settingsFullBackupImported}: ${strings.settingsFullBackupSummary(result.notes, result.pdfs, result.regions)}'
+            '${result.skippedFiles == 0 ? '' : '\n${strings.settingsFullBackupSkippedFiles(result.skippedFiles)}'}',
           ),
         ),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${strings.settingsFullBackupFailed}: $error')),
+        SnackBar(
+          content: Text(
+            '${strings.settingsFullBackupFailed}: ${errorText(error, strings)}',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _fullBackupBusy = false);
@@ -249,7 +257,11 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${strings.settingsNotesBackupFailed}: $error')),
+        SnackBar(
+          content: Text(
+            '${strings.settingsNotesBackupFailed}: ${errorText(error, strings)}',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _backingUpNotes = false);
@@ -293,7 +305,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   Insets.s,
                 ),
                 child: MetaChip(
-                  scope.store.recoveryWarning!,
+                  strings.localizedRecoveryWarning(
+                    scope.store.recoveryWarning!,
+                  ),
                   tone: BadgeTone.warning,
                 ),
               ),
@@ -892,6 +906,14 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: Theme.of(context).textTheme.bodySmall
                           ?.copyWith(color: palette.textSecondary),
                     ),
+                    if (buildLabel.isNotEmpty) ...[
+                      const SizedBox(height: Insets.xs),
+                      Text(
+                        strings.settingsBuildValue(buildLabel),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: palette.textSecondary),
+                      ),
+                    ],
                     const SizedBox(height: Insets.xs),
                     OutlinedButton.icon(
                       onPressed: _checkingUpdate ? null : _checkUpdates,

@@ -31,9 +31,12 @@ RestartApplications=no
 SetupIconFile={#StagingDir}\app_icon.ico
 [Files]
 Source: {#StagingDir}\*; DestDir: {app}; Flags: ignoreversion recursesubdirs createallsubdirs
+[Tasks]
+Name: desktopicon; Description: "{cm:CreateDesktopIcon}"; Flags: checkedonce
+
 [Icons]
 Name: {group}\Particle Library; Filename: {app}\ParticleLibrary.exe; WorkingDir: {app}
-Name: {autodesktop}\Particle Library; Filename: {app}\ParticleLibrary.exe; WorkingDir: {app}
+Name: {autodesktop}\Particle Library; Filename: {app}\ParticleLibrary.exe; WorkingDir: {app}; Tasks: desktopicon
 
 [Run]
 Filename: {app}\ParticleLibrary.exe; Description: Launch Particle Library; Flags: postinstall nowait skipifsilent

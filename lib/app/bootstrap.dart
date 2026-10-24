@@ -7,9 +7,11 @@ import '../data/pdg_repository.dart';
 import '../data/snapshot_store.dart';
 import '../data/sql_executor.dart';
 import '../notes/notes.dart';
+import '../search/review_search_service.dart';
 import '../search/search_service.dart';
 import '../user/user_store.dart';
 import 'app_scope.dart';
+import 'boot_trace.dart';
 import 'settings_controller.dart';
 
 class AppBootstrap {
@@ -18,7 +20,10 @@ class AppBootstrap {
     String? userStoreOverridePath,
     String? notesStoreOverridePath,
     bool openNotes = true,
+    BootTrace? trace,
   }) async {
+    final boot = trace ?? BootTrace();
+    boot.mark('start');
     final userStoreFuture = UserStore.open(overridePath: userStoreOverridePath);
     // Notes are opened in parallel but their failure is contained: the PDG
     // snapshot must keep working even when the notes database cannot open.
@@ -28,40 +33,38 @@ class AppBootstrap {
     PreparedSnapshot? prepared;
     SqlExecutor? executor;
     try {
-      prepared = await (snapshotStore ?? SnapshotStore()).prepare();
+      prepared = await (snapshotStore ?? SnapshotStore()).prepare(trace: boot);
+      boot.mark('snapshot');
       executor = await IsolateSqlExecutor.open(prepared.path);
+      boot.mark('sql');
       final database = await PdgDatabase.open(
         executor,
         snapshotHash: prepared.sha256,
         validateSchema: true,
         verifyIntegrity: false,
       );
+      boot.mark('pdg');
       final userStore = await userStoreFuture;
+      boot.mark('user');
+      // The notes future includes its own cleanup/migration, which runs in
+      // parallel with the snapshot and database work above.
       final notesResult = await notesFuture;
+      boot.mark('notes');
       // A notes database with a newer/foreign schema is not an app failure;
       // its error state is surfaced on the Notes page instead.
-      var notesStore = notesResult.store;
-      var notesError = notesResult.error;
+      final notesStore = notesResult.store;
+      final notesError = notesResult.error;
       if (notesStore == null) {
         debugPrint('Notes unavailable: $notesError');
-      } else {
-        // Cleanup is a notes-only write. A locked/corrupt/full notes DB must
-        // not turn a healthy PDG startup into an app failure.
-        try {
-          await notesStore.cleanupLegacyMeasurementMarkers();
-          await ReviewAnnotationNotes.ensureMigrated(notesStore);
-        } catch (error) {
-          debugPrint('Notes cleanup failed; disabling notes: $error');
-          notesError = error;
-          await notesStore.close();
-          notesStore = null;
-        }
       }
       final settings = SettingsController(
         userStore,
         systemLocale: WidgetsBinding.instance.platformDispatcher.locale,
       );
+      boot.mark('total');
+      boot.dump();
       final notesChanges = ValueNotifier<int>(0);
+      final reviewSearch = ReviewSearchService();
       return AppServices(
         database: database,
         repository: PdgRepository(database),
@@ -69,6 +72,8 @@ class AppBootstrap {
           database,
           notes: notesStore,
           notesChanges: notesChanges,
+          reviewSearch: reviewSearch,
+          language: settings.language,
         ),
         userStore: userStore,
         settings: settings,
@@ -78,6 +83,7 @@ class AppBootstrap {
         notes: notesStore,
         notesError: notesError,
         notesChanges: notesChanges,
+        reviewSearch: reviewSearch,
       );
     } catch (error) {
       final notesResult = await notesFuture;
@@ -88,11 +94,23 @@ class AppBootstrap {
     }
   }
 
+  /// Opens the notes database and finishes its one-time cleanup so both run
+  /// alongside the snapshot work instead of after it.
   static Future<_NotesOpenResult> _openNotes(String? overridePath) async {
+    NotesStore? store;
     try {
-      final store = await NotesStore.open(overridePath: overridePath);
+      store = await NotesStore.open(overridePath: overridePath);
+      // Cleanup is a notes-only write. A locked/corrupt/full notes DB must
+      // not turn a healthy PDG startup into an app failure.
+      await store.cleanupLegacyMeasurementMarkers();
+      await ReviewAnnotationNotes.ensureMigrated(store);
       return _NotesOpenResult(store: store, error: null);
     } catch (error) {
+      if (store != null) {
+        try {
+          await store.close();
+        } catch (_) {}
+      }
       return _NotesOpenResult(store: null, error: error);
     }
   }

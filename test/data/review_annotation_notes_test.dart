@@ -30,6 +30,7 @@ void main() {
       color: 'green',
       reviewTitle: 'Quantum chromodynamics',
       comment: 'worth revisiting',
+      imagePath: '/tmp/region.png',
     );
 
     expect(annotation.noteId, isNotNull);
@@ -50,10 +51,74 @@ void main() {
     expect(loaded.single.note, 'worth revisiting');
     expect(loaded.single.color, 'green');
     expect(loaded.single.rects.single.left, closeTo(0.1, 1e-9));
+    expect(loaded.single.imagePath, '/tmp/region.png');
 
     final hits = await notes.search('selected sentence');
     expect(hits.map((hit) => hit.id), contains(note.id));
   });
+
+  test('annotation comments and tags are editable together', () async {
+    final annotation = await ReviewAnnotationNotes.create(
+      notes,
+      fileName: 'rpp2026-rev-qcd.pdf',
+      pageNumber: 4,
+      rects: const [Rect.fromLTRB(0.1, 0.2, 0.4, 0.3)],
+      text: 'a selected formula',
+      color: 'blue',
+      reviewTitle: 'Quantum chromodynamics',
+      tags: const ['important'],
+    );
+    expect(annotation.tags, ['important']);
+    await ReviewAnnotationNotes.updateComment(
+      notes,
+      annotation,
+      'check this again',
+      tags: const ['important', 'qcd'],
+    );
+    final loaded = await ReviewAnnotationNotes.load(
+      notes,
+      'rpp2026-rev-qcd.pdf',
+      reviewTitle: 'Quantum chromodynamics',
+    );
+    expect(loaded.single.note, 'check this again');
+    expect(loaded.single.tags, ['important', 'qcd']);
+  });
+
+  test(
+    'new comment stays searchable after the note body is expanded',
+    () async {
+      final annotation = await ReviewAnnotationNotes.create(
+        notes,
+        fileName: 'review.pdf',
+        pageNumber: 2,
+        rects: const [Rect.fromLTRB(0.1, 0.1, 0.4, 0.2)],
+        text: 'quoted',
+        color: 'yellow',
+        reviewTitle: 'Review',
+      );
+      final note = (await notes.noteById(annotation.noteId!))!;
+      await notes.update(
+        note.id,
+        bodyMarkdown: '${note.bodyMarkdown}\n\nMy own prose.',
+      );
+      await ReviewAnnotationNotes.updateComment(
+        notes,
+        annotation,
+        'searchable after expansion',
+      );
+      final loaded = (await ReviewAnnotationNotes.load(
+        notes,
+        'review.pdf',
+        reviewTitle: 'Review',
+      )).single;
+      expect(loaded.note, 'searchable after expansion');
+      final stored = (await notes.noteById(annotation.noteId!))!;
+      expect(stored.bodyMarkdown, contains('My own prose.'));
+      expect(stored.bodyMarkdown, contains('searchable after expansion'));
+      final hits = await notes.search('searchable after expansion');
+      expect(hits.map((hit) => hit.id), contains(annotation.noteId));
+    },
+  );
 
   test('comment edits update the note body and survive reload', () async {
     final annotation = await ReviewAnnotationNotes.create(
@@ -84,6 +149,9 @@ void main() {
       text: 'old quote',
       color: 'blue',
       reviewTitle: 'Review',
+      tags: const ['important'],
+      imagePath: '/tmp/region.png',
+      imageStale: true,
     );
     final updated = await ReviewAnnotationNotes.updateRange(
       notes,
@@ -92,6 +160,9 @@ void main() {
       text: 'new longer quote',
     );
     expect(updated, isNotNull);
+    expect(updated!.tags, ['important']);
+    expect(updated.imagePath, '/tmp/region.png');
+    expect(updated.imageStale, isTrue);
     final loaded = await ReviewAnnotationNotes.load(
       notes,
       'review.pdf',
@@ -100,6 +171,9 @@ void main() {
     expect(loaded.single.text, 'new longer quote');
     expect(loaded.single.rects.single.right, closeTo(0.8, 1e-9));
     expect(loaded.single.color, 'blue');
+    expect(loaded.single.tags, ['important']);
+    expect(loaded.single.imagePath, '/tmp/region.png');
+    expect(loaded.single.imageStale, isTrue);
   });
 
   test('comment and range edits keep the human review title in body', () async {
@@ -222,7 +296,22 @@ void main() {
       expect(reloaded.single.note, 'new comment');
       final saved = await notes.noteById(note.id);
       expect(saved!.bodyMarkdown, contains('my synthesis'));
-      expect(saved.bodyMarkdown, isNot(contains('new comment')));
+      expect(saved.bodyMarkdown, contains('new comment'));
+      // Append prose after the managed comment block, then edit the comment
+      // again: both the tail and the newest comment must survive.
+      await notes.update(
+        note.id,
+        bodyMarkdown: '${saved.bodyMarkdown}\n\nTAIL AFTER COMMENT',
+      );
+      await ReviewAnnotationNotes.updateComment(
+        notes,
+        annotation,
+        'second comment',
+      );
+      final savedAgain = (await notes.noteById(note.id))!;
+      expect(savedAgain.bodyMarkdown, contains('TAIL AFTER COMMENT'));
+      expect(savedAgain.bodyMarkdown, contains('second comment'));
+      expect(savedAgain.bodyMarkdown, isNot(contains('new comment')));
     },
   );
 

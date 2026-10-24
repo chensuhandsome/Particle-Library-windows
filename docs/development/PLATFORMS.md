@@ -11,8 +11,8 @@ smoke test on that platform.
 |---|---|---|---|---|
 | macOS 12+ (universal) | yes | verified | `.app` | Developer ID signing/notarization for public distribution |
 | iPhone/iPad | yes | simulator + debug/release device install verified | Development-signed app | TestFlight/App Store needs paid team |
-| Android | yes | release APK built | signed preview APK | API 24/32-bit device smoke test; Play Store signing |
-| Windows 10/11 x64 | yes | release bundle and packaging implemented | installer + portable ZIP | native smoke-test sign-off |
+| Android | yes | release APK built | signed preview APK | API 24 device smoke test; Play Store signing (arm64-v8a only, no 32-bit) |
+| Windows | no | no | none | `windows/`, MSVC build, installer |
 | Linux | no | no | none | `linux/`, GTK build, package |
 
 ## Shared code that is already portable
@@ -21,8 +21,6 @@ smoke test on that platform.
 - `sqlite3_flutter_libs`, `pdfrx`, `file_selector`, `url_launcher`,
   `path_provider` and `flutter_svg` all publish multiple platform
   implementations;
-- The pinned `pdfium_dart` hook supplies the Windows PDFium DLL during builds;
-  first-time builds need network access to fetch it.
 - keyboard shortcuts use both Command and Control;
 - non-macOS builds get an in-app Settings button (macOS opens Settings from the
   application menu).
@@ -39,8 +37,6 @@ smoke test on that platform.
   verified per platform.
 - **Snapshot:** the 64 MB SQLite asset must be bundled on every target; mobile
   store size limits and first-launch staging need measurement.
-- **Windows:** release packaging is implemented; complete the Windows smoke
-  checklist before claiming full support.
 - **Signing:** this repository contains no certificates, provisioning profiles
   or store credentials.
 
