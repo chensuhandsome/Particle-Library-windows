@@ -103,8 +103,8 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
   3. 在 TestFlight 中安装 **Particle Library** 并打开。
 
   需要 iOS/iPadOS 15+ 和 Apple ID。更新通过 TestFlight 推送；构建 90 天后过期。
-  这是预发布 beta，不是 App Store 正式版。macOS 和 Android 不通过这个
-  TestFlight 链接分发。
+  这是 TestFlight 预发布 beta；App Store 分发另行处理。这个 TestFlight 链接只
+  覆盖 iPhone/iPad；macOS 和 Android 通过 GitHub Releases 分发。
 - **Android 7.0+（API 24）**：Release 中提供已签名预览 APK，现代手机/平板用
   `Particle-Library-*-Android-arm64-v8a.apk`；32 位设备不再构建。详见
   [Android 构建说明](docs/development/ANDROID.md)。
@@ -115,19 +115,19 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
   再导入备份。不备份直接卸载会删除本地笔记，且 Android 自动备份关闭。
 - **Windows/Linux/web**：本版本未构建。
 
-macOS 版已内置 PDG 快照，普通用户不需要 Flutter、Xcode 或源码。源码构建者可直接下载
+macOS 版已内置 PDG 快照，发布包对普通用户是自包含的。源码构建者可直接下载
 [`pdgall-2026.0.sqlite`](https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite)（
-[PDG 官方 API 页面](https://pdg.lbl.gov/2026/api/index.html)），该文件不再作为 Release asset。
+[PDG 官方 API 页面](https://pdg.lbl.gov/2026/api/index.html)）。
 
-内置快照是**未修改的官方原始文件**；应用打开前会校验固定的 SHA-256，哈希和构建步骤见
+内置快照是官方 PDG 原始文件；应用打开前会校验固定的 SHA-256，哈希和构建步骤见
 [`assets/README.md`](assets/README.md)。应用另外内置两个独立的只读派生资产：
 
-- `pdg_notes_2026.sqlite`：官方数据库没有的 pdgLive 补充内容——条目说明与旧名注释、
+- `pdg_notes_2026.sqlite`：pdgLive 额外补充内容——条目说明与旧名注释、
   209 条 pdgLive 相关文献及其 INSPIRE 记录号/cite key、引用关系，以及条目→综述链接；
 - `review_index_2026.sqlite`：由 121 篇 PDG 综述 PDF 构建的页面级全文索引。
 
-这 209 条是 pdgLive 注释实际引用的文献；官方数据库的其余文献不在这份 sidecar 中，
-需要 BibTeX/cite key 时按需向 INSPIRE 查询。
+这 209 条是 pdgLive 注释实际引用的文献；官方库的其他文献由应用按需向 INSPIRE
+获取 BibTeX/cite key。
 
 ## 从源码构建
 
@@ -153,14 +153,14 @@ flutter analyze
 flutter test
 ```
 
-测试覆盖快照契约、显示语义、数学解析、笔记/标签、PDF 批注坐标与持久化、Zotero 缓存解析和 UI 辅助逻辑。除显式联网测试外，测试不需要网络。
+测试覆盖快照契约、显示语义、数学解析、笔记/标签、PDF 批注坐标与持久化、Zotero 缓存解析和 UI 辅助逻辑。测试默认离线；联网测试需显式开启。
 
 ## 本机数据与隐私
 
 - PDG 快照只读并校验哈希；
 - 笔记保存在应用支持目录中的独立 SQLite 数据库；设置、收藏和最近搜索保存在同一目录的 JSON 文件中；
 - Zotero 索引也保存在应用支持目录；
-- PDG 综述 PDF 按需下载，不包含在仓库中；
+- PDG 综述 PDF 按需从 PDG 网站下载；
 - Zotero 仅通过 `http://127.0.0.1:23119` 只读访问，且仅桌面版可用；索引仅在设置中手动刷新时更新；
 - 更新检查在启动时和手动点击时访问 jsDelivr、raw.githubusercontent.com 和 GitHub Releases API；这会将 IP 地址披露给这些服务，但不会自动安装更新。iOS 更新通过 TestFlight（或上架后的 App Store）交付；
 - 不使用遥测、分析或账户服务，也没有相关计划。
@@ -219,7 +219,7 @@ Zenodo. https://doi.org/10.5281/zenodo.23460981
 - **应用代码**：Mozilla Public License 2.0（MPL-2.0），见 [LICENSE](LICENSE)。Copyright 2026 Particle Library contributors。
   源码：<https://github.com/fkguo/Particle-Library>。
 - **PDG 数据快照**：CC BY 4.0，需保留 Particle Data Group 署名；MPL-2.0 不覆盖数据。
-- **PDG 综述 PDF**：不随仓库分发；从 PDG 下载并受 PDG 条款约束。
+- **PDG 综述 PDF**：从 PDG 按需下载，并受 PDG 条款约束。
 - **第三方依赖**：见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-本项目是独立应用，不是 PDG 官方产品。
+Particle Library 是独立项目；PDG 数据按 CC BY 4.0 使用并署名。

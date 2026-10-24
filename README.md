@@ -136,8 +136,9 @@ Open the **[latest release](https://github.com/fkguo/Particle-Library/releases/l
   3. Install **Particle Library** from TestFlight and open it.
 
   Requires iOS/iPadOS 15+ and an Apple ID. Updates arrive through TestFlight;
-  builds expire after 90 days. This is a pre-release beta, not the App Store
-  version. macOS and Android are not distributed through this TestFlight link.
+  builds expire after 90 days. This is a TestFlight pre-release beta; App Store
+  distribution is separate. This TestFlight link covers iPhone/iPad; macOS and
+  Android are distributed through GitHub Releases.
 - **Android 7.0+ (API 24)**: one signed APK for arm64 phones/tablets:
   `Particle-Library-*-Android-arm64-v8a.apk` (32-bit devices are no longer
   built). See [Android build notes](docs/development/ANDROID.md).
@@ -150,27 +151,24 @@ Open the **[latest release](https://github.com/fkguo/Particle-Library/releases/l
   backup deletes the local notes, and Android auto-backup is off.
 - **Windows/Linux/web**: not built for this release.
 
-The macOS app bundles the PDG snapshot, so end users do not need Flutter, Xcode,
-or the repository. Source builders download
+The macOS app bundles the PDG snapshot; the release build is self-contained for
+end users. Source builders download
 [`pdgall-2026.0.sqlite`](https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite)
-directly from the [official PDG API page](https://pdg.lbl.gov/2026/api/index.html);
-it is not a release asset.
+directly from the [official PDG API page](https://pdg.lbl.gov/2026/api/index.html).
 
-The bundled snapshot is the **unmodified official file**; the app verifies its
-pinned SHA-256 before opening it. The checksum and build steps are documented in
+The bundled snapshot is the official PDG file; the app verifies its pinned
+SHA-256 before opening it. The checksum and build steps are documented in
 [`assets/README.md`](assets/README.md). The app also ships two separate,
 read-only derived assets:
 
-- `pdg_notes_2026.sqlite` — the pdgLive enrichment that the official database
-  does not carry: entry summaries and old-name notes, the 209 pdgLive-related
-  references with INSPIRE record IDs and cite keys, citation links, and
-  entry-to-review links;
+- `pdg_notes_2026.sqlite` — additional pdgLive enrichment: entry summaries and
+  old-name notes, the 209 pdgLive-related references with INSPIRE record IDs
+  and cite keys, citation links, and entry-to-review links;
 - `review_index_2026.sqlite` — a page-level full-text index built from the 121
   PDG Review PDFs.
 
-The 209 references are those cited by the pdgLive notes. The official
-database's other references are not duplicated in this sidecar; their
-BibTeX/cite keys are fetched from INSPIRE on demand when needed.
+The 209 references are those cited by the pdgLive notes. For other official
+references, the app fetches BibTeX/cite keys from INSPIRE on demand.
 
 ## Build from source
 
@@ -198,8 +196,7 @@ flutter test
 
 The test suite covers the snapshot contract, display semantics, math parsing,
 notes/tags, PDF annotation coordinates and persistence, Zotero cache parsing,
-and UI helpers. Tests do not require network access unless a test explicitly
-opts into a live service.
+and UI helpers. Tests run offline by default; live-service tests are opt-in.
 
 ## Local data and privacy
 
@@ -207,8 +204,7 @@ opts into a live service.
 - Notes live in a separate SQLite database in the app support directory;
   settings, favorites and recent searches live in a JSON file there.
 - The Zotero index also lives in the app support directory.
-- Review PDFs are downloaded from the PDG website on demand and are not part of
-  this repository.
+- Review PDFs are downloaded from the PDG website on demand.
 - Zotero is accessed read-only through its local API at
   `http://127.0.0.1:23119`; the Zotero index is updated only when you press the
   button in Settings.
@@ -274,8 +270,9 @@ the user README is bilingual.
   Copyright 2026 Particle Library contributors.
 - **PDG data snapshot:** CC BY 4.0, with attribution to the Particle Data
   Group. The MPL-2.0 license does **not** cover the data.
-- **PDG review PDFs:** not bundled; downloaded from the PDG and subject to
-  PDG's terms.
+- **PDG review PDFs:** downloaded from the PDG on demand and subject to PDG's
+  terms.
 - **Third-party packages:** see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-This is an independent application, not an official PDG product.
+Particle Library is an independent project. PDG data are used under CC BY 4.0
+with attribution.
