@@ -156,6 +156,19 @@ or the repository. Source builders download
 directly from the [official PDG API page](https://pdg.lbl.gov/2026/api/index.html);
 it is not a release asset.
 
+The bundled snapshot is the **unmodified official file** (SHA-256
+`c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a`).
+The app also ships two separate, read-only derived databases:
+
+- `pdg_notes_2026.sqlite` — pdgLive-only summaries and `was <old name>` lines
+  that are absent from the official database;
+- `review_index_2026.sqlite` — a page-level full-text index built from the 121
+  PDG Review PDFs.
+
+These are companion assets, not patches to `pdgall-2026.0.sqlite`; they do not
+change its contents or checksum. Their generators, source manifests and query
+rules live in `tool/` and `assets/`.
+
 The app uses `io.github.fkguo.particlelibrary` as its bundle identifier.
 See [RELEASING.md](docs/development/RELEASING.md).
 

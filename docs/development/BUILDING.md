@@ -31,8 +31,13 @@ Android, Windows or Linux build.
 - Expected snapshot: PDG 2026, schema 0.3, SHA-256
   `c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a`.
 
-`flutter test`, `flutter run` and every platform build require the asset to be
-present.
+The build also includes two committed, derived read-only assets:
+`pdg_notes_2026.sqlite` (pdgLive-only summaries and old names) and
+`review_index_2026.sqlite` (page-level review FTS). They are companions to the
+official snapshot, not patches to it; see [assets/README.md](../../assets/README.md).
+
+`flutter test`, `flutter run` and every platform build require the snapshot to
+be present.
 
 ## macOS
 
