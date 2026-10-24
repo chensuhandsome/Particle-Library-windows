@@ -18,21 +18,21 @@
 
 [English](README.md) | **简体中文**
 
-Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review of Particle Physics*，支持笔记、文献、PDF 综述和批注。PDG 数据快照保持只读且保存在本机，笔记、收藏、标签和 PDF 批注与数据分开存储。
+Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review of Particle Physics*，支持笔记、文献、PDF 综述和批注。PDG 数据快照保持只读且保存在本机，笔记、Collection、收藏和 PDF 批注与数据分开存储。
 
 第一版是在周末使用 **DeepSeek Harness** 与 **DeepSeek-V4.1-Flash-1017** 构建的。
 
 **支持平台：** macOS 12+（通用二进制）、iPhone/iPadOS 15+，以及 Android 7.0+（API 24，预览 APK；arm64 已在真机测试）。各平台共享 Flutter 响应式布局。
 
 **iPhone/iPad 公开 TestFlight beta：**
-[加入测试](https://testflight.apple.com/join/my27SMAt)。TestFlight 是预发布版本，可能比下面的 release note 更新。
+[加入测试](https://testflight.apple.com/join/my27SMAt)。TestFlight 是预发布版本，可能比最新正式版更新。
 
 ## 截图
 
 | χc1(3872) | π 电极化率 |
 | --- | --- |
 | <img src="docs/assets/screenshots/desktop-x3872.jpg" alt="χc1(3872) 粒子页" width="640"> | <img src="docs/assets/screenshots/desktop-polarizability.jpg" alt="π 电极化率测量页" width="640"> |
-| 粒子页：左侧页面目录、身份、量子数与右侧上下文栏。 | 测量页：左侧目录、定义与来源、PDG 平均和右侧上下文栏。 |
+| 粒子页：左侧页面目录、身份、量子数与右侧上下文栏。 | 测量页：左侧目录、定义、来源、PDG 平均和右侧上下文栏。 |
 
 | iPhone |
 | --- |
@@ -44,18 +44,19 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
 ## 功能
 
 - **离线 PDG 数据**：只读 SQLite 快照，SHA-256 完整性校验、首次启动安装、schema 校验和原始字段查看。
-- **搜索与导航**：粒子名与别名、希腊字母/LaTeX 写法、MC 编号、PDG 标识符、专题、衰变、文献和全文搜索。
+- **搜索与导航**：粒子名与别名、希腊字母/LaTeX 写法、MC 编号、PDG 标识符、专题、衰变、文献和自由文本搜索。
 - **综述全文检索**：离线检索 121 篇 PDG 综述全文，跳转到命中页，并显示所在节标题和表格/图注。
 - **条目页面**：粒子、专题、衰变模式、系列/性质和文献页面，包含汇总、全部测量、误差、脚注、历史、文献和原始记录。
 - **数据语义**：区分 PDG Average / PDG Fit；保留 limit、range、CL、scale factor 和 used-in-average/fit 等字段，不擅自归一化。
 - **数学排版**：PDG ASCII 表达式、粒子符号、衰变方程和单位在无歧义时排版为数学；否则保留原文。
 - **历史与趋势**：按版次查看汇总值和带非对称误差的趋势图。
-- **笔记**：本机 Markdown 笔记，支持锚点、反向链接、Collection、标签、搜索、导入/导出和冲突保护；所有“加入笔记”入口共用同一个选择器。
+- **笔记**：本机 Markdown 笔记，支持锚点、反向链接、Collection、标签、搜索、JSON/Markdown 导入/导出和冲突保护；所有“加入笔记”入口共用同一个选择器。
 - **标签**：跨笔记筛选、浏览、重命名和删除。
 - **完整备份**：一个 ZIP 包含设置、收藏、笔记、高亮 anchor 和已缓存综述 PDF；导入自动识别格式并安全合并；移动端导出会打开系统分享面板。
 - **文献**：本地文献信息、可选 Crossref 题名补全、INSPIRE 搜索、BibTeX/cite key 和 Zotero 本地桥接。
 - **Zotero 索引（仅 macOS 桌面）**：手动构建/更新的本地 Zotero 条目缓存，避免 INSPIRE 结果逐条请求。
 - **PDG 综述**：按需缓存 PDF、选择性清理、PDF 文字高亮；高亮直接存为带 review anchor 的本地笔记，可搜索、打标签、导出，并显示在右侧批注栏。
+- **PDF 高亮即笔记**：每条高亮都是一个带综述锚点的普通本地笔记，搜索、标签、反向链接、导出和回收站直接复用，不需要第二套批注数据库。
 - **桌面工作区**：可独立收起的左侧页面目录和右侧上下文栏、可拖拽分栏、移动端紧凑布局。
 - **双语界面**：中文/英文界面，支持跟随系统、浅色/深色主题。
 - **更新检查**：后台检查新版本，Settings → About 也可手动“检查更新”，提示后打开下载页面。
@@ -150,11 +151,12 @@ flutter test
 ## 本机数据与隐私
 
 - PDG 快照只读并校验哈希；
-- 笔记和用户设置保存在独立 SQLite 数据库；
-- 收藏、最近搜索和 Zotero 索引保存在应用支持目录；
+- 笔记保存在应用支持目录中的独立 SQLite 数据库；设置、收藏和最近搜索保存在同一目录的 JSON 文件中；
+- Zotero 索引也保存在应用支持目录；
 - PDG 综述 PDF 按需下载，不包含在仓库中；
-- Zotero 仅通过 `http://127.0.0.1:23119` 只读访问，且仅桌面版可用；
-- 更新检查会在启动时和手动点击时访问 GitHub Releases API，这会将 IP 地址披露给 GitHub；不发送遥测或使用数据，也不会静默安装更新。
+- Zotero 仅通过 `http://127.0.0.1:23119` 只读访问，且仅桌面版可用；索引仅在设置中手动刷新时更新；
+- 更新检查在启动时和手动点击时访问 jsDelivr、raw.githubusercontent.com 和 GitHub Releases API；这会将 IP 地址披露给这些服务，但不会自动安装更新。iOS 更新通过 TestFlight（或上架后的 App Store）交付；
+- 不使用遥测、分析或账户服务，也没有相关计划。
 
 ## 仓库结构
 
@@ -164,7 +166,9 @@ test/           单元与 widget 测试
 assets/         图标/主题资源；PDG 快照需自行提供
 macos/          macOS runner
 ios/            iOS runner
-docs/           设计与开发文档
+android/        Android runner 与发布签名
+tool/           发布/打包辅助脚本
+docs/           构建、发布与用户文档
 ```
 
 ## 引用
@@ -192,16 +196,16 @@ Zenodo. https://doi.org/10.5281/zenodo.23460981
 
 ## 文档
 
-- [文档索引](docs/README.md)
-- [产品设计](docs/design/PDG_App_Design.md)
-- [数据图集](docs/design/PDGall_Data_Atlas.md)
-- [数学转换规则](docs/design/Math_Conversion.md)
-- [衰变结构设计](docs/design/Decay_Structure_Design.md)
-- [开发路线与跨平台计划](docs/development/ROADMAP.md)
-- [许可说明](docs/development/LICENSING.md)
-- [更新检查](docs/development/UPDATES.md)
+- [文档索引（英文）](docs/README.md)
+- [构建说明（英文）](docs/development/BUILDING.md)
+- [Android 构建说明（英文）](docs/development/ANDROID.md)
+- [平台支持矩阵（英文）](docs/development/PLATFORMS.md)
+- [许可说明（英文）](docs/development/LICENSING.md)
+- [更新检查（英文）](docs/development/UPDATES.md)
+- [发布流程（英文）](docs/development/RELEASING.md)
+- [隐私政策（英文）](docs/app-store/PRIVACY.md)
 
-开发文档目前以中文为主；构建/平台说明为英文。
+构建、平台、发布、许可、更新和隐私文档为英文；用户 README 中英双语。
 
 ## License
 

@@ -32,14 +32,14 @@ across desktop and mobile.
 
 **Public TestFlight beta (iPhone/iPad):**
 [Join the beta](https://testflight.apple.com/join/my27SMAt). TestFlight builds
-are pre-release software and may be newer than the release notes below.
+are pre-release software and may be newer than the latest stable release.
 
 ## Screenshots
 
 | χc1(3872) | π electric polarizability |
 | --- | --- |
 | <img src="docs/assets/screenshots/desktop-x3872.jpg" alt="χc1(3872) particle page" width="640"> | <img src="docs/assets/screenshots/desktop-polarizability.jpg" alt="Pion electric polarizability measurement page" width="640"> |
-| Particle page with left section outline, identity, quantum numbers and right context sidebar. | Measurement page with left outline, definition, PDG average and right context sidebar. |
+| Particle page with left section outline, identity, quantum numbers and right context sidebar. | Measurement page with left outline, definition, source, PDG average and right context sidebar. |
 
 | iPhone |
 | --- |
@@ -82,14 +82,14 @@ English UI, PDG 2026 snapshot, dark desktop theme and light iPhone theme.
 - **PDG reviews** — on-demand PDF cache, selective cache cleanup, PDF text
   highlights stored as local notes with review anchors, and an annotation
   sidebar. Highlights are searchable, taggable and included in note export.
+- **PDF highlights are notes** — each highlight creates a normal local note
+  anchored to the review, so search, tags, backlinks, export and the recycle
+  bin apply without a second annotation database.
 - **Desktop workspace** — independently collapsible left outlines and context
   sidebars, draggable dividers, resizable panes and a compact mobile layout.
 - **Bilingual UI** — Chinese and English interface with system/light/dark themes.
 - **Update check** — a background release check plus a manual
   **Check for updates** action in Settings → About; it opens the download page.
-- **PDF highlights are notes** — each highlight creates a normal local note
-  anchored to the review, so search, tags, backlinks, export and the recycle
-  bin apply without a second annotation database.
 
 ## Requirements
 
@@ -191,18 +191,18 @@ opts into a live service.
 ## Local data and privacy
 
 - The PDG snapshot is read-only and checksum-verified.
-- Notes live in a separate SQLite database (`ParticleDesk/user.db`); settings,
-  favorites and recent searches live in `ParticleDesk/user_store.json`.
-- Favorites, recent searches and the Zotero index live in the app support
-  directory.
+- Notes live in a separate SQLite database in the app support directory;
+  settings, favorites and recent searches live in a JSON file there.
+- The Zotero index also lives in the app support directory.
 - Review PDFs are downloaded from the PDG website on demand and are not part of
   this repository.
 - Zotero is accessed read-only through its local API at
   `http://127.0.0.1:23119`; the Zotero index is updated only when you press the
   button in Settings.
-- No telemetry, analytics or account service is used, and none is planned. On macOS/Android, update checks contact
-  jsDelivr, raw.githubusercontent.com and api.github.com; they do not
-  auto-install anything. iOS updates are handled by the App Store only.
+- On macOS/Android, update checks contact jsDelivr, raw.githubusercontent.com
+  and api.github.com; they do not auto-install anything. On iOS, updates are
+  delivered through TestFlight or the App Store.
+- No telemetry, analytics or account service is used, and none is planned.
 
 ## Repository layout
 
@@ -244,11 +244,15 @@ For reproducibility, cite the exact version, e.g.
 
 - [Documentation index](docs/README.md)
 - [Build instructions](docs/development/BUILDING.md)
+- [Android notes](docs/development/ANDROID.md)
 - [Platform support](docs/development/PLATFORMS.md)
 - [Licensing notes](docs/development/LICENSING.md)
 - [Update checks](docs/development/UPDATES.md)
 - [Releasing](docs/development/RELEASING.md)
 - [Privacy policy](docs/app-store/PRIVACY.md)
+
+Build, platform, release, licensing, update and privacy docs are in English;
+the user README is bilingual.
 
 ## License
 
