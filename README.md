@@ -156,14 +156,21 @@ or the repository. Source builders download
 directly from the [official PDG API page](https://pdg.lbl.gov/2026/api/index.html);
 it is not a release asset.
 
-The bundled snapshot is the **unmodified official file** (SHA-256
-`c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a`).
-The app also ships two separate, read-only derived databases:
+The bundled snapshot is the **unmodified official file**; the app verifies its
+pinned SHA-256 before opening it. The checksum and build steps are documented in
+[`assets/README.md`](assets/README.md). The app also ships two separate,
+read-only derived assets:
 
-- `pdg_notes_2026.sqlite` — pdgLive-only summaries and `was <old name>` lines
-  that are absent from the official database;
+- `pdg_notes_2026.sqlite` — the pdgLive enrichment that the official database
+  does not carry: entry summaries and old-name notes, the 209 pdgLive-related
+  references with INSPIRE record IDs and cite keys, citation links, and
+  entry-to-review links;
 - `review_index_2026.sqlite` — a page-level full-text index built from the 121
   PDG Review PDFs.
+
+The 209 references are those cited by the pdgLive notes. The official
+database's other references are not duplicated in this sidecar; their
+BibTeX/cite keys are fetched from INSPIRE on demand when needed.
 
 These are companion assets, not patches to `pdgall-2026.0.sqlite`; they do not
 change its contents or checksum. Their generators, source manifests and query

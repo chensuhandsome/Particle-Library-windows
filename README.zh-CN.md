@@ -119,12 +119,15 @@ macOS 版已内置 PDG 快照，普通用户不需要 Flutter、Xcode 或源码�
 [`pdgall-2026.0.sqlite`](https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite)（
 [PDG 官方 API 页面](https://pdg.lbl.gov/2026/api/index.html)），该文件不再作为 Release asset。
 
-内置快照是**未修改的官方原始文件**（SHA-256
-`c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a`）。
-应用另外内置两个独立的只读派生数据库：
+内置快照是**未修改的官方原始文件**；应用打开前会校验固定的 SHA-256，哈希和构建步骤见
+[`assets/README.md`](assets/README.md)。应用另外内置两个独立的只读派生资产：
 
-- `pdg_notes_2026.sqlite`：pdgLive 独有的简介和 `was <旧名>` 注释，官方数据库中没有；
+- `pdg_notes_2026.sqlite`：官方数据库没有的 pdgLive 补充内容——条目说明与旧名注释、
+  209 条 pdgLive 相关文献及其 INSPIRE 记录号/cite key、引用关系，以及条目→综述链接；
 - `review_index_2026.sqlite`：由 121 篇 PDG 综述 PDF 构建的页面级全文索引。
+
+这 209 条是 pdgLive 注释实际引用的文献；官方数据库的其余文献不在这份 sidecar 中，
+需要 BibTeX/cite key 时按需向 INSPIRE 查询。
 
 它们是配套资产，**不是对 `pdgall-2026.0.sqlite` 打 patch**，不会改变官方库内容或校验和。
 生成脚本、来源清单和查询规则在 `tool/` 与 `assets/` 中。
