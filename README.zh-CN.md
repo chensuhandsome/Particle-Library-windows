@@ -45,6 +45,7 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
 
 - **离线 PDG 数据**：只读 SQLite 快照，SHA-256 完整性校验、首次启动安装、schema 校验和原始字段查看。
 - **搜索与导航**：粒子名与别名、希腊字母/LaTeX 写法、MC 编号、PDG 标识符、专题、衰变、文献和全文搜索。
+- **综述全文检索**：离线检索 121 篇 PDG 综述全文，跳转到命中页，并显示所在节标题和表格/图注。
 - **条目页面**：粒子、专题、衰变模式、系列/性质和文献页面，包含汇总、全部测量、误差、脚注、历史、文献和原始记录。
 - **数据语义**：区分 PDG Average / PDG Fit；保留 limit、range、CL、scale factor 和 used-in-average/fit 等字段，不擅自归一化。
 - **数学排版**：PDG ASCII 表达式、粒子符号、衰变方程和单位在无歧义时排版为数学；否则保留原文。
@@ -74,10 +75,10 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
 
 ## 安装
 
-最新版本是 **[Release 0.1.3](https://github.com/fkguo/Particle-Library/releases/tag/v0.1.3)**。
+打开 **[最新 Release](https://github.com/fkguo/Particle-Library/releases/latest)**。
 
-- **macOS 12+（通用二进制）**：下载 Release 中的
-  `Particle-Library-0.1.3-macOS-universal.dmg`（或 `.zip`）。当前为 ad-hoc
+- **macOS 12+（通用二进制）**：下载
+  `Particle-Library-*-macOS-universal.dmg`（或 `.zip`）。当前为 ad-hoc
   签名、未公证；运行前请核对 `SHA256SUMS.txt`。
 
   **首次打开被 macOS 拦截时**，任选一种：
@@ -103,11 +104,15 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
   需要 iOS/iPadOS 15+ 和 Apple ID。更新通过 TestFlight 推送；构建 90 天后过期。
   这是预发布 beta，不是 App Store 正式版。macOS 和 Android 不通过这个
   TestFlight 链接分发。
-- **Android 7.0+（API 24）**：Release 中提供已签名预览 APK；现代手机用
-  `Particle-Library-0.1.3-Android-arm64-v8a.apk`，旧 32 位设备用
-  `Particle-Library-0.1.3-Android-armeabi-v7a.apk`。详见
+- **Android 7.0+（API 24）**：Release 中提供已签名预览 APK，现代手机/平板用
+  `Particle-Library-*-Android-arm64-v8a.apk`；32 位设备不再构建。详见
   [Android 构建说明](docs/development/ANDROID.md)。
-- **Windows/Linux/web**：0.1.3 未构建。
+
+  **Android 0.2.0 起使用新的签名 key。** 0.1.x 的 key 已丢失，Android 会把
+  0.2.x 当成不同应用，不能覆盖 0.1.x；0.2.x 之间可以覆盖升级。卸载旧版前：
+  在 0.1.x 打开 设置 → 数据 → 导出完整备份；卸载旧版，安装当前 0.2.x，
+  再导入备份。不备份直接卸载会删除本地笔记，且 Android 自动备份关闭。
+- **Windows/Linux/web**：本版本未构建。
 
 macOS 版已内置 PDG 快照，普通用户不需要 Flutter、Xcode 或源码。源码构建者可直接下载
 [`pdgall-2026.0.sqlite`](https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite)（

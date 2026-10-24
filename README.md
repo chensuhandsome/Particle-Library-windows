@@ -54,6 +54,9 @@ English UI, PDG 2026 snapshot, dark desktop theme and light iPhone theme.
   first-launch staging, schema validation and lossless raw-field views.
 - **Search and navigation** — particle names and aliases, Greek/LaTeX forms,
   MC numbers, PDG identifiers, topics, decays, references and free text.
+- **Review full-text search** — search all 121 PDG Reviews offline, jump to the
+  matching page, and see the section heading and table/figure caption for
+  each hit.
 - **Entity pages** — particles, topics, decay modes, series/properties and
   references, with summaries, all measurements, measurement values, footnotes,
   history, references and source records.
@@ -105,10 +108,10 @@ Source builders can download the exact snapshot used here:
 
 ## Install
 
-The latest release is **[Release 0.2.0](https://github.com/fkguo/Particle-Library/releases/tag/v0.2.0)**.
+Open the **[latest release](https://github.com/fkguo/Particle-Library/releases/latest)**.
 
 - **macOS 12+ (universal)**: download
-  `Particle-Library-0.2.0-macOS-universal.dmg` (or the `.zip`). It is ad-hoc
+  `Particle-Library-*-macOS-universal.dmg` (or the `.zip`). It is ad-hoc
   signed, not notarized. Verify `SHA256SUMS.txt` first.
 
   **If macOS blocks the first launch** (Gatekeeper), use one of these:
@@ -136,15 +139,16 @@ The latest release is **[Release 0.2.0](https://github.com/fkguo/Particle-Librar
   builds expire after 90 days. This is a pre-release beta, not the App Store
   version. macOS and Android are not distributed through this TestFlight link.
 - **Android 7.0+ (API 24)**: one signed APK for arm64 phones/tablets:
-  `Particle-Library-0.2.0-Android-arm64-v8a.apk` (32-bit devices are no longer
+  `Particle-Library-*-Android-arm64-v8a.apk` (32-bit devices are no longer
   built). See [Android build notes](docs/development/ANDROID.md).
 
-  **Android 0.2.0 is signed with a new key.** The 0.1.x key was lost, so
-  Android treats 0.2.0 as a different app and will not install it over 0.1.x.
-  Before uninstalling: in 0.1.x open Settings → Data → Export full backup;
-  uninstall the old app, install 0.2.0, then import that backup. Uninstalling
-  without a backup deletes the local notes, and Android auto-backup is off.
-- **Windows/Linux/web**: not built for 0.2.0.
+  **Android 0.2.0 and later use a new signing key.** The 0.1.x key was lost,
+  so Android treats 0.2.x as a different app and will not install it over
+  0.1.x. 0.2.x builds can be updated in place. Before uninstalling: in 0.1.x
+  open Settings → Data → Export full backup; uninstall the old app, install
+  the current 0.2.x build, then import that backup. Uninstalling without a
+  backup deletes the local notes, and Android auto-backup is off.
+- **Windows/Linux/web**: not built for this release.
 
 The macOS app bundles the PDG snapshot, so end users do not need Flutter, Xcode,
 or the repository. Source builders download
