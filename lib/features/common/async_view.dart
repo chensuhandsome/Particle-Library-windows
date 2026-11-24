@@ -128,7 +128,7 @@ class ErrorPanel extends StatelessWidget {
                   detail,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: palette.textSecondary,
-                    fontFamily: AppFonts.monospaceFamily,
+                    fontFamily: 'Menlo',
                   ),
                 ),
               ],

@@ -135,7 +135,7 @@ class _RawRow extends StatelessWidget {
               field.qualifiedName,
               style: style?.copyWith(
                 color: palette.textSecondary,
-                fontFamily: AppFonts.monospaceFamily,
+                fontFamily: 'Menlo',
                 fontSize: 11.5,
               ),
             ),
@@ -166,7 +166,7 @@ class _NullValue extends StatelessWidget {
       'NULL',
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
         color: palette.warning,
-        fontFamily: AppFonts.monospaceFamily,
+        fontFamily: 'Menlo',
         fontSize: 11.5,
       ),
     );

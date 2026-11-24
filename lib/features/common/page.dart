@@ -439,7 +439,7 @@ class DataField extends StatelessWidget {
                 SelectableText(
                   value.isEmpty ? '—' : value,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontFamily: monospace ? AppFonts.monospaceFamily : null,
+                    fontFamily: monospace ? 'Menlo' : null,
                     fontSize: monospace ? 12 : null,
                     color: warning ? palette.warning : palette.textPrimary,
                   ),

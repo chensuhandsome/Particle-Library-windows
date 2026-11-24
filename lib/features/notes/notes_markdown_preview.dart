@@ -67,7 +67,7 @@ class NotesMarkdownPreview extends StatelessWidget {
           child: SelectableText(
             block.text,
             style: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: AppFonts.monospaceFamily,
+              fontFamily: 'Menlo',
               height: 1.45,
             ),
           ),
@@ -193,7 +193,7 @@ class NotesMarkdownPreview extends StatelessWidget {
           TextSpan(
             text: token.substring(1, token.length - 1),
             style: TextStyle(
-              fontFamily: AppFonts.monospaceFamily,
+              fontFamily: 'Menlo',
               backgroundColor: context.palette.surfaceAlt,
             ),
           ),

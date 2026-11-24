@@ -20,7 +20,7 @@ if (-not $flutter) { throw 'Flutter is not on PATH.' }
 if (-not $SkipValidation) {
     & $flutter.Source pub get --enforce-lockfile
     if ($LASTEXITCODE -ne 0) { throw 'flutter pub get failed.' }
-    & $flutter.Source analyze --no-pub
+    & $flutter.Source analyze --no-pub lib test integration_test
     if ($LASTEXITCODE -ne 0) { throw 'flutter analyze failed.' }
     & $flutter.Source test --no-pub
     if ($LASTEXITCODE -ne 0) { throw 'flutter test failed.' }

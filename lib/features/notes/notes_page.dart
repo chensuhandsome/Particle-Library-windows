@@ -3239,7 +3239,7 @@ class _NotesWorkspaceState extends State<NotesWorkspace> {
                     '${widget.storeError}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: palette.textSecondary,
-                      fontFamily: AppFonts.monospaceFamily,
+                      fontFamily: 'Menlo',
                       fontSize: 11.5,
                     ),
                   ),

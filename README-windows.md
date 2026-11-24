@@ -1,117 +1,44 @@
-# Particle Library on Windows
+# Particle Library for Windows
 
-## Availability
+Build on Windows x64 with Flutter 3.47.7 and Visual Studio's Desktop
+development with C++ workload, including CMake and a Windows SDK. Flutter
+needs permission to create plugin symlinks. The first build and the native
+PDF smoke test require network access. Packaging needs Python 3 and Inno Setup 6.
 
-The Windows target builds for Windows 10/11 x64. The packaging script creates
-an Inno Setup installer and a complete portable ZIP. No public Windows release
-is announced until the native smoke-test checklist passes. Never separate
-`ParticleLibrary.exe` from its DLL files and `data` directory.
-
-## Requirements
-
-- Windows 10 or 11, x64.
-- Flutter 3.47.7 stable (Dart 3.13.5), matching `pubspec.yaml`.
-- Visual Studio 2022 or newer with **Desktop development with C++**, MSVC,
-  CMake tools for Windows, and a Windows 10/11 SDK. VS Code alone is not
-  sufficient.
-- Python 3 for the generated-version check and review-index validation.
-- Inno Setup 6 for the installer.
-- Network access for Flutter packages and the SQLite and PDFium binaries
-  fetched by the Dart build hooks during the first native build.
-- Permission to create Windows symlinks for Flutter plugins. Enable Developer
-  Mode or use the worktree-local junction procedure in the
-  [Windows verification record](docs/windows-adaptation/VERIFICATION_0.2.4.md).
-- Windows uses Segoe UI with `Microsoft YaHei UI` and `Microsoft YaHei` as
-  Chinese fallbacks. These are system fonts; no fonts are bundled.
-
-Check the installation with:
+Place the [official PDG 2026.0 snapshot](https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite)
+at `assets/pdgall-2026.0.sqlite`. Verify it and the bundled assets before
+building. The Windows lockfile uses pub.dev with upstream's pinned versions
+and hashes.
 
 ```powershell
-flutter doctor -v
-```
-
-## PDG Snapshot
-
-The 64 MiB PDG database is not in Git. Download the official PDG 2026 snapshot
-to `assets/pdgall-2026.0.sqlite`, then verify its SHA-256 before building:
-
-```powershell
-Invoke-WebRequest `
-  -Uri 'https://pdg.lbl.gov/2026/api/pdgall-2026.0.sqlite' `
-  -OutFile 'assets/pdgall-2026.0.sqlite'
-
-$expected = 'c82dab0c0a7c5264f23508066cabb8df9eacc1dbfc83c8d20fade6053394ba8a'
-$actual = (Get-FileHash 'assets/pdgall-2026.0.sqlite' -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($actual -ne $expected) { throw 'Snapshot hash mismatch.' }
-```
-
-Do not substitute an empty placeholder for the real snapshot when running the
-app or its tests. The app checks the snapshot identity and schema at startup.
-
-The four derived assets are the PDG notes sidecar, the review text index,
-its source manifest and its search rules. Use the versions tracked by upstream.
-Validate all five data assets before building:
-
-```powershell
-.\tool\windows\verify_assets.ps1
-python -X utf8 tool/generate_app_version.py --check
-```
-
-## Smoke Test
-
-On a Windows 10/11 x64 machine, record the OS build, Flutter version, Visual
-Studio/MSVC version and results in
-[`docs/windows-adaptation/PORTING_CHECKLIST.md`](docs/windows-adaptation/PORTING_CHECKLIST.md).
-Check startup and snapshot verification, search and math display, PDF loading
-and annotations, note/favorite persistence after restart, backup and note file
-dialogs, external links, and Zotero lookup when Zotero is installed. The
-platform is not supported until the release build and these checks pass.
-
-## Build and Run
-
-From the repository root:
-
-```powershell
+powershell -ExecutionPolicy Bypass -File .\tool\windows\verify_assets.ps1
 flutter pub get --enforce-lockfile
-flutter analyze
-flutter test
-flutter run -d windows `
-  --dart-define=UPDATE_MANIFEST_URL=https://api.github.com/repos/chensuhandsome/Particle-Library-windows/releases/latest
+flutter analyze --no-pub lib test integration_test
+flutter test --no-pub
+flutter test integration_test/pdf_hybrid_app_test.dart -d windows --no-pub
+flutter test integration_test/windows_smoke_test.dart -d windows --no-pub
+powershell -ExecutionPolicy Bypass -File .\tool\windows\test_release_tools.ps1
 ```
 
-The native regression tests isolate their data from your installed app. The
-Windows smoke test downloads two official review PDFs and checks the three
-review-search results against their physical pages:
+If package resolution succeeds but Flutter reports a symlink permission
+error, create junctions in the generated plugin directory and retry.
 
 ```powershell
-flutter test integration_test/pdf_hybrid_app_test.dart -d windows
-flutter test integration_test/windows_smoke_test.dart -d windows
+$linkRoot = Join-Path (Get-Location) 'windows/flutter/ephemeral/.plugin_symlinks'
+New-Item -ItemType Directory -Path $linkRoot -Force | Out-Null
+$metadata = Get-Content -Raw '.flutter-plugins-dependencies' | ConvertFrom-Json
+foreach ($plugin in $metadata.plugins.windows) {
+    $link = Join-Path $linkRoot $plugin.name
+    if (-not (Test-Path -LiteralPath $link)) {
+        New-Item -ItemType Junction -Path $link -Target $plugin.path | Out-Null
+    }
+}
+flutter pub get --enforce-lockfile
 ```
 
-Build a release executable bundle with:
-
-```powershell
-flutter build windows --release `
-  --dart-define=UPDATE_MANIFEST_URL=https://api.github.com/repos/chensuhandsome/Particle-Library-windows/releases/latest
-
-# Validate and package the installer plus portable ZIP:
-powershell -ExecutionPolicy Bypass -File .\tool\windows_release.ps1
-```
-
-The raw build output is under `build/windows/x64/runner/Release/`. Packaged
-artifacts are written to `dist/release/`:
-
-- `Particle-Library-<version>-Windows-x64-Setup.exe`
-- `Particle-Library-<version>-Windows-x64-Portable.zip`
-- `SHA256SUMS.txt`
-
-The installer is a per-user, portable-style installation with Start Menu and
-desktop shortcuts and no uninstaller entry. The portable ZIP must be extracted
-as a complete directory. Do not distribute only `ParticleLibrary.exe`.
-
-The packaging script validates the generated version, the native-asset manifest,
-and all bundled data files. It preserves older release files and uses this
-Windows fork's update endpoint. The installer keeps the existing per-user
-identity and defaults to creating a desktop shortcut; it can be disabled in
-Setup. Image clipboard copying remains macOS-only; Windows supports PNG save
-and Markdown/image export.
+Build the release, installer, and portable ZIP with
+`powershell -ExecutionPolicy Bypass -File .\tool\windows_release.ps1`.
+Pass `-InnoCompilerPath` for a portable Inno Setup installation. The runtime
+bundle is under `build/windows/x64/runner/Release/`. Run
+`ParticleLibrary.exe` from that complete directory. The installer, ZIP,
+and checksums are under `dist/release/`.

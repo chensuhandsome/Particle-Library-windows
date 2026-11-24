@@ -11,7 +11,6 @@
 
 # Generated Flutter and platform build files
 .dart_tool/
-devtools_options.yaml
 .packages
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -25,8 +24,6 @@ android/local.properties
 
 # IDE files
 .idea/
-.vscode/
-.vs/
 *.iml
 
 # Raw PDG snapshots must never be committed (~2 GB; supply via PDGAPP_SOURCE_DB)
@@ -48,5 +45,3 @@ dist/
 
 # Xcode Swift Package Manager state is generated per checkout.
 **/xcshareddata/swiftpm/
-# Widget Preview related
-.widget_preview/

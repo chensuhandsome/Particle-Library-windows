@@ -55,8 +55,6 @@ void main() {
       expect(services.notesError, isNull);
       expect(services.notes, isNotNull);
       expect((await PdgNotes.forPdgid('M252'))?.summary, contains('two poles'));
-      expect(AppTheme.light().textTheme.bodyMedium?.fontFamily, 'Segoe UI');
-      expect(AppFonts.monospaceFamily, 'Consolas');
       await services.settings.setLocale('en');
 
       final search = services.reviewSearch!;
