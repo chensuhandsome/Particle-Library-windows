@@ -46,6 +46,82 @@ void main() {
     expect(files, contains('rpp2026-rev-dalitz-params-k3pi-decays.pdf'));
   });
 
+  test('a review named in the summary becomes a related review', () async {
+    final files = await PdgNotes.reviewFilesFor('M111');
+    expect(files, contains('rpp2026-rev-light-mesons-spectroscopy.pdf'));
+  });
+
+  test('a see-also particle in the summary becomes a link target', () async {
+    final links = await PdgNotes.seeAlsoFor('M111');
+    expect(links, hasLength(1));
+    expect(links.first.targetPdgid, 'M164');
+    expect(links.first.label, 'pi_1(1600)');
+    expect(links.first.math, contains(r'\pi'));
+  });
+
+  test('summary review shorthands resolve to the review article', () async {
+    expect(
+      await PdgNotes.reviewFilesFor('M191'),
+      contains('rpp2026-rev-non-qqbar-mesons.pdf'),
+    );
+    expect(
+      await PdgNotes.reviewFilesFor('S054'),
+      contains('rpp2026-rev-searches-quark-lep-compositeness.pdf'),
+    );
+    expect(
+      await PdgNotes.reviewFilesFor('S058'),
+      contains('rpp2026-rev-quark-model.pdf'),
+    );
+    expect(
+      await PdgNotes.reviewFilesFor('S077'),
+      contains('rpp2026-rev-neutrino-mixing.pdf'),
+    );
+  });
+
+  test(
+    'historical Pc names resolve to the current pentaquark entries',
+    () async {
+      final b171 = await PdgNotes.seeAlsoFor('B171');
+      expect(
+        b171.any(
+          (link) =>
+              link.targetPdgid == 'B172' && (link.math ?? '').contains('4450'),
+        ),
+        isTrue,
+      );
+      final b172 = await PdgNotes.seeAlsoFor('B172');
+      expect(
+        b172.any(
+          (link) =>
+              link.targetPdgid == 'B171' && (link.math ?? '').contains('4380'),
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test('shipped notes database carries all PDG Live hadron headers', () async {
+    final headers = await PdgNotes.groupHeaders();
+    expect(headers, hasLength(20));
+    final delta = headers['BXXX010'];
+    expect(delta, isNotNull);
+    expect(delta!.title, contains('BARYONS'));
+    expect(delta.content, contains(r'\Delta'));
+    expect(delta.content, isNot(contains(r'$ $')));
+    expect(delta.content, isNotEmpty);
+    expect(headers['MXXX005']?.content, contains('For'));
+    expect(headers['BXXX012']?.title, 'EXOTIC BARYONS');
+  });
+
+  test('decay-table P and estimate note are loaded from the sidecar', () async {
+    final details = await PdgNotes.decayDetailsForParent('B033');
+    expect(details['B033.1']?.pText, '229');
+    expect(
+      await PdgNotes.decayNoteFor('B033'),
+      contains('branching fractions'),
+    );
+  });
+
   test('identifiers without notes return null', () async {
     expect(await PdgNotes.forPdgid('NOT-A-PDGID'), isNull);
   });

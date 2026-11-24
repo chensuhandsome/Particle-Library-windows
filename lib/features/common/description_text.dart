@@ -4,6 +4,17 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import '../../app/app_theme.dart';
 import '../../domain/latex.dart';
 
+/// Final normalization before a math span reaches `Math.tex`.
+///
+/// `+-`/`-+` are converted to ±/∓ for charge notation, but a J^PC expression
+/// contains two parity signs and must keep them literal.
+String normalizeDescriptionMath(String latex) {
+  if (latex.contains(r'J^{P')) return latex;
+  return latex
+      .replaceAll(RegExp(r'\^\{\s*\+\s*-\s*\}'), r'^{\pm}')
+      .replaceAll(RegExp(r'\^\{\s*-\s*\+\s*\}'), r'^{\mp}');
+}
+
 /// Renders a mixed source string with inline typeset mathematics.
 ///
 /// It understands three forms that occur in PDG data:
@@ -23,6 +34,7 @@ class DescriptionText extends StatelessWidget {
     this.selectable = false,
     this.citationIds = const <String, int>{},
     this.onCitationTap,
+    this.semanticsLabel,
   });
 
   final String text;
@@ -32,6 +44,9 @@ class DescriptionText extends StatelessWidget {
   final bool selectable;
   final Map<String, int> citationIds;
   final ValueChanged<int>? onCitationTap;
+
+  /// Spoken form when [text] contains TeX. Defaults to the source text.
+  final String? semanticsLabel;
 
   static final RegExp _citationPattern = RegExp(
     r"\b[A-Z][A-Za-z0-9&.'’\-]*(?:\s+(?:AND|&|ET\s+AL\.?|[A-Z][A-Za-z0-9&.'’\-]*))*\s+(?:19|20)\d{2}[A-Z]?\b",
@@ -67,7 +82,7 @@ class DescriptionText extends StatelessWidget {
         ? SelectableText.rich(TextSpan(children: spans), style: base)
         : SelectionArea(child: body);
     return Semantics(
-      label: text,
+      label: semanticsLabel ?? text,
       child: ExcludeSemantics(child: rich),
     );
   }
@@ -120,26 +135,29 @@ class DescriptionText extends StatelessWidget {
   }
 
   static InlineSpan _mathSpan(String latex, String fallback, TextStyle style) {
-    final normalized = latex
-        .replaceAll(RegExp(r'\^\{\s*\+\s*-\s*\}'), r'^{\pm}')
-        .replaceAll(RegExp(r'\^\{\s*-\s*\+\s*\}'), r'^{\mp}');
+    final normalized = normalizeDescriptionMath(latex);
     return WidgetSpan(
-      alignment: PlaceholderAlignment.baseline,
-      baseline: TextBaseline.alphabetic,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 0.5),
-        child: Math.tex(
-          normalized,
-          mathStyle: MathStyle.text,
-          // Do not inherit a heading's synthetic bold weight: many math fonts
-          // have no bold Greek glyphs, so f_0/a_0 would become bold while
-          // phi(1020) stayed regular. Keep all math spans on one weight; the
-          // surrounding prose keeps its own weight.
-          textStyle: style.copyWith(
-            fontWeight: FontWeight.normal,
-            fontStyle: FontStyle.normal,
+      // flutter_math_fork's RenderLine does not implement
+      // computeDryBaseline. Baseline alignment asks for exactly that and then
+      // trips a layout cascade in long lists; middle alignment keeps the math
+      // inline without that unsupported call.
+      alignment: PlaceholderAlignment.middle,
+      child: SelectionContainer.disabled(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 0.5),
+          child: Math.tex(
+            normalized,
+            mathStyle: MathStyle.text,
+            // Do not inherit a heading's synthetic bold weight: many math fonts
+            // have no bold Greek glyphs, so f_0/a_0 would become bold while
+            // phi(1020) stayed regular. Keep all math spans on one weight; the
+            // surrounding prose keeps its own weight.
+            textStyle: style.copyWith(
+              fontWeight: FontWeight.normal,
+              fontStyle: FontStyle.normal,
+            ),
+            onErrorFallback: (_) => Text(fallback, style: style),
           ),
-          onErrorFallback: (_) => Text(fallback, style: style),
         ),
       ),
     );

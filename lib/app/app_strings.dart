@@ -303,6 +303,20 @@ class AppStrings {
   String get particleAntiparticle => _t('反粒子', 'Antiparticle');
   String get particleSelfConjugate => _t('自共轭', 'Self-conjugate');
   String get particleQuantumNumbers => _t('量子数（原始字段）', 'Quantum numbers (raw)');
+  String get particleQuantumSummary => _t('量子数', 'Quantum numbers');
+  String particleStatusStars(int stars) {
+    final value = '*' * stars;
+    return stars >= 3
+        ? _t('PDG 状态：$value（已确立）', 'PDG status: $value (well established)')
+        : _t('PDG 状态：$value', 'PDG status: $value');
+  }
+
+  String get particleStatusSource => _t(
+    '星号来自 PDG Live 组页面；介子组页面只标“已确立”，不给出 1–4 星。',
+    'Stars come from the PDG Live group pages; meson group pages mark only “established” and publish no 1–4 star count.',
+  );
+  String get particleStatusEstablished =>
+      _t('PDG 状态：•（已确立）', 'PDG status: • (established)');
   String get particleProperties => _t('性质', 'Properties');
   String get particleSummarySection => _t('摘要', 'Summary');
   String get particleDecays => _t('衰变', 'Decays');
@@ -392,8 +406,8 @@ class AppStrings {
   String get seriesTrendChart => _t('趋势图', 'Trend chart');
   String get seriesTrendTitle => _t('跨版趋势', 'Across PDG editions');
   String get seriesTrendSubtitle => _t(
-    '同一量的 PDG 汇总随版本变化；误差条为原始正、负误差。',
-    'The PDG summary of one quantity across editions; error bars are the raw positive and negative errors.',
+    '同一量的 PDG 汇总随版本变化；有 PDG Average/Fit 时可分别查看。悬停或轻触数据点查看当年数值；误差条为原始正、负误差。',
+    'The PDG summary of one quantity across editions; PDG Average and Fit can be viewed separately. Hover or tap a point for that edition’s value; error bars are the raw positive and negative errors.',
   );
   String get seriesTrendNoData => _t(
     '至少需要两个版本的数值才能绘制趋势。',
@@ -407,9 +421,10 @@ class AppStrings {
       _t('个版本有并列汇总', 'editions with tied summaries');
   String get seriesTrendLimits => _t('个版本只有限值', 'editions with limits only');
   String get seriesTrendPoints => _t('个版本', 'editions');
+  String get seriesTrendAllValues => _t('全部取值', 'All values');
   String get seriesTrendXAxis => _t('PDG 版本', 'PDG edition');
   String get seriesTrendYAxis => _t('数值', 'Value');
-  String get seriesTrendCurrent => _t('当前版本', 'Current edition');
+  String get seriesTrendCurrent => _t('当前', 'Current');
   String get seriesTrendClose => _t('关闭', 'Close');
   String get seriesSectionText =>
       _t('章节说明与物理约定', 'Section text and conventions');
@@ -1496,6 +1511,24 @@ class AppStrings {
   );
   String get updateLater => _t('稍后', 'Later');
   String get updateOpen => _t('打开下载页面', 'Open download page');
+  String get updateNow => _t('立即更新', 'Update now');
+  String get updateInstall => _t('下载并安装', 'Download and install');
+  String get updateDownloading => _t('正在下载更新…', 'Downloading update…');
+  String get updateDownloadFailed => _t('更新下载失败', 'Update download failed');
+  String get updateCheckFailed => _t('更新检查失败', 'Update check failed');
+  String get updateCheckFailedMessage => _t(
+    'Sparkle 无法获取更新信息。可以打开下载页面手动更新。',
+    'Sparkle could not fetch update information. Open the download page to update manually.',
+  );
+  String get updateInstallFailedTitle => _t('更新安装失败', 'Update install failed');
+  String get updateInstallFailed => _t(
+    '安装器没有打开。请确认 APK 完整，或从发布页面手动下载。',
+    'The installer did not open. Check the downloaded APK or use the release page.',
+  );
+  String get updateInstallPermission => _t(
+    '需要允许安装未知应用。系统设置已打开，授权后请再次点击更新。',
+    'Allow installation from this source in Settings, then choose Update again.',
+  );
   String get updateAvailableMessage => _t(
     '有新版本可用。建议下载并安装最新版本。',
     'A newer version is available. Download and install the latest release.',

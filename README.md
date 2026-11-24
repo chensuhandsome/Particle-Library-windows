@@ -19,20 +19,25 @@
 **English** | [简体中文](README.zh-CN.md)
 
 Particle Library is an offline app for the Particle Data Group Review of
-Particle Physics, with notes, references, PDF reviews and annotations. The PDG
-snapshot stays read-only and local, while notes, collections, favorites and PDF
-annotations are stored separately from the data.
+Particle Physics (unofficial), built for working with the data rather than just
+reading it.
+Every particle, property, measurement, decay and reference is interconnected:
+open a value to see all its measurements, its edition-by-edition history and
+trend. Review articles can be searched offline, downloaded as PDFs when needed,
+and highlighted and annotated. Notes anchor to the exact particle, measurement,
+reference or highlighted passage they came from, so values collected for your
+own analysis stay attached to the data. INSPIRE search is built in as well.
 
 The first version was built over a weekend using **DeepSeek Harness** and
 **DeepSeek-V4.1-Flash-1017**.
 
 **Supported platforms:** macOS 12+ (universal), iPhone/iPadOS 15+, and
-Android 7.0+ (API 24, preview APK; arm64 tested on a physical device). A shared responsive Flutter layout is used
+Android 7.0+. A shared responsive Flutter layout is used
 across desktop and mobile.
 
 **Public TestFlight beta (iPhone/iPad):**
-[Join the beta](https://testflight.apple.com/join/my27SMAt). TestFlight builds
-are pre-release software and may be newer than the latest stable release.
+[Join the beta](https://testflight.apple.com/join/my27SMAt). iOS is currently
+distributed through TestFlight only.
 
 ## Screenshots
 
@@ -75,8 +80,8 @@ English UI, PDG 2026 snapshot, dark desktop theme and light iPhone theme.
 - **Full backup** — one ZIP with settings, favorites, notes, highlight anchors
   and cached review PDFs; import auto-detects the format and merges safely. On
   mobile, export opens the system share sheet.
-- **Literature** — local reference metadata plus optional Crossref title
-  lookup, INSPIRE search, BibTeX/cite-key lookup and a Zotero local bridge.
+- **Literature** — local reference metadata, INSPIRE search, BibTeX/cite-key
+  lookup and a Zotero local bridge.
 - **Zotero index (desktop only)** — an explicit, manually refreshed local cache of the Zotero
   library makes INSPIRE result matching fast and avoids one lookup per row.
 - **PDG reviews** — on-demand PDF cache, selective cache cleanup, PDF text
@@ -135,10 +140,10 @@ Open the **[latest release](https://github.com/fkguo/Particle-Library/releases/l
   2. Open the join link on the iPhone/iPad and tap **Accept**.
   3. Install **Particle Library** from TestFlight and open it.
 
-  Requires iOS/iPadOS 15+ and an Apple ID. Updates arrive through TestFlight;
-  builds expire after 90 days. This is a TestFlight pre-release beta; App Store
-  distribution is separate. This TestFlight link covers iPhone/iPad; macOS and
-  Android are distributed through GitHub Releases.
+  Requires iOS/iPadOS 15+ and an Apple ID. iOS is currently distributed through
+  TestFlight only; builds expire after 90 days. This is a pre-release beta. This
+  TestFlight link covers iPhone/iPad; macOS and Android are distributed through
+  GitHub Releases.
 - **Android 7.0+ (API 24)**: one signed APK for arm64 phones/tablets:
   `Particle-Library-*-Android-arm64-v8a.apk` (32-bit devices are no longer
   built). See [Android build notes](docs/development/ANDROID.md).
@@ -163,7 +168,9 @@ read-only derived assets:
 
 - `pdg_notes_2026.sqlite` — additional pdgLive enrichment: entry summaries and
   old-name notes, the 209 pdgLive-related references with INSPIRE record IDs
-  and cite keys, citation links, and entry-to-review links;
+  and cite keys, citation links, entry-to-review links, summary “See also”
+  particle links, and particle-status marks (1–4 stars from the baryon group
+  pages, established `•` bullets from the meson group pages);
 - `review_index_2026.sqlite` — a page-level full-text index built from the 121
   PDG Review PDFs.
 
@@ -245,9 +252,7 @@ Guo, Feng-Kun. Particle Library.
 Zenodo. https://doi.org/10.5281/zenodo.23460981
 ```
 
-For reproducibility, cite the exact version, e.g.
-`10.5281/zenodo.23464237` for 0.1.2. GitHub also exposes this metadata through
-[`CITATION.cff`](CITATION.cff).
+GitHub also displays this metadata from [`CITATION.cff`](CITATION.cff).
 
 ## Documentation
 

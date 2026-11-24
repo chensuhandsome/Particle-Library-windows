@@ -16,8 +16,11 @@ is announced until the native smoke-test checklist passes. Never separate
   sufficient.
 - Python 3 for the generated-version check and review-index validation.
 - Inno Setup 6 for the installer.
-- Network access for Flutter packages and the PDFium Windows DLL downloaded
-  by `pdfium_dart` during the first native build.
+- Network access for Flutter packages and the SQLite and PDFium binaries
+  fetched by the Dart build hooks during the first native build.
+- Permission to create Windows symlinks for Flutter plugins. Enable Developer
+  Mode or use the worktree-local junction procedure in the
+  [Windows verification record](docs/windows-adaptation/VERIFICATION_0.2.4.md).
 - Windows uses Segoe UI with `Microsoft YaHei UI` and `Microsoft YaHei` as
   Chinese fallbacks. These are system fonts; no fonts are bundled.
 
@@ -45,9 +48,8 @@ if ($actual -ne $expected) { throw 'Snapshot hash mismatch.' }
 Do not substitute an empty placeholder for the real snapshot when running the
 app or its tests. The app checks the snapshot identity and schema at startup.
 
-The 0.2.1 source also includes four derived assets: the PDG notes sidecar,
-the review text index, its source manifest and its search rules. Keep these
-files exactly as supplied by upstream; a Windows build does not regenerate them.
+The four derived assets are the PDG notes sidecar, the review text index,
+its source manifest and its search rules. Use the versions tracked by upstream.
 Validate all five data assets before building:
 
 ```powershell
@@ -73,7 +75,8 @@ From the repository root:
 flutter pub get --enforce-lockfile
 flutter analyze
 flutter test
-flutter run -d windows
+flutter run -d windows `
+  --dart-define=UPDATE_MANIFEST_URL=https://api.github.com/repos/chensuhandsome/Particle-Library-windows/releases/latest
 ```
 
 The native regression tests isolate their data from your installed app. The

@@ -18,14 +18,14 @@
 
 [English](README.md) | **简体中文**
 
-Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review of Particle Physics*，支持笔记、文献、PDF 综述和批注。PDG 数据快照保持只读且保存在本机，笔记、Collection、收藏和 PDF 批注与数据分开存储。
+Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review of Particle Physics*（非官方），为使用数据而不只是阅读而设计。每个粒子、属性、测量值、衰变和文献都互相链接：打开一个值，就能看到它的全部测量值、逐版历史与趋势。综述可离线检索、按需下载 PDF，并做高亮与批注。笔记锚定到它来自的粒子、测量值、文献或高亮段落，收集的数值因此始终与数据相连。应用还内置 INSPIRE 搜索。
 
 第一版是在周末使用 **DeepSeek Harness** 与 **DeepSeek-V4.1-Flash-1017** 构建的。
 
-**支持平台：** macOS 12+（通用二进制）、iPhone/iPadOS 15+，以及 Android 7.0+（API 24，预览 APK；arm64 已在真机测试）。各平台共享 Flutter 响应式布局。
+**支持平台：** macOS 12+、iPhone/iPadOS 15+，以及 Android 7.0+。各平台共享 Flutter 响应式布局。
 
 **iPhone/iPad 公开 TestFlight beta：**
-[加入测试](https://testflight.apple.com/join/my27SMAt)。TestFlight 是预发布版本，可能比最新正式版更新。
+[加入测试](https://testflight.apple.com/join/my27SMAt)。iOS 目前仅通过 TestFlight 分发。
 
 ## 截图
 
@@ -53,7 +53,7 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
 - **笔记**：本机 Markdown 笔记，支持锚点、反向链接、Collection、标签、搜索、JSON/Markdown 导入/导出和冲突保护；所有“加入笔记”入口共用同一个选择器。
 - **标签**：跨笔记筛选、浏览、重命名和删除。
 - **完整备份**：一个 ZIP 包含设置、收藏、笔记、高亮 anchor 和已缓存综述 PDF；导入自动识别格式并安全合并；移动端导出会打开系统分享面板。
-- **文献**：本地文献信息、可选 Crossref 题名补全、INSPIRE 搜索、BibTeX/cite key 和 Zotero 本地桥接。
+- **文献**：本地文献信息、INSPIRE 搜索、BibTeX/cite key 和 Zotero 本地桥接。
 - **Zotero 索引（仅 macOS 桌面）**：手动构建/更新的本地 Zotero 条目缓存，避免 INSPIRE 结果逐条请求。
 - **PDG 综述**：按需缓存 PDF、选择性清理、PDF 文字高亮；高亮直接存为带 review anchor 的本地笔记，可搜索、打标签、导出，并显示在右侧批注栏。
 - **PDF 高亮即笔记**：每条高亮都是一个带综述锚点的普通本地笔记，搜索、标签、反向链接、导出和回收站直接复用，不需要第二套批注数据库。
@@ -102,9 +102,9 @@ Particle Library 是一个离线应用，用于 Particle Data Group 的 *Review 
   2. 在 iPhone/iPad 上打开链接，点 **Accept**。
   3. 在 TestFlight 中安装 **Particle Library** 并打开。
 
-  需要 iOS/iPadOS 15+ 和 Apple ID。更新通过 TestFlight 推送；构建 90 天后过期。
-  这是 TestFlight 预发布 beta；App Store 分发另行处理。这个 TestFlight 链接只
-  覆盖 iPhone/iPad；macOS 和 Android 通过 GitHub Releases 分发。
+  需要 iOS/iPadOS 15+ 和 Apple ID。iOS 目前仅通过 TestFlight 分发；构建 90 天后过期。
+  这是预发布 beta。这个 TestFlight 链接只覆盖 iPhone/iPad；macOS 和 Android 通过
+  GitHub Releases 分发。
 - **Android 7.0+（API 24）**：Release 中提供已签名预览 APK，现代手机/平板用
   `Particle-Library-*-Android-arm64-v8a.apk`；32 位设备不再构建。详见
   [Android 构建说明](docs/development/ANDROID.md)。
@@ -123,7 +123,9 @@ macOS 版已内置 PDG 快照，发布包对普通用户是自包含的。源码
 [`assets/README.md`](assets/README.md)。应用另外内置两个独立的只读派生资产：
 
 - `pdg_notes_2026.sqlite`：pdgLive 额外补充内容——条目说明与旧名注释、
-  209 条 pdgLive 相关文献及其 INSPIRE 记录号/cite key、引用关系，以及条目→综述链接；
+  209 条 pdgLive 相关文献及其 INSPIRE 记录号/cite key、引用关系、条目→综述链接、
+  摘要中的“参见”粒子链接，以及粒子状态标记（重子组页面的 1–4 星与介子组页面的
+  已确立 `•` 圆点）；
 - `review_index_2026.sqlite`：由 121 篇 PDG 综述 PDF 构建的页面级全文索引。
 
 这 209 条是 pdgLive 注释实际引用的文献；官方库的其他文献由应用按需向 INSPIRE
@@ -197,9 +199,7 @@ Guo, Feng-Kun. Particle Library.
 Zenodo. https://doi.org/10.5281/zenodo.23460981
 ```
 
-需要可复现引用时，请引用具体版本，例如 0.1.2 对应
-`10.5281/zenodo.23464237`。GitHub 也会读取
-[`CITATION.cff`](CITATION.cff)。
+GitHub 也会通过 [`CITATION.cff`](CITATION.cff) 展示这些引用元数据。
 
 ## 文档
 

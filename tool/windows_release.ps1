@@ -32,8 +32,7 @@ if (-not $SkipBuild) {
 }
 $buildDir = Join-Path $repoRoot 'build/windows/x64/runner/Release'
 $requiredFiles = @(
-    'ParticleLibrary.exe', 'flutter_windows.dll', 'pdfium.dll', 'sqlite3.dll',
-    'sqlite3_flutter_libs_plugin.dll', 'data/app.so', 'data/icudtl.dat',
+    'ParticleLibrary.exe', 'flutter_windows.dll', 'data/app.so', 'data/icudtl.dat',
     'data/flutter_assets/NOTICES.Z', 'data/flutter_assets/NativeAssetsManifest.json'
 )
 foreach ($relativePath in $requiredFiles) {
@@ -43,10 +42,24 @@ foreach ($relativePath in $requiredFiles) {
 }
 $binaryVersion = (Get-Item -LiteralPath (Join-Path $buildDir 'ParticleLibrary.exe')).VersionInfo.ProductVersion
 if ($binaryVersion -ne $fullVersion) { throw "Stale Windows build: $binaryVersion (expected $fullVersion)." }
-# Validate the generated native-asset list: 0.3.1 has no gate DLL, while later
-# PDFium stacks do. Every packaged native asset must remain relocatable.
+# The Dart build hooks bundle SQLite, PDFium and the PDFium gate on Windows.
 $nativeManifest = Get-Content -LiteralPath (Join-Path $buildDir 'data/flutter_assets/NativeAssetsManifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-foreach ($asset in $nativeManifest.'native-assets'.windows_x64.PSObject.Properties) {
+$windowsNativeAssets = $nativeManifest.'native-assets'.windows_x64
+$requiredNativeAssets = @(
+    'package:sqlite3/src/ffi/libsqlite3.g.dart',
+    'package:pdfium_dart/libpdfium',
+    'package:pdfium_dart/src/pdfrx_pdfium_gate.dart'
+)
+foreach ($assetId in $requiredNativeAssets) {
+    $asset = $windowsNativeAssets.PSObject.Properties[$assetId]
+    if ($null -eq $asset) { throw "Missing Windows native asset record: $assetId" }
+    $record = @($asset.Value)
+    if ($record.Count -ne 2 -or $record[0] -ne 'absolute' -or
+        [System.IO.Path]::GetExtension([string]$record[1]) -ne '.dll') {
+        throw "Windows native asset is not a bundled DLL: $assetId"
+    }
+}
+foreach ($asset in $windowsNativeAssets.PSObject.Properties) {
     $record = @($asset.Value)
     if ($record[0] -ne 'absolute') { continue }
     $relative = [string]$record[1]

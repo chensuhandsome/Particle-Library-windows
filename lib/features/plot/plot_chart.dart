@@ -3,8 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/app_strings.dart';
 import '../../app/app_theme.dart';
 import '../../domain/display.dart';
+import '../../domain/labels.dart';
 import '../common/description_text.dart';
 import '../common/display_value.dart';
 import 'plot_data.dart';
@@ -47,11 +49,36 @@ Future<void> showTrendDialog(
   );
 }
 
-class TrendDialog extends StatelessWidget {
+class TrendDialog extends StatefulWidget {
   const TrendDialog({super.key, required this.data, required this.title});
 
   final PlotData data;
   final String title;
+
+  @override
+  State<TrendDialog> createState() => _TrendDialogState();
+}
+
+class _TrendDialogState extends State<TrendDialog> {
+  int _selected = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    for (var i = 0; i < widget.data.series.length; i++) {
+      if (widget.data.series[i].points.length >= 2) {
+        _selected = i;
+        break;
+      }
+    }
+  }
+
+  String _seriesLabel(PlotSeries series, AppStrings strings) {
+    final type = series.valueType.isEmpty
+        ? strings.seriesTrendAllValues
+        : valueTypeShortLabel(series.valueType, strings.lang);
+    return '$type · ${series.points.length}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +87,9 @@ class TrendDialog extends StatelessWidget {
     final screen = MediaQuery.sizeOf(context);
     final width = math.min(820.0, math.max(360.0, screen.width - 64));
     final chartHeight = math.min(320.0, math.max(220.0, screen.height * 0.38));
+    final data = widget.data.series.isEmpty
+        ? widget.data
+        : widget.data.selectSeries(_selected);
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
       child: ConstrainedBox(
@@ -80,7 +110,7 @@ class TrendDialog extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: DescriptionText(
-                        title,
+                        widget.title,
                         maxLines: 2,
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w600),
@@ -95,6 +125,25 @@ class TrendDialog extends StatelessWidget {
                       ?.copyWith(color: palette.textSecondary),
                 ),
                 const SizedBox(height: 10),
+                if (widget.data.series.length > 1) ...[
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      for (var i = 0; i < widget.data.series.length; i++)
+                        ChoiceChip(
+                          label: Text(
+                            _seriesLabel(widget.data.series[i], strings),
+                          ),
+                          selected: i == _selected,
+                          showCheckmark: false,
+                          visualDensity: VisualDensity.compact,
+                          onSelected: (_) => setState(() => _selected = i),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 if (!data.hasTrend)
                   _NoTrend(data: data)
                 else ...[
@@ -115,7 +164,9 @@ class TrendDialog extends StatelessWidget {
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
-                          for (final point in data.points)
+                          // The chart runs oldest-to-newest, but the value
+                          // list is easier to scan newest-first.
+                          for (final point in data.points.reversed)
                             _PointRow(point: point),
                         ],
                       ),
@@ -230,6 +281,20 @@ class _PlotChartState extends State<PlotChart> {
   int? _hovered;
 
   @override
+  void didUpdateWidget(covariant PlotChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldSeries = oldWidget.data.series.isEmpty
+        ? null
+        : oldWidget.data.series.first;
+    final newSeries = widget.data.series.isEmpty
+        ? null
+        : widget.data.series.first;
+    // Switching PDG Average/Fit changes the number of points and the years;
+    // a selected index from the previous series must not leak into this one.
+    if (!identical(oldSeries, newSeries)) _hovered = null;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final strings = AppScope.of(context).strings;
@@ -272,33 +337,53 @@ class _PlotChartState extends State<PlotChart> {
                       setState(() => _hovered = null);
                     }
                   },
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned.fill(
-                        child: CustomPaint(
-                          painter: _PlotPainter(
-                            data: widget.data,
-                            line: palette.primary,
-                            current: palette.accent,
-                            grid: palette.divider,
-                            text: palette.textSecondary,
-                            strong: palette.textPrimary,
-                            unit: '',
-                            textScaler: MediaQuery.textScalerOf(context),
-                            xLabel: strings.seriesTrendXAxis,
-                            hoveredIndex: _hovered,
+                  child: TapRegion(
+                    onTapOutside: (_) {
+                      if (_hovered != null && mounted) {
+                        setState(() => _hovered = null);
+                      }
+                    },
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapUp: (details) {
+                        final next = frame.nearestX(
+                          widget.data.points,
+                          details.localPosition.dx,
+                        );
+                        if (!mounted) return;
+                        setState(
+                          () => _hovered = next == _hovered ? null : next,
+                        );
+                      },
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _PlotPainter(
+                                data: widget.data,
+                                line: palette.primary,
+                                current: palette.accent,
+                                grid: palette.divider,
+                                text: palette.textSecondary,
+                                strong: palette.textPrimary,
+                                unit: '',
+                                textScaler: MediaQuery.textScalerOf(context),
+                                xLabel: strings.seriesTrendXAxis,
+                                hoveredIndex: _hovered,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (_hovered != null)
+                            _HoverCard(
+                              data: widget.data,
+                              index: _hovered!,
+                              frame: frame,
+                              size: size,
+                            ),
+                        ],
                       ),
-                      if (_hovered != null)
-                        _HoverCard(
-                          data: widget.data,
-                          index: _hovered!,
-                          frame: frame,
-                          size: size,
-                        ),
-                    ],
+                    ),
                   ),
                 );
               },
@@ -428,6 +513,22 @@ class _PlotFrame {
       }
     }
     return best < 0 ? null : best;
+  }
+
+  /// Touch target for a trend chart: a tap anywhere in the plot selects the
+  /// nearest year, without requiring a pixel-perfect hit on the marker.
+  int? nearestX(List<PlotPoint> points, double localX) {
+    if (points.isEmpty) return null;
+    var best = 0;
+    var bestDistance = (point(points.first).dx - localX).abs();
+    for (var i = 1; i < points.length; i++) {
+      final distance = (point(points[i]).dx - localX).abs();
+      if (distance < bestDistance) {
+        best = i;
+        bestDistance = distance;
+      }
+    }
+    return best;
   }
 }
 

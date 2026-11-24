@@ -33,12 +33,14 @@ Android, Windows or Linux build.
 
 The build also includes two committed, derived read-only assets:
 `pdg_notes_2026.sqlite` (pdgLive summaries and old names, 209 references with
-INSPIRE cite keys, citations and entry-to-review links) and
-`review_index_2026.sqlite` (page-level review FTS). See
+INSPIRE cite keys, citations, entry-to-review links, summary “See also”
+particle links, and particle-status marks) and `review_index_2026.sqlite`
+(page-level review FTS). See
 [assets/README.md](../../assets/README.md) for their contents and generators.
 
 `flutter test`, `flutter run` and every platform build require the snapshot to
-be present.
+be present. `sqlite3` 3.x uses Dart build hooks: the first build downloads the
+SQLite binary and needs network access plus the platform C toolchain.
 
 ## macOS
 
@@ -111,7 +113,7 @@ Before claiming support:
 
 - **Android:** add `android.permission.INTERNET`; decide whether the local
   Zotero API needs a cleartext/localhost exception; test the 64 MB asset and
-  Play Store size; verify `sqlite3_flutter_libs`, `pdfrx` and `file_selector`.
+  Play Store size; verify `sqlite3` native assets, `pdfrx` and `file_selector`.
 - **Windows:** build on a Windows machine with MSVC/CMake; verify SQLite,
   PDFium and file dialogs; provide a proper installer.
 - **Linux:** build on a Linux host with GTK/CMake; verify SQLite, PDFium,

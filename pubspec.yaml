@@ -1,7 +1,7 @@
 name: pdgapp
 description: "Particle Library: an offline PDG particle-data library."
 publish_to: 'none'
-version: 0.2.1+19
+version: 0.2.4+22
 
 environment:
   sdk: ^3.13.5
@@ -14,10 +14,9 @@ dependencies:
   crypto: ^3.0.7
   flutter_math_fork: ^0.7.4
   path_provider: ^2.1.5
-  sqlite3: ^2.9.4
-  sqlite3_flutter_libs: ^0.5.42
+  sqlite3: ^3.8.0
   url_launcher: ^6.3.1
-  pdfrx: ^2.6.5
+  pdfrx: ^2.11.0
   file_selector: ^1.1.0
   flutter_svg: ^2.3.0
   archive: ^4.5.2

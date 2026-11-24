@@ -1,9 +1,14 @@
 import Cocoa
 import FlutterMacOS
+import Sparkle
 
 class MainFlutterWindow: NSWindow {
   private var menuChannel: FlutterMethodChannel?
+  private var reviewChannel: FlutterMethodChannel?
   private var zoteroChannel: FlutterMethodChannel?
+  private var updateChannel: FlutterMethodChannel?
+  private var updaterController: SPUStandardUpdaterController?
+  private var sparkleDelegate: SparkleUpdateDelegate?
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -17,7 +22,43 @@ class MainFlutterWindow: NSWindow {
     )
     self.menuChannel = menuChannel
 
+    let reviewChannel = FlutterMethodChannel(
+      name: "pdg.review",
+      binaryMessenger: flutterViewController.engine.binaryMessenger
+    )
+    self.reviewChannel = reviewChannel
+
     super.awakeFromNib()
+
+    // Sparkle owns the download, signature check and in-place replacement of
+    // the app bundle. The Flutter update dialog only asks it to check.
+    let sparkleDelegate = SparkleUpdateDelegate()
+    sparkleDelegate.window = self
+    self.sparkleDelegate = sparkleDelegate
+    let updaterController = SPUStandardUpdaterController(
+      startingUpdater: true,
+      updaterDelegate: sparkleDelegate,
+      userDriverDelegate: nil
+    )
+    self.updaterController = updaterController
+    let updateChannel = FlutterMethodChannel(
+      name: "pdg.update",
+      binaryMessenger: flutterViewController.engine.binaryMessenger
+    )
+    self.updateChannel = updateChannel
+    updateChannel.setMethodCallHandler { [weak self] call, result in
+      switch call.method {
+      case "checkForUpdates":
+        DispatchQueue.main.async {
+          self?.updaterController?.checkForUpdates(nil)
+        }
+        result(true)
+      case "isSupported":
+        result(true)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
 
     // macOS can keep an old Dock icon cached for the same bundle path across
     // rebuilds. Set the icon explicitly from the current AppIcon.icns so the
@@ -126,5 +167,58 @@ class MainFlutterWindow: NSWindow {
 
   @IBAction func showSettings(_ sender: Any?) {
     menuChannel?.invokeMethod("showSettings", arguments: nil)
+  }
+
+  @IBAction func checkForUpdates(_ sender: Any?) {
+    updaterController?.checkForUpdates(sender)
+  }
+
+  func reportUpdateFailure(_ error: Error) {
+    updateChannel?.invokeMethod(
+      "updateFailed",
+      arguments: ["message": error.localizedDescription]
+    )
+  }
+
+  // The standard Edit > Find menu items are handled by AppKit before Flutter
+  // sees their key equivalents. Forward them to the active PDF reader instead
+  // of letting performFindPanelAction: fall through to a no-op.
+  @IBAction func findInReader(_ sender: Any?) {
+    reviewChannel?.invokeMethod("find", arguments: nil)
+  }
+
+  @IBAction func findNextInReader(_ sender: Any?) {
+    reviewChannel?.invokeMethod("findNext", arguments: nil)
+  }
+
+  @IBAction func findPreviousInReader(_ sender: Any?) {
+    reviewChannel?.invokeMethod("findPrevious", arguments: nil)
+  }
+}
+
+
+/// Forwards Sparkle's failed update cycles to Flutter. Normal "no update"
+/// results and explicit user cancellation are not failures.
+final class SparkleUpdateDelegate: NSObject, SPUUpdaterDelegate {
+  weak var window: MainFlutterWindow?
+
+  func updater(
+    _ updater: SPUUpdater,
+    didFinishUpdateCycleFor updateCheck: SPUUpdateCheck,
+    error: Error?
+  ) {
+    guard updateCheck == .updates, let error = error else { return }
+    let nsError = error as NSError
+    let normalCodes: Set<Int> = [
+      1001, // SUNoUpdateError
+      4007, // SUInstallationCanceledError
+      4008, // SUInstallationAuthorizeLaterError
+    ]
+    if nsError.domain == SUSparkleErrorDomain && normalCodes.contains(nsError.code) {
+      return
+    }
+    DispatchQueue.main.async { [weak self] in
+      self?.window?.reportUpdateFailure(error)
+    }
   }
 }

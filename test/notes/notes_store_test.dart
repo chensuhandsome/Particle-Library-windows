@@ -177,7 +177,7 @@ void main() {
         SELECT RAISE(ABORT, 'injected tag failure');
       END;
     ''');
-      db.dispose();
+      db.close();
 
       final reopened = await openStore();
       await expectLater(
@@ -202,7 +202,7 @@ void main() {
           0,
         );
       } finally {
-        check.dispose();
+        check.close();
       }
     },
   );
@@ -723,7 +723,7 @@ void main() {
         .select("SELECT name FROM sqlite_master WHERE type = 'table'")
         .map((row) => row['name'])
         .toSet();
-    raw.dispose();
+    raw.close();
     expect(tables, containsAll(['notes', 'note_anchors', 'note_tags', 'meta']));
 
     final reopened = await openStore();
@@ -734,7 +734,7 @@ void main() {
     await reopened.close();
     raw = sqlite3.open(dbPath, mode: OpenMode.readOnly);
     expect(raw.userVersion, 2);
-    raw.dispose();
+    raw.close();
     final third = await openStore();
     expect(await third.recent(), hasLength(1));
   });
@@ -744,7 +744,7 @@ void main() {
     final raw = sqlite3.open(path, mode: OpenMode.readWriteCreate);
     raw.userVersion = 3;
     raw.execute('CREATE TABLE future_only(x TEXT)');
-    raw.dispose();
+    raw.close();
 
     await expectLater(
       NotesStore.open(overridePath: path),
@@ -761,7 +761,7 @@ void main() {
       check.select("SELECT name FROM sqlite_master WHERE name = 'notes'"),
       isEmpty,
     );
-    check.dispose();
+    check.close();
   });
 
   test('user_version 0 with existing tables is refused, not reset', () async {
@@ -769,7 +769,7 @@ void main() {
     final raw = sqlite3.open(path, mode: OpenMode.readWriteCreate);
     raw.execute('CREATE TABLE foreign_data(value TEXT)');
     raw.execute("INSERT INTO foreign_data(value) VALUES ('keep me')");
-    raw.dispose();
+    raw.close();
 
     await expectLater(
       NotesStore.open(overridePath: path),
@@ -786,7 +786,7 @@ void main() {
       check.select("SELECT name FROM sqlite_master WHERE name = 'notes'"),
       isEmpty,
     );
-    check.dispose();
+    check.close();
   });
 
   test('corrupt database throws a typed error and is preserved', () async {
@@ -858,7 +858,7 @@ void main() {
       'backup me',
     );
     expect(backup.select('SELECT tag FROM note_tags').single['tag'], 'backup');
-    backup.dispose();
+    backup.close();
 
     final size = await File(backupPath).length();
     await expectLater(
